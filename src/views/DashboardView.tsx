@@ -47,6 +47,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateToTransfer,
 }) => {
   const [selectedAccountId, setSelectedAccountId] = useState<string>('all');
+  const [activeAccountId, setActiveAccountId] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
@@ -57,6 +58,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const primaryAccount =
     accounts.find((a) => a.account_type === 'Checking') || accounts[0] || null;
+  const activeAccount = accounts.find((account) => account.id === activeAccountId) || primaryAccount;
+  const switchableAccounts = accounts.filter((account) => account.account_type === 'Checking' || account.account_type === 'Savings');
   const customerName = user?.full_name || (user as any)?.name || 'Valued Customer';
 
   const handleCopy = (text: string, fieldKey: string) => {
@@ -195,8 +198,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mt-6 pt-5 border-t border-white/15">
             {/* 1. Account Number */}
             <div className="bg-white/10 backdrop-blur-xs rounded-xs p-4 border border-white/10 hover:bg-white/15 transition-colors">
-              <div className="flex items-center justify-between text-[11px] text-gray-300 uppercase tracking-wider font-semibold mb-1.5">
-                <span>{primaryAccount?.nickname || 'Checking Account'} Number</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-gray-300 uppercase tracking-wider font-semibold mb-1.5">
+                <span>{activeAccount?.nickname || 'Checking Account'} Number</span>
+                {switchableAccounts.length > 1 && (
+                  <select
+                    aria-label="Switch active account"
+                    value={activeAccount?.id || ''}
+                    onChange={(event) => {
+                      setActiveAccountId(event.target.value);
+                      setShowAccountNumber(false);
+                    }}
+                    className="w-full sm:w-auto max-w-full rounded-sm border border-white/20 bg-[#002663] px-2 py-1 text-[11px] font-semibold normal-case text-white focus:outline-none focus:ring-2 focus:ring-white/60"
+                  >
+                    {switchableAccounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.account_type} · {account.nickname}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -209,7 +229,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <button
                     id="btn-copy-account-number"
                     type="button"
-                    onClick={() => handleCopy(primaryAccount?.account_number || '', 'account')}
+                    onClick={() => handleCopy(activeAccount?.account_number || '', 'account')}
                     className="text-gray-300 hover:text-white cursor-pointer p-0.5 inline-flex items-center gap-1 text-[10px]"
                     title="Copy account number"
                   >
@@ -225,13 +245,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <div className="font-mono text-lg sm:text-xl font-bold tracking-wider text-white">
                 {showAccountNumber
-                  ? (primaryAccount?.account_number || '4860399242')
-                  : `•••• •••• ${primaryAccount?.account_number ? primaryAccount.account_number.slice(-4) : '9242'}`}
+                  ? (activeAccount?.account_number || '4860399242')
+                  : `•••• •••• ${activeAccount?.account_number ? activeAccount.account_number.slice(-4) : '9242'}`}
               </div>
               <div className="text-[11px] text-gray-300 mt-1 flex items-center justify-between">
-                <span>{primaryAccount?.account_type || 'Checking'}</span>
+                <span>{activeAccount?.account_type || 'Checking'}</span>
                 <span className="font-mono font-bold text-emerald-300">
-                  {primaryAccount ? formatUSD(primaryAccount.balance) : '$0.00'} Available
+                  {activeAccount ? formatUSD(activeAccount.balance) : '$0.00'} Available
                 </span>
               </div>
             </div>
@@ -243,7 +263,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <button
                   id="btn-copy-routing-number"
                   type="button"
-                  onClick={() => handleCopy(primaryAccount?.routing_number || '026009593', 'routing')}
+                  onClick={() => handleCopy(activeAccount?.routing_number || '026009593', 'routing')}
                   className="text-gray-300 hover:text-white cursor-pointer p-0.5 inline-flex items-center gap-1 text-[10px]"
                   title="Copy routing number"
                 >
@@ -257,7 +277,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </button>
               </div>
               <div className="font-mono text-lg sm:text-xl font-bold tracking-wider text-white">
-                {primaryAccount?.routing_number || '026009593'}
+                {activeAccount?.routing_number || '026009593'}
               </div>
               <div className="text-[11px] text-gray-300 mt-1">
                 Direct Deposit & Electronic ACH Transfer
