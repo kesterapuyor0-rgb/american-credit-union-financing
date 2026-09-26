@@ -122,35 +122,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            id="btn-refresh-dashboard"
-            onClick={onRefresh}
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-xs border border-gray-300 rounded-sm shadow-2xs transition-colors cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-[#002663] ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh Balances</span>
-          </button>
-
-          <button
-            id="btn-nav-deposit"
-            onClick={() => setIsDepositModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#DC143C] hover:bg-[#B01030] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-xs transition-colors cursor-pointer"
-          >
-            <PlusCircle className="w-3.5 h-3.5" />
-            <span>Add Funds / Deposit</span>
-          </button>
-
-          <button
-            id="btn-quick-transfer"
-            onClick={() => onNavigateToTransfer()}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#002663] hover:bg-[#001D4D] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-xs transition-colors cursor-pointer"
-          >
-            <span>Transfer Money</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
       </div>
 
       {/* Prominent Dynamic Welcome Header Hero Section */}
@@ -301,6 +272,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Primary dashboard actions directly follow the welcome card */}
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2.5">
+        <button
+          id="btn-refresh-dashboard"
+          onClick={onRefresh}
+          disabled={loading}
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-xs border border-gray-300 rounded-sm shadow-2xs transition-colors cursor-pointer"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 text-[#002663] ${loading ? 'animate-spin' : ''}`} />
+          <span>Refresh Balances</span>
+        </button>
+
+        <button
+          id="btn-nav-deposit"
+          onClick={() => setIsDepositModalOpen(true)}
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#DC143C] hover:bg-[#B01030] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-xs transition-colors cursor-pointer"
+        >
+          <PlusCircle className="w-3.5 h-3.5" />
+          <span>Add Funds / Deposit</span>
+        </button>
+
+        <button
+          id="btn-quick-transfer"
+          onClick={() => onNavigateToTransfer()}
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#002663] hover:bg-[#001D4D] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-xs transition-colors cursor-pointer"
+        >
+          <span>Transfer Money</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* Deposit Success Alert if applicable */}

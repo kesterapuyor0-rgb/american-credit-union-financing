@@ -21,7 +21,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenProfileModal,
 }) => {
   return (
-    <div className="w-full shrink-0">
+    <div className="sticky top-0 z-50 w-full shrink-0 bg-white">
       {/* Top Header - Professional Polish: Navy Blue + Red Accent Border */}
       <header className="bg-[#002663] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#DC143C] shadow-lg">
         <div className="flex items-center space-x-4">
