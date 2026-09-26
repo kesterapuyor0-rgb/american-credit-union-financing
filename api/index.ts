@@ -1,5 +1,3 @@
-import express from 'express';
-// your routes and middleware here
-const app = express();
-// ...
+import { app } from '../server.js';
+
 export default app;

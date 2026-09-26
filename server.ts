@@ -1,42 +1,93 @@
-import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import express, { NextFunction, Request, Response } from 'express';
+import path from 'path';
+import cookieParser from 'cookie-parser';
+import { verifyAuthToken } from './server/auth.js';
+import authRoutes from './server/routes/authRoutes.js';
+import userRoutes from './server/routes/userRoutes.js';
+import transferRoutes from './server/routes/transferRoutes.js';
+import adminRoutes from './server/routes/adminRoutes.js';
+import verifyRoutes from './server/routes/verifyRoutes.js';
+import accountRoutes from './server/routes/accountRoutes.js';
 
-const MONGODB_URI = process.env.MONGODB_URI;
+dotenv.config({ path: '.env.local' });
+dotenv.config();
 
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable inside Vercel');
-}
+export const app = express();
 
-// Global variable to cache the connection across serverless invocations
-let cached = (global as any).mongoose;
+app.use(express.json());
+app.use(cookieParser());
 
-if (!cached) {
-    cached = (global as any).mongoose = { conn: null, promise: null };
-}
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.json({ status: 'ok', bank: 'Bank of America Online Banking', time: new Date().toISOString() });
+});
 
-async function connectDB() {
-  if (cached.conn) {
-    return cached.conn;
+app.use('/api/auth', authRoutes);
+app.use('/api', authRoutes);
+app.use('/api/verify', verifyRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/transfers', transferRoutes);
+app.use('/api/accounts', accountRoutes);
+app.use('/api/admin', adminRoutes);
+
+app.get('/admin', (req: Request, res: Response, next: NextFunction) => {
+  const cookieToken = req.cookies?.boa_token;
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : cookieToken;
+
+  if (!token) {
+    res.status(403);
+    if (req.xhr || req.headers.accept?.includes('application/json')) {
+      res.json({ error: 'Forbidden: Admin access required.' });
+      return;
+    }
+    res.redirect('/dashboard?auth_error=403_forbidden');
+    return;
   }
 
-  if (!cached.promise) {
-    const opts = {
-      bufferCommands: false,
-      dbName: 'bank_database', // Explicitly name your database so it doesn't default to test
-    };
-
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      return mongoose;
-    });
+  const decoded = verifyAuthToken(token);
+  if (!decoded || decoded.role !== 'admin') {
+    res.status(403);
+    if (req.xhr || req.headers.accept?.includes('application/json')) {
+      res.json({ error: 'Forbidden: Admin access required.' });
+      return;
+    }
+    res.redirect('/dashboard?auth_error=403_forbidden');
+    return;
   }
 
-  try {
-    cached.conn = await cached.promise;
-  } catch (e) {
-    cached.promise = null;
-    throw e;
-  }
+  next();
+});
 
-  return cached.conn;
+if (process.env.NODE_ENV === 'production' && process.env.VERCEL !== '1') {
+  const distPath = path.join(process.cwd(), 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'index.html')));
 }
 
-export default connectDB;
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled Express error:', err?.stack || err);
+  res.status(500).json({
+    error: typeof err?.message === 'string' ? err.message : 'A server error has occurred.',
+  });
+});
+
+async function startServer(): Promise<void> {
+  if (process.env.NODE_ENV !== 'production') {
+    const { createServer } = await import('vite');
+    const vite = await createServer({ server: { middlewareMode: true }, appType: 'spa' });
+    app.use(vite.middlewares);
+  }
+
+  const port = Number(process.env.PORT) || 3000;
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`Banking server running on http://0.0.0.0:${port}`);
+  });
+}
+
+if (process.env.VERCEL !== '1') {
+  startServer().catch((err) => {
+    console.error('Fatal error starting server:', err);
+    process.exit(1);
+  });
+}

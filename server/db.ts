@@ -11,9 +11,9 @@ export async function connectDatabase(): Promise<typeof mongoose> {
   if (mongoose.connection.readyState === 0) connectionPromise = null;
 
   if (!connectionPromise) {
-    const mongoUri = process.env.MONGO_URI;
+    const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL;
     if (!mongoUri) {
-      throw new Error('MONGO_URI is not configured. Add your MongoDB Atlas connection string to the environment.');
+      throw new Error('Set MONGO_URI, MONGODB_URI, or MONGO_URL to your MongoDB Atlas connection string.');
     }
 
     connectionPromise = mongoose.connect(mongoUri, {
