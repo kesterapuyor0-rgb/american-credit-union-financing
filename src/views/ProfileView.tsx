@@ -101,8 +101,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Unable to update profile picture.');
-        setProfile((current) => current ? { ...current, profilePicture: data.profilePicture } : current);
-        onProfilePictureChange(data.profilePicture);
+        const updatedPicture = data.user?.profilePicture || '';
+        setProfile((current) => current ? { ...current, profilePicture: updatedPicture } : current);
+        onProfilePictureChange(updatedPicture);
         setPictureMessage('Profile picture updated.');
       } catch (error) {
         setPictureMessage(error instanceof Error ? error.message : 'Unable to update profile picture.');

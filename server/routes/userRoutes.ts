@@ -160,13 +160,13 @@ router.post('/profile-picture', requireAuth, async (req: AuthenticatedRequest, r
       { id: req.user!.id },
       { $set: { profilePicture } },
       { new: true }
-    ).select('id profilePicture').lean<any>();
+    ).select('id email full_name role phone profilePicture').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User not found.' });
       return;
     }
 
-    res.json({ success: true, profilePicture: user.profilePicture });
+    res.json({ success: true, user });
   } catch (err: any) {
     console.error('Failed to update profile picture:', err);
     res.status(500).json({ error: errorMessage(err, 'Failed to update profile picture.') });
