@@ -58,7 +58,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               title="Click to view Account Profile & Identification"
             >
               <div className="w-8 h-8 rounded-full bg-white/15 border border-white/25 flex items-center justify-center text-white text-xs font-bold font-serif group-hover:bg-white/25 transition-colors shrink-0">
-                {user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
+                {user.profilePicture ? (
+                  <img src={user.profilePicture} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                ) : (
+                  user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'
+                )}
               </div>
               <div className="flex flex-col items-start hidden sm:flex">
                 <span className="text-[9px] opacity-80 uppercase tracking-widest text-slate-200">

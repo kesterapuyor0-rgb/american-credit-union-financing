@@ -4,6 +4,7 @@ export interface User {
   full_name: string;
   role: 'user' | 'admin';
   phone: string;
+  profilePicture?: string;
   created_at?: string;
 }
 
@@ -86,6 +87,7 @@ export interface UserProfile {
   full_name: string;
   role: 'user' | 'admin';
   phone: string;
+  profilePicture?: string;
   security_pin?: string;
   created_at?: string;
   account_number: string;
@@ -94,4 +96,3 @@ export interface UserProfile {
   encryption_status?: string;
   accounts_count?: number;
 }
-

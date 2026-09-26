@@ -7,6 +7,7 @@ const userSchema = new Schema({
   full_name: { type: String, required: true, trim: true },
   role: { type: String, required: true, default: 'user', index: true },
   phone: { type: String, required: true, trim: true },
+  profilePicture: { type: String, default: '' },
   security_pin: { type: String, select: false },
   account_number: { type: String, trim: true },
   created_at: { type: Schema.Types.Mixed, required: true },

@@ -124,7 +124,7 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
     // Mark verified
     await VerificationCode.updateOne({ id: record.id }, { $set: { verified: true } });
 
-    const user = await User.findOne({ id: payload.id }).select('id email full_name role phone').lean<any>();
+    const user = await User.findOne({ id: payload.id }).select('id email full_name role phone profilePicture').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User profile not found.' });
       return;
@@ -156,6 +156,7 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
         full_name: user.full_name,
         role: normalizedRole,
         phone: user.phone,
+        profilePicture: user.profilePicture || '',
       },
     });
   } catch (err: any) {
@@ -215,12 +216,12 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
       res.status(401).json({ error: 'Not authenticated' });
       return;
     }
-    const user = await User.findOne({ id: req.user.id }).select('id email full_name role phone').lean<any>();
+    const user = await User.findOne({ id: req.user.id }).select('id email full_name role phone profilePicture').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
     }
-    res.json({ user: { ...user, role: isAdminRole(user.role) ? 'admin' : 'user' } });
+    res.json({ user: { ...user, profilePicture: user.profilePicture || '', role: isAdminRole(user.role) ? 'admin' : 'user' } });
   } catch (err: any) {
     res.status(500).json({ error: errorMessage(err, 'Failed to retrieve user profile.') });
   }

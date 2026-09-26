@@ -324,6 +324,7 @@ export default function App() {
           <ProfileView
             user={user}
             accounts={accounts}
+            onProfilePictureChange={(profilePicture) => setUser((current) => current ? { ...current, profilePicture } : current)}
             onReturnToAccounts={() => setActiveTab('accounts')}
             onNavigateToTransfer={() => setActiveTab('transfers')}
           />

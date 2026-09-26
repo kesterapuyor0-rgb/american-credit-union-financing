@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import { User, BankAccount, UserProfile } from '../types';
-import { getStoredAuthToken } from '../utils/api';
+import { getAuthHeaders, getStoredAuthToken } from '../utils/api';
 import {
   User as UserIcon,
   Mail,
@@ -27,6 +27,7 @@ interface ProfileViewProps {
   accounts: BankAccount[];
   onReturnToAccounts: () => void;
   onNavigateToTransfer: () => void;
+  onProfilePictureChange: (profilePicture: string) => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -34,19 +35,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   accounts,
   onReturnToAccounts,
   onNavigateToTransfer,
+  onProfilePictureChange,
 }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showAccountNum, setShowAccountNum] = useState(false);
   const [showPin, setShowPin] = useState(false);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [pictureMessage, setPictureMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true);
       try {
         const storedToken = getStoredAuthToken();
-        const res = await fetch('/api/user/profile', {
+          const res = await fetch('/api/user/profile', {
           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
           credentials: 'include',
         });
@@ -69,6 +73,46 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const routingNumber = profile?.routing_number || primaryAccount?.routing_number || '026009593';
   const accountStatus = profile?.status || primaryAccount?.status || 'Active';
   const securityPin = profile?.security_pin || '••••';
+
+  const handleProfilePicture = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setPictureMessage('Choose an image file to use as your profile picture.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setPictureMessage('Profile pictures must be 5 MB or smaller.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      if (typeof reader.result !== 'string') return;
+      setUploadingPicture(true);
+      setPictureMessage(null);
+      try {
+        const response = await fetch('/api/user/profile-picture', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          credentials: 'include',
+          body: JSON.stringify({ profilePicture: reader.result }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Unable to update profile picture.');
+        setProfile((current) => current ? { ...current, profilePicture: data.profilePicture } : current);
+        onProfilePictureChange(data.profilePicture);
+        setPictureMessage('Profile picture updated.');
+      } catch (error) {
+        setPictureMessage(error instanceof Error ? error.message : 'Unable to update profile picture.');
+      } finally {
+        setUploadingPicture(false);
+      }
+    };
+    reader.onerror = () => setPictureMessage('Unable to read this image file.');
+    reader.readAsDataURL(file);
+  };
 
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -100,8 +144,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div className="h-1.5 bg-[#DC143C]" />
         <div className="bg-[#002663] text-white p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center text-white text-2xl font-bold font-serif shadow-inner">
-              {user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
+            <div className="flex flex-col items-center gap-2 shrink-0">
+              <div className="w-16 h-16 rounded-full bg-white/10 border-2 border-white/20 overflow-hidden flex items-center justify-center text-white text-2xl font-bold font-serif shadow-inner">
+                {(profile?.profilePicture || user.profilePicture) ? (
+                  <img src={profile?.profilePicture || user.profilePicture} alt={`${user.full_name} profile`} className="w-full h-full object-cover" />
+                ) : user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <label className="text-[10px] font-semibold text-blue-100 hover:text-white underline cursor-pointer text-center">
+                {uploadingPicture ? 'Uploading…' : 'Change photo'}
+                <input type="file" accept="image/*" onChange={handleProfilePicture} disabled={uploadingPicture} className="sr-only" />
+              </label>
+              {pictureMessage && <span role="status" className="text-[10px] text-blue-100 text-center max-w-32">{pictureMessage}</span>}
             </div>
             <div>
               <div className="text-xs uppercase tracking-widest font-bold text-blue-200">

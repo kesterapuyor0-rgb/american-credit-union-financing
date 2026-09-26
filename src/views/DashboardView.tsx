@@ -114,7 +114,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <span className="text-xs font-bold text-[#DC143C] uppercase tracking-wider">
             Personal Banking Portal
           </span>
-          <h1 className="text-2xl font-bold text-[#002663] font-serif tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#002663] font-serif tracking-tight">
             Account Dashboard
           </h1>
         </div>
@@ -304,7 +304,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* ASIDE COLUMN: Your Accounts + Quick Actions + Security Tip */}
         <aside className="w-full lg:w-[320px] shrink-0 flex flex-col space-y-6">
           {/* Card: Your Accounts */}
-          <div className="bg-white border border-gray-200 shadow-sm p-5 rounded-sm">
+          <div className="bg-white border border-gray-200 shadow-sm p-4 sm:p-5 rounded-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-[#002663] font-bold text-base sm:text-lg flex items-center">
                 <Landmark className="w-5 h-5 mr-2 text-[#002663]" />
@@ -370,11 +370,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Card: Quick Actions */}
-          <div className="bg-white border border-gray-200 shadow-sm p-5 rounded-sm">
+          <div className="bg-white border border-gray-200 shadow-sm p-4 sm:p-5 rounded-sm">
             <h3 className="font-bold text-gray-800 text-sm mb-4 uppercase tracking-wider">
               Quick Actions
             </h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 id="quick-action-deposit"
                 onClick={() => setIsDepositModalOpen(true)}
@@ -422,7 +422,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <button
                 id="quick-action-statements"
                 onClick={exportCSV}
-                className="col-span-2 flex items-center justify-center gap-2 p-2.5 border border-gray-200 rounded-sm hover:border-[#002663] hover:bg-gray-50 text-gray-700 transition-colors cursor-pointer group"
+                className="sm:col-span-2 flex items-center justify-center gap-2 p-2.5 border border-gray-200 rounded-sm hover:border-[#002663] hover:bg-gray-50 text-gray-700 transition-colors cursor-pointer group"
               >
                 <Download className="w-3.5 h-3.5 text-[#002663]" />
                 <span className="text-[11px] font-bold tracking-wider uppercase">DOWNLOAD CSV STATEMENT</span>
@@ -498,7 +498,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Transactions Card - Professional Polish structure */}
           <div className="bg-white border border-gray-200 shadow-sm rounded-sm flex flex-col overflow-hidden">
             {/* Table Header Bar */}
-            <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50">
               <h2 className="font-bold text-gray-800 uppercase tracking-tight text-sm sm:text-base">
                 Recent Transactions
               </h2>
@@ -524,7 +524,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             {/* Filter and Search Row */}
-            <div className="p-4 border-b border-gray-100 bg-white grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3 sm:p-4 border-b border-gray-100 bg-white grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="relative sm:col-span-2">
                 <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -553,7 +553,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             {/* Table Content */}
-            <div className="overflow-x-auto">
+            <div className="w-full overflow-x-auto">
               {filteredTransactions.length === 0 ? (
                 <div className="p-10 text-center text-gray-500">
                   <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
@@ -561,7 +561,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <p className="text-xs text-gray-400 mt-1">Try clearing your search query or status filter.</p>
                 </div>
               ) : (
-                <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                <table className="w-full min-w-[600px] text-left border-collapse text-xs sm:text-sm">
                   <thead className="bg-gray-100 text-[11px] uppercase text-gray-500 font-bold border-b border-gray-200">
                     <tr>
                       <th className="px-6 py-3 w-32">Date</th>
@@ -631,7 +631,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             {/* Table Bottom Action Bar */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between text-xs">
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
               <span className="text-gray-500 font-medium">
                 Showing {filteredTransactions.length} of {transactions.length} records
               </span>
@@ -674,13 +674,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
 
               <div className="space-y-3 text-xs border-y border-gray-100 py-4">
-                <div className="flex justify-between">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                   <span className="text-gray-500">Amount:</span>
                   <span className="font-mono font-bold text-base text-gray-900">
                     {formatUSD(selectedTransaction.amount)} USD
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                   <span className="text-gray-500">Status:</span>
                   <span
                     className={`font-semibold ${
@@ -692,22 +692,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     {selectedTransaction.status?.toUpperCase() === 'PENDING' ? 'Processing' : (selectedTransaction.status || 'Completed')}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                   <span className="text-gray-500">Posting Date:</span>
                   <span className="font-mono text-gray-700">{selectedTransaction.date}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                   <span className="text-gray-500">Reference ID:</span>
                   <span className="font-mono text-gray-700">{selectedTransaction.id}</span>
                 </div>
                 {selectedTransaction.account_name && (
-                  <div className="flex justify-between">
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                     <span className="text-gray-500">Account:</span>
                     <span className="font-medium text-gray-900">{selectedTransaction.account_name}</span>
                   </div>
                 )}
                 {selectedTransaction.recipient_name && (
-                  <div className="flex justify-between">
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                     <span className="text-gray-500">Payee / Recipient:</span>
                     <span className="font-medium text-gray-900">{selectedTransaction.recipient_name}</span>
                   </div>

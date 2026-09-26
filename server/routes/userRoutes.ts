@@ -105,7 +105,7 @@ router.get('/summary', requireAuth, async (req: AuthenticatedRequest, res: Respo
 // GET /api/user/profile
 router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const user = await User.findOne({ id: req.user!.id }).select('id email full_name role phone created_at').lean<any>();
+    const user = await User.findOne({ id: req.user!.id }).select('id email full_name role phone profilePicture created_at').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -121,6 +121,7 @@ router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
         full_name: user.full_name,
         role: user.role,
         phone: user.phone,
+        profilePicture: user.profilePicture || '',
         security_pin: '••••',
         created_at: user.created_at,
         account_number: primaryAccount ? primaryAccount.account_number : '4800000000',
@@ -137,6 +138,38 @@ router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
   } catch (err: any) {
     console.error('Failed to fetch profile:', err);
     res.status(500).json({ error: errorMessage(err, 'Failed to fetch user profile.') });
+  }
+});
+
+// POST /api/user/profile-picture
+router.post('/profile-picture', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const profilePicture = req.body?.profilePicture;
+    if (typeof profilePicture !== 'string' || !/^data:image\/(?:png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(profilePicture)) {
+      res.status(400).json({ error: 'Please upload a valid PNG, JPEG, GIF, or WebP image.' });
+      return;
+    }
+
+    const encodedImage = profilePicture.split(',')[1];
+    if (Math.floor(encodedImage.length * 3 / 4) > 5 * 1024 * 1024) {
+      res.status(413).json({ error: 'Profile pictures must be 5 MB or smaller.' });
+      return;
+    }
+
+    const user = await User.findOneAndUpdate(
+      { id: req.user!.id },
+      { $set: { profilePicture } },
+      { new: true }
+    ).select('id profilePicture').lean<any>();
+    if (!user) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    res.json({ success: true, profilePicture: user.profilePicture });
+  } catch (err: any) {
+    console.error('Failed to update profile picture:', err);
+    res.status(500).json({ error: errorMessage(err, 'Failed to update profile picture.') });
   }
 });
 
