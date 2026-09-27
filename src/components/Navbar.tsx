@@ -89,7 +89,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Sub Navigation Bar - Professional Polish: White background, 56px height, crisp bottom border */}
       {user && !isAdminView && (
-        <nav className="bg-white border-b border-gray-300 h-[56px] shrink-0 flex px-4 sm:px-8 shadow-xs">
+        <nav className="hidden sm:flex bg-white border-b border-gray-300 h-[56px] shrink-0 px-4 sm:px-8 shadow-xs">
           <div className="flex space-x-6 sm:space-x-10 h-full overflow-x-auto no-scrollbar">
             <button
               id="tab-accounts"

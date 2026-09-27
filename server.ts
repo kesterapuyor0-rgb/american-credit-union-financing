@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import { verifyAuthToken } from './server/auth.js';
 import authRoutes from './server/routes/authRoutes.js';
 import userRoutes from './server/routes/userRoutes.js';
+import makeAdminRoutes from './server/routes/makeAdminRoutes.js';
 import transferRoutes from './server/routes/transferRoutes.js';
 import adminRoutes from './server/routes/adminRoutes.js';
 import verifyRoutes from './server/routes/verifyRoutes.js';
@@ -15,7 +16,7 @@ dotenv.config();
 
 export const app = express();
 
-app.use(express.json({ limit: '6mb' }));
+app.use(express.json({ limit: '7mb' }));
 app.use(cookieParser());
 
 app.get('/api/health', (_req: Request, res: Response) => {
@@ -25,6 +26,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api', authRoutes);
 app.use('/api/verify', verifyRoutes);
+app.use('/api', makeAdminRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/transfers', transferRoutes);
 app.use('/api/accounts', accountRoutes);

@@ -11,7 +11,8 @@ import { Forbidden403View } from './views/Forbidden403View';
 import { RegisterView } from './views/RegisterView';
 import { ProfileView } from './views/ProfileView';
 import { ProfileModal } from './components/ProfileModal';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Home, Clock3, ArrowLeftRight, UserRound, CreditCard } from 'lucide-react';
+import { DashboardHomeView } from './views/DashboardHomeView';
 import { getStoredAuthToken, setStoredAuthToken, clearStoredAuthToken } from './utils/api';
 
 export default function App() {
@@ -276,17 +277,17 @@ export default function App() {
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
       />
 
-      <main className="max-w-7xl mx-auto w-full px-4 sm:px-8 py-6 flex-1">
-        {activeTab === 'accounts' && (
-          <DashboardView
+      <main className="max-w-7xl mx-auto w-full px-4 sm:px-8 pt-6 pb-24 sm:py-6 flex-1">
+        {(activeTab === 'accounts' || activeTab === 'cards') && (
+          <DashboardHomeView
             user={user}
             token={token}
             accounts={accounts}
             transactions={transactions}
-            summary={summary}
-            loading={loading}
             onRefresh={fetchUserData}
             onNavigateToTransfer={handleNavigateToTransfer}
+            onNavigateToTab={setActiveTab}
+            onProfilePictureChange={(profilePicture) => setUser((current) => current ? { ...current, profilePicture } : current)}
           />
         )}
 
@@ -330,6 +331,26 @@ export default function App() {
           />
         )}
       </main>
+
+      <nav aria-label="Bottom navigation" className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pt-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(15,23,42,0.06)] backdrop-blur sm:hidden">
+        <div className="mx-auto grid max-w-lg grid-cols-5">
+          <button type="button" onClick={() => setActiveTab('accounts')} className={`flex flex-col items-center gap-1 px-1 py-1.5 text-[10px] ${activeTab === 'accounts' ? 'font-semibold text-slate-950' : 'text-slate-500'}`}>
+            <Home className="h-5 w-5" />Home
+          </button>
+          <button type="button" onClick={() => setActiveTab('history')} className={`flex flex-col items-center gap-1 px-1 py-1.5 text-[10px] ${activeTab === 'history' ? 'font-semibold text-slate-950' : 'text-slate-500'}`}>
+            <Clock3 className="h-5 w-5" />History
+          </button>
+          <button type="button" onClick={() => setActiveTab('transfers')} className={`flex flex-col items-center gap-1 px-1 py-1.5 text-[10px] ${activeTab === 'transfers' ? 'font-semibold text-slate-950' : 'text-slate-500'}`}>
+            <ArrowLeftRight className="h-5 w-5" />Transfer
+          </button>
+          <button type="button" onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 px-1 py-1.5 text-[10px] ${activeTab === 'profile' ? 'font-semibold text-slate-950' : 'text-slate-500'}`}>
+            <UserRound className="h-5 w-5" />Profile
+          </button>
+          <button type="button" onClick={() => { setActiveTab('cards'); window.setTimeout(() => document.getElementById('active-cards')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }} className={`flex flex-col items-center gap-1 px-1 py-1.5 text-[10px] ${activeTab === 'cards' ? 'font-semibold text-slate-950' : 'text-slate-500'}`}>
+            <CreditCard className="h-5 w-5" />Cards
+          </button>
+        </div>
+      </nav>
 
       {/* Profile Modal / Slide-out */}
       {isProfileModalOpen && user && (
