@@ -13,12 +13,12 @@ export async function connectDatabase(): Promise<typeof mongoose> {
   if (!connectionPromise) {
     const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL;
     if (!mongoUri) {
-      throw new Error('Set MONGO_URI, MONGODB_URI, or MONGO_URL to your MongoDB Atlas connection string.');
+      throw new Error('Set MONGO_URI, MONGODB_URI, or MONGO_URL to connect to MongoDB.');
     }
 
     connectionPromise = mongoose.connect(mongoUri, {
       bufferCommands: false,
-      serverSelectionTimeoutMS: 8000,
+      serverSelectionTimeoutMS: Number(process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS) || 5000,
       maxPoolSize: 5,
     }).then(async (connection) => {
       await Promise.all([
@@ -60,7 +60,7 @@ export async function requireDatabase(_req: Request, res: Response, next: NextFu
     await connectDatabase();
     next();
   } catch (error) {
-    console.error('MongoDB connection failed:', error);
-    res.status(503).json({ error: errorMessage(error, 'Database service is temporarily unavailable.') });
+    console.error('MongoDB connection failed:', errorMessage(error, 'Connection unavailable.'));
+    res.status(503).json({ error: 'Database service is temporarily unavailable.' });
   }
 }

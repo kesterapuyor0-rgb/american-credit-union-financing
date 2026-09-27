@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import { timingSafeEqual } from 'crypto';
 import { User, Account, VerificationCode, AuditLog } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import {
@@ -9,11 +10,61 @@ import {
   generateOTP,
   requireAuth,
   isAdminRole,
-  AuthenticatedRequest
+  AuthenticatedRequest,
+  verifyAuthToken,
+  getAuthTokenFromRequest,
 } from '../auth.js';
 
 const router = Router();
-router.use(requireDatabase);
+
+function getLocalDevEmail(): string {
+  return (process.env.LOCAL_DEV_EMAIL || 'apuyork@gmail.com').trim().toLowerCase();
+}
+
+function isLocalDevEnabled(): boolean {
+  return process.env.NODE_ENV !== 'production'
+    && process.env.VERCEL !== '1'
+    && process.env.LOCAL_DEV_AUTH === 'true'
+    && Boolean(process.env.LOCAL_DEV_PASSWORD);
+}
+
+function getLocalDevUserId(): string {
+  return `local-dev-${getLocalDevEmail()}`;
+}
+
+function getLocalDevRole(): 'user' | 'admin' {
+  return process.env.LOCAL_DEV_ROLE?.trim().toLowerCase() === 'admin' ? 'admin' : 'user';
+}
+
+function isLocalDevLogin(email: unknown): boolean {
+  return isLocalDevEnabled() && typeof email === 'string' && email.trim().toLowerCase() === getLocalDevEmail();
+}
+
+function localDevPasswordMatches(password: unknown): boolean {
+  if (!isLocalDevEnabled() || typeof password !== 'string') return false;
+  const expected = Buffer.from(process.env.LOCAL_DEV_PASSWORD || '', 'utf8');
+  const supplied = Buffer.from(password, 'utf8');
+  return expected.length === supplied.length && timingSafeEqual(expected, supplied);
+}
+
+router.use((req, res, next) => {
+  const path = req.path.replace(/\/$/, '');
+  if (req.method === 'POST' && path.endsWith('/login') && isLocalDevLogin(req.body?.email)) {
+    next();
+    return;
+  }
+
+  if (req.method === 'GET' && path.endsWith('/me')) {
+    const authToken = getAuthTokenFromRequest(req);
+    const payload = verifyAuthToken(authToken || '');
+    if (isLocalDevEnabled() && (!authToken || (payload?.id === getLocalDevUserId() && payload.email === getLocalDevEmail()))) {
+      next();
+      return;
+    }
+  }
+
+  void requireDatabase(req, res, next);
+});
 
 function maskEmail(email: string): string {
   const parts = email.split('@');
@@ -38,6 +89,35 @@ router.post('/login', async (req, res): Promise<void> => {
 
     if (!email || !password) {
       res.status(400).json({ error: 'Please enter your Online ID / Email and Passcode.' });
+      return;
+    }
+
+    if (isLocalDevLogin(email)) {
+      if (!localDevPasswordMatches(password)) {
+        res.status(401).json({ error: 'The Online ID or Passcode entered does not match our records.' });
+        return;
+      }
+      if (portal === 'admin' && getLocalDevRole() !== 'admin') {
+        res.status(403).json({ error: 'Local development sign-in is limited to the customer portal.' });
+        return;
+      }
+
+      const localUser = {
+        id: getLocalDevUserId(),
+        email: getLocalDevEmail(),
+        full_name: process.env.LOCAL_DEV_FULL_NAME?.trim() || 'Local Developer',
+        role: getLocalDevRole(),
+        phone: process.env.LOCAL_DEV_PHONE?.trim() || 'Not provided',
+        profilePicture: '',
+      };
+      const token = signAuthToken(localUser);
+      res.cookie('boa_token', token, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 8 * 3600 * 1000,
+      });
+      res.json({ success: true, token, user: localUser });
       return;
     }
 
@@ -214,6 +294,13 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+    if (isLocalDevEnabled() && req.user.id === getLocalDevUserId() && req.user.email === getLocalDevEmail()) {
+      res.json({ user: {
+        ...req.user,
+        profilePicture: '',
+      } });
       return;
     }
     const user = await User.findOne({ id: req.user.id }).select('id email full_name role phone profilePicture').lean<any>();

@@ -1,7 +1,15 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
+import { User } from './models.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'boa_secure_enterprise_key_984729104';
+function getJwtSecret(): string {
+  const configuredSecret = process.env.JWT_SECRET?.trim();
+  if (configuredSecret) return configuredSecret;
+  if (process.env.NODE_ENV === 'production' || process.env.VERCEL === '1') {
+    throw new Error('JWT_SECRET must be configured in production.');
+  }
+  return 'local-development-only-secret';
+}
 
 export interface TokenPayload {
   id: string;
@@ -20,24 +28,35 @@ export interface Temp2FAPayload {
 }
 
 export function signAuthToken(payload: TokenPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: '8h' });
 }
 
 export function signTemp2FAToken(payload: Temp2FAPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '10m' });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: '10m' });
 }
 
 export function verifyAuthToken(token: string): TokenPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+    return jwt.verify(token, getJwtSecret()) as TokenPayload;
   } catch (err) {
     return null;
   }
 }
 
+export function getAuthTokenFromRequest(req: Request): string | undefined {
+  const authHeader = req.headers.authorization;
+  const cookieToken = (req as Request & { cookies?: Record<string, string> }).cookies?.boa_token;
+  if (authHeader) {
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (match) return match[1].trim();
+    if (authHeader.trim()) return authHeader.trim();
+  }
+  return cookieToken;
+}
+
 export function verifyTemp2FAToken(token: string): Temp2FAPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as Temp2FAPayload;
+    return jwt.verify(token, getJwtSecret()) as Temp2FAPayload;
   } catch (err) {
     return null;
   }
@@ -98,6 +117,18 @@ export function requireAdmin(req: AuthenticatedRequest, res: Response, next: Nex
       res.status(403).json({ error: 'Forbidden: Administrator privileges required.' });
       return;
     }
-    next();
+    const userId = req.user.id;
+    void User.findOne({ id: userId }).select('role').lean<{ role?: string }>()
+      .then((user) => {
+        if (!user || !isAdminRole(user.role)) {
+          res.status(403).json({ error: 'Forbidden: Administrator privileges required.' });
+          return;
+        }
+        next();
+      })
+      .catch((error: unknown) => {
+        console.error('Unable to verify administrator role:', error);
+        res.status(503).json({ error: 'Database service is temporarily unavailable.' });
+      });
   });
 }

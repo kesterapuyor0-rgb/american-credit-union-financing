@@ -82,8 +82,9 @@ async function startServer(): Promise<void> {
   }
 
   const port = Number(process.env.PORT) || 3000;
-  app.listen(port, '0.0.0.0', () => {
-    console.log(`Banking server running on http://0.0.0.0:${port}`);
+  const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1';
+  app.listen(port, host, () => {
+    console.log(`Banking server running on http://${host}:${port}`);
   });
 }
 

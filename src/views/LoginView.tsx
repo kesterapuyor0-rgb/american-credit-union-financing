@@ -88,6 +88,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
         setSimulatedOtp(data.simulatedOtp);
         setStep('2fa');
         setResendCooldown(30);
+      } else if (data.token && data.user) {
+        if (adminOnly && data.user.role !== 'admin') {
+          throw new Error('This sign-in is restricted to authorized administrators.');
+        }
+        setStoredAuthToken(data.token);
+        onLoginSuccess(data.user, data.token);
+      } else {
+        throw new Error('The sign-in response was incomplete. Please try again.');
       }
     } catch (err: any) {
       setError(err.message || 'Unable to sign in. Please try again.');
