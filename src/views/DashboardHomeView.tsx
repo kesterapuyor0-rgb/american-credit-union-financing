@@ -351,7 +351,7 @@ x                    <p className="text-[10px] font-semibold uppercase tracking-
                   <div><p className="text-[9px] uppercase tracking-widest text-white/55">Cardholder</p><p className="mt-0.5 text-xs font-semibold uppercase tracking-wide">{user.full_name}</p></div>
                   <div className="text-left sm:text-right"><p className="text-[9px] uppercase tracking-widest text-white/55">{card.card_type === 'Credit' ? 'Approved limit' : 'Linked account available'}</p><p className="mt-0.5 text-sm font-bold">{formatMoney(card.card_type === 'Credit' ? card.credit_limit : (card.linked_account_available || 0))}</p></div>
                 </div>
-                <p className="mt-3 text-[10px] font-medium text-white/70">Visual Sercur card view · No payment credentials or purchase capability</p>
+                <p className="mt-3 text-[10px] font-medium text-white/70">Visual Sercure card view · No payment credentials or purchase capability</p>
               </article>
             ))}
             {legacyCards.map((card) => (
