@@ -3,7 +3,7 @@ import { User, BankAccount, Transaction, UserSummary } from './types';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { LoginView } from './views/LoginView';
-import { DashboardView } from './views/DashboardView';
+import { TransactionHistoryView } from './views/TransactionHistoryView';
 import { TransferView } from './views/TransferView';
 import { AdminView } from './views/AdminView';
 import { SecurityView } from './views/SecurityView';
@@ -286,13 +286,10 @@ export default function App() {
       case 'home':
         return <DashboardHomeView key="home" {...dashboardProps} />;
       case 'history':
-        return <DashboardView
+        return <TransactionHistoryView
           key="history"
           user={user}
-          token={token}
-          accounts={accounts}
           transactions={transactions}
-          summary={summary}
           loading={loading}
           onRefresh={fetchUserData}
           onNavigateToTransfer={handleNavigateToTransfer}
