@@ -308,10 +308,8 @@ export default function App() {
         return <ProfileView
           key="profile"
           user={user}
-          accounts={accounts}
           onProfilePictureChange={(profilePicture) => setUser((current) => current ? { ...current, profilePicture } : current)}
-          onReturnToAccounts={() => setActiveTab('home')}
-          onNavigateToTransfer={() => setActiveTab('transfer')}
+          onUserUpdated={(updates) => setUser((current) => current ? { ...current, ...updates } : current)}
         />;
       case 'cards':
         return <CardsManagementView key="cards" {...dashboardProps} />;

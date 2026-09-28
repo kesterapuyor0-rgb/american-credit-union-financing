@@ -1,89 +1,88 @@
-import React, { useState, useEffect, ChangeEvent } from 'react';
-import { User, BankAccount, UserProfile } from '../types';
-import { getAuthHeaders, getStoredAuthToken } from '../utils/api';
-import {
-  User as UserIcon,
-  Mail,
-  Phone,
-  Hash,
-  GitFork,
-  ShieldCheck,
-  Lock,
-  ArrowLeft,
-  KeyRound,
-  CheckCircle2,
-  Copy,
-  Check,
-  Eye,
-  EyeOff,
-  Building2,
-  Calendar,
-  Send,
-  AlertCircle
-} from 'lucide-react';
+import React, { ChangeEvent, FormEvent, useEffect, useState } from 'react';
+import { Camera, CheckCircle2, LoaderCircle, Mail, MapPin, Phone, Save, UserRound } from 'lucide-react';
+import { User } from '../types';
+import { getAuthHeaders } from '../utils/api';
 
 interface ProfileViewProps {
   user: User;
-  accounts: BankAccount[];
-  onReturnToAccounts: () => void;
-  onNavigateToTransfer: () => void;
   onProfilePictureChange: (profilePicture: string) => void;
+  onUserUpdated: (updates: Partial<User>) => void;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({
-  user,
-  accounts,
-  onReturnToAccounts,
-  onNavigateToTransfer,
-  onProfilePictureChange,
-}) => {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [showAccountNum, setShowAccountNum] = useState(false);
-  const [showPin, setShowPin] = useState(false);
+interface ProfileForm {
+  phone: string;
+  address: string;
+}
+
+export const ProfileView: React.FC<ProfileViewProps> = ({ user, onProfilePictureChange, onUserUpdated }) => {
+  const [form, setForm] = useState<ProfileForm>({ phone: user.phone || '', address: user.address || '' });
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [uploadingPicture, setUploadingPicture] = useState(false);
-  const [pictureMessage, setPictureMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      setLoading(true);
+    let cancelled = false;
+    const loadProfile = async () => {
+      setLoadingProfile(true);
       try {
-        const storedToken = getStoredAuthToken();
-          const res = await fetch('/api/user/profile', {
-          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
-          credentials: 'include',
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setProfile(data.profile);
+        const response = await fetch('/api/user/profile', { headers: getAuthHeaders(), credentials: 'include' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Unable to load your profile.');
+        if (!cancelled && data.profile) {
+          setForm({ phone: data.profile.phone || '', address: data.profile.address || '' });
+          onUserUpdated({
+            email: data.profile.email || user.email,
+            full_name: data.profile.full_name || user.full_name,
+            phone: data.profile.phone || '',
+            address: data.profile.address || '',
+            profilePicture: data.profile.profilePicture || user.profilePicture || '',
+          });
         }
-      } catch (err) {
-        console.error('Failed to load profile:', err);
+      } catch (error) {
+        if (!cancelled) setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Unable to load your profile.' });
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoadingProfile(false);
       }
     };
-
-    fetchProfile();
+    void loadProfile();
+    return () => { cancelled = true; };
   }, [user.id]);
 
-  const primaryAccount = accounts.length > 0 ? accounts[0] : null;
-  const accountNumber = profile?.account_number || primaryAccount?.account_number || '4800921849';
-  const routingNumber = profile?.routing_number || primaryAccount?.routing_number || '026009593';
-  const accountStatus = profile?.status || primaryAccount?.status || 'Active';
-  const securityPin = profile?.security_pin || '••••';
+  const handleSave = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    setMessage(null);
+    try {
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify({ phone: form.phone, address: form.address }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to save your profile.');
+      const updatedUser = data.user as Partial<User>;
+      setForm({ phone: updatedUser.phone || '', address: updatedUser.address || '' });
+      onUserUpdated(updatedUser);
+      setMessage({ type: 'success', text: 'Profile details saved.' });
+    } catch (error) {
+      setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Unable to save your profile.' });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleProfilePicture = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setPictureMessage('Choose an image file to use as your profile picture.');
+      setMessage({ type: 'error', text: 'Choose an image file.' });
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setPictureMessage('Profile pictures must be 5 MB or smaller.');
+      setMessage({ type: 'error', text: 'Choose an image smaller than 5 MB.' });
       return;
     }
 
@@ -91,7 +90,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     reader.onload = async () => {
       if (typeof reader.result !== 'string') return;
       setUploadingPicture(true);
-      setPictureMessage(null);
+      setMessage(null);
       try {
         const response = await fetch('/api/user/profile-picture', {
           method: 'POST',
@@ -100,270 +99,79 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           body: JSON.stringify({ profilePicture: reader.result }),
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Unable to update profile picture.');
-        const updatedPicture = data.user?.profilePicture || '';
-        setProfile((current) => current ? { ...current, profilePicture: updatedPicture } : current);
-        onProfilePictureChange(updatedPicture);
-        setPictureMessage('Profile picture updated.');
+        if (!response.ok) throw new Error(data.error || 'Unable to update your profile picture.');
+        const profilePicture = data.user?.profilePicture || '';
+        onProfilePictureChange(profilePicture);
+        onUserUpdated({ profilePicture });
+        setMessage({ type: 'success', text: 'Profile picture updated.' });
       } catch (error) {
-        setPictureMessage(error instanceof Error ? error.message : 'Unable to update profile picture.');
+        setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Unable to update your profile picture.' });
       } finally {
         setUploadingPicture(false);
       }
     };
-    reader.onerror = () => setPictureMessage('Unable to read this image file.');
+    reader.onerror = () => setMessage({ type: 'error', text: 'Unable to read this image file.' });
     reader.readAsDataURL(file);
   };
 
-  const handleCopy = (text: string, fieldName: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(fieldName);
-    setTimeout(() => setCopiedField(null), 2000);
-  };
-
   return (
-    <div className="space-y-6 max-w-5xl mx-auto py-2">
-      {/* Top Breadcrumb / Back button */}
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onReturnToAccounts}
-          className="flex items-center space-x-1.5 text-xs font-semibold text-[#0F766E] hover:underline cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Return to Accounts Overview</span>
-        </button>
-
-        <div className="flex items-center space-x-2 text-xs text-gray-500">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Encrypted Session Active</span>
-        </div>
-      </div>
-
-      {/* Profile and avatar settings */}
-      <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
-        <div className="h-1.5 bg-[#C9932E]" />
-        <div className="bg-[#0F766E] text-white p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="flex flex-col items-center gap-2 shrink-0">
-              <div className="w-16 h-16 rounded-full bg-white/10 border-2 border-white/20 overflow-hidden flex items-center justify-center text-white text-2xl font-bold font-serif shadow-inner">
-                {(profile?.profilePicture || user.profilePicture) ? (
-                  <img src={profile?.profilePicture || user.profilePicture} alt={`${user.full_name} profile`} className="w-full h-full object-cover" />
-                ) : user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
-              </div>
-              <label className="text-[10px] font-semibold text-blue-100 hover:text-white underline cursor-pointer text-center">
-                {uploadingPicture ? 'Uploading…' : 'Change photo'}
-                <input type="file" accept="image/*" onChange={handleProfilePicture} disabled={uploadingPicture} className="sr-only" />
-              </label>
-              {pictureMessage && <span role="status" className="text-[10px] text-blue-100 text-center max-w-32">{pictureMessage}</span>}
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-widest font-bold text-blue-200">
-                Profile & account details
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold font-serif tracking-tight text-white mt-0.5">
-                {user.full_name}
-              </h1>
-              <div className="text-xs text-slate-300 flex items-center gap-2 mt-1">
-                <span>Online ID: <span className="font-semibold text-white">{user.email}</span></span>
-                <span>•</span>
-                <span className="text-emerald-400 font-bold flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  Verified Customer
-                </span>
-              </div>
-            </div>
+    <section aria-labelledby="profile-heading" className="mx-auto w-full max-w-3xl space-y-6">
+      <header className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:flex-row sm:text-left">
+        <div className="relative h-24 w-24 shrink-0">
+          <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-full bg-emerald-50 text-3xl font-semibold text-teal-800 ring-2 ring-[#D6A84F]">
+            {user.profilePicture ? <img src={user.profilePicture} alt={`${user.full_name} profile`} className="h-full w-full object-cover" /> : user.full_name.charAt(0).toUpperCase() || 'U'}
           </div>
+          <label title="Change profile picture" className="absolute bottom-0 right-0 grid h-9 w-9 cursor-pointer place-items-center rounded-full border-2 border-white bg-teal-800 text-white shadow">
+            {uploadingPicture ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+            <input type="file" accept="image/*" onChange={handleProfilePicture} disabled={uploadingPicture} className="sr-only" />
+          </label>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Personal details</p>
+          <h1 id="profile-heading" className="mt-1 break-words text-2xl font-bold text-teal-900">{user.full_name}</h1>
+          <p className="mt-1 text-sm text-slate-500">Manage your contact information and profile photo.</p>
+        </div>
+      </header>
 
-          <button
-            type="button"
-            onClick={onNavigateToTransfer}
-            className="px-4 py-2.5 bg-[#C9932E] hover:bg-[#A8761B] text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center space-x-2 cursor-pointer shrink-0"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Make a Transfer</span>
+      <form onSubmit={handleSave} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Profile information</h2>
+          <p className="mt-1 text-sm text-slate-500">Your full name is read-only. Update your phone number or address below.</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className="block space-y-1.5">
+            <span className="flex items-center gap-2 text-sm font-medium text-slate-700"><UserRound aria-hidden="true" className="h-4 w-4 text-slate-400" />Full name</span>
+            <input value={user.full_name} readOnly disabled className="min-h-11 w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600" />
+          </label>
+
+          <label className="block space-y-1.5">
+            <span className="flex items-center gap-2 text-sm font-medium text-slate-700"><Mail aria-hidden="true" className="h-4 w-4 text-slate-400" />Email address</span>
+            <input type="email" value={user.email} readOnly disabled className="min-h-11 w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600" />
+          </label>
+
+          <label className="block space-y-1.5">
+            <span className="flex items-center gap-2 text-sm font-medium text-slate-700"><Phone aria-hidden="true" className="h-4 w-4 text-slate-400" />Phone number</span>
+            <input type="tel" autoComplete="tel" value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} required maxLength={32} className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15" />
+          </label>
+
+          <label className="block space-y-1.5 sm:col-span-2">
+            <span className="flex items-center gap-2 text-sm font-medium text-slate-700"><MapPin aria-hidden="true" className="h-4 w-4 text-slate-400" />Address</span>
+            <textarea autoComplete="street-address" value={form.address} onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))} rows={3} maxLength={200} placeholder="Enter your mailing address" className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15" />
+          </label>
+        </div>
+
+        {message && <p role="status" aria-live="polite" className={`rounded-lg px-3 py-2.5 text-sm ${message.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>{message.text}</p>}
+
+        <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-slate-500">{loadingProfile ? 'Loading profile details…' : 'Changes apply to your contact details.'}</p>
+          <button type="submit" disabled={saving || loadingProfile} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-teal-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-60">
+            {saving ? <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" /> : <Save aria-hidden="true" className="h-4 w-4" />}
+            {saving ? 'Saving…' : 'Save changes'}
           </button>
         </div>
-      </div>
-
-      {/* Grid: Personal Info & Banking Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Card 1: Personal Profile Details */}
-        <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <UserIcon className="w-4 h-4 text-[#0F766E]" />
-              <h2 className="text-sm font-bold text-[#0F766E] uppercase tracking-wide">
-                Personal Identification
-              </h2>
-            </div>
-            <span className="text-[10px] font-bold text-gray-500 uppercase bg-gray-200 px-2 py-0.5 rounded-sm">
-              Primary Holder
-            </span>
-          </div>
-
-          <div className="p-5 space-y-4 text-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <span className="text-gray-500 font-medium">Full Legal Name:</span>
-              <span className="font-bold text-gray-900">{user.full_name}</span>
-            </div>
-
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <span className="text-gray-500 font-medium">Online ID / Email Address:</span>
-              <div className="flex items-center space-x-1.5">
-                <span className="font-semibold text-gray-900">{user.email}</span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(user.email, 'email')}
-                  className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
-                  title="Copy email"
-                >
-                  {copiedField === 'email' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <span className="text-gray-500 font-medium">Registered Phone Number:</span>
-              <span className="font-semibold text-gray-900">{user.phone || '(555) 019-2834'}</span>
-            </div>
-
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <span className="text-gray-500 font-medium">Initial Security PIN:</span>
-              <div className="flex items-center space-x-1.5">
-                <span className="font-mono font-bold text-gray-900">
-                  {showPin ? securityPin : '••••'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowPin(!showPin)}
-                  className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
-                  title={showPin ? 'Hide PIN' : 'Show PIN'}
-                >
-                  {showPin ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500 font-medium">Customer Since:</span>
-              <span className="font-semibold text-gray-700">
-                {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'September 2026'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 2: Bank Routing & Account Details */}
-        <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Building2 className="w-4 h-4 text-[#0F766E]" />
-              <h2 className="text-sm font-bold text-[#0F766E] uppercase tracking-wide">
-                Direct Deposit & Wire Info
-              </h2>
-            </div>
-            <span className="text-[10px] font-bold text-emerald-700 uppercase bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-sm flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Active
-            </span>
-          </div>
-
-          <div className="p-5 space-y-4 text-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <span className="text-gray-500 font-medium">Bank Name:</span>
-              <span className="font-bold text-gray-900">American Credit Union Financing</span>
-            </div>
-
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <span className="text-gray-500 font-medium">Routing Number (ABA / ACH):</span>
-              <div className="flex items-center space-x-1.5">
-                <span className="font-mono font-bold text-[#0F766E] text-sm">{routingNumber}</span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(routingNumber, 'routing')}
-                  className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
-                  title="Copy routing number"
-                >
-                  {copiedField === 'routing' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <span className="text-gray-500 font-medium">Primary Account Number:</span>
-              <div className="flex items-center space-x-1.5">
-                <span className="font-mono font-bold text-gray-900 text-sm">
-                  {showAccountNum ? accountNumber : '•••• •••• ' + accountNumber.slice(-4)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowAccountNum(!showAccountNum)}
-                  className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
-                  title={showAccountNum ? 'Mask account' : 'Reveal full account'}
-                >
-                  {showAccountNum ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(accountNumber, 'account')}
-                  className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
-                  title="Copy account number"
-                >
-                  {copiedField === 'account' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <span className="text-gray-500 font-medium">Account Type:</span>
-              <span className="font-semibold text-gray-900">Advantage Plus Checking</span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500 font-medium">Encryption & Protection:</span>
-              <span className="font-bold text-emerald-700">Prototype profile</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Linked Accounts List Card */}
-      <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Hash className="w-4 h-4 text-[#0F766E]" />
-            <h2 className="text-sm font-bold text-[#0F766E] uppercase tracking-wide">
-              Account information
-            </h2>
-          </div>
-          <span className="text-xs text-gray-500">
-            {accounts.length} Total Accounts
-          </span>
-        </div>
-
-        <div className="divide-y divide-gray-200 text-xs">
-          {accounts.map((acc) => (
-            <div key={acc.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-              <div>
-                <div className="font-bold text-gray-900 text-sm">{acc.nickname}</div>
-                <div className="text-gray-500 font-mono mt-0.5">
-                  Account: {acc.account_number} • Routing: {acc.routing_number}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="font-mono font-bold text-base text-gray-900">
-                  ${acc.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {acc.currency}
-                </div>
-                <div className="text-[11px] text-emerald-600 font-semibold flex items-center justify-end gap-1 mt-0.5">
-                  <ShieldCheck className="w-3 h-3" />
-                  <span>{acc.status}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+      </form>
+      <div className="flex items-center gap-2 text-xs text-emerald-800"><CheckCircle2 aria-hidden="true" className="h-4 w-4" />Your full name cannot be changed from this form.</div>
+    </section>
   );
 };

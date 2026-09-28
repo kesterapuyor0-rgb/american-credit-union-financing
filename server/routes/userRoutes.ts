@@ -168,14 +168,11 @@ router.post('/card-applications', requireAuth, async (req: AuthenticatedRequest,
 // GET /api/user/profile
 router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const user = await User.findOne({ id: req.user!.id }).select('id email full_name role phone profilePicture created_at').lean<any>();
+    const user = await User.findOne({ id: req.user!.id }).select('id email full_name role phone address profilePicture created_at').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
     }
-
-    const accounts = await Account.find({ user_id: req.user!.id }).sort({ created_at: 1 }).lean<any[]>();
-    const primaryAccount = accounts.length > 0 ? accounts[0] : null;
 
     res.json({
       profile: {
@@ -184,23 +181,43 @@ router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
         full_name: user.full_name,
         role: user.role,
         phone: user.phone,
+        address: user.address || '',
         profilePicture: user.profilePicture || '',
-        security_pin: '••••',
         created_at: user.created_at,
-        account_number: primaryAccount ? primaryAccount.account_number : '4800000000',
-        routing_number: primaryAccount ? primaryAccount.routing_number : '026009593',
-        status: primaryAccount ? primaryAccount.status : 'Active',
-        encryption_status:'Active account',
-        accounts_count: accounts.length,
       },
-      accounts: accounts.map((acc) => ({
-        ...acc,
-        display_number: `...${acc.account_number.slice(-4)}`,
-      })),
     });
   } catch (err: any) {
     console.error('Failed to fetch profile:', err);
     res.status(500).json({ error: errorMessage(err, 'Failed to fetch user profile.') });
+  }
+});
+
+// PUT /api/user/profile — users may update contact details, but not their name, email, or role.
+router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const phone = typeof req.body?.phone === 'string' ? req.body.phone.trim() : '';
+  const address = typeof req.body?.address === 'string' ? req.body.address.trim() : '';
+  if (!phone || phone.length > 32) {
+    res.status(400).json({ error: 'Enter a phone number up to 32 characters long.' });
+    return;
+  }
+  if (address.length > 200) {
+    res.status(400).json({ error: 'Address must be 200 characters or fewer.' });
+    return;
+  }
+
+  try {
+    const user = await User.findOneAndUpdate(
+      { id: req.user!.id },
+      { $set: { phone, address } },
+      { new: true, runValidators: true }
+    ).select('id email full_name role phone address profilePicture created_at').lean<any>();
+    if (!user) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+    res.json({ success: true, user: { ...user, address: user.address || '' } });
+  } catch (err) {
+    res.status(500).json({ error: errorMessage(err, 'Unable to save profile details.') });
   }
 });
 
@@ -340,4 +357,3 @@ router.post(['/deposit', '/accounts/deposit'], requireAuth, async (req: Authenti
 });
 
 export default router;
-

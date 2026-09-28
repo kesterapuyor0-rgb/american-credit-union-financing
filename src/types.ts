@@ -4,6 +4,7 @@ export interface User {
   full_name: string;
   role: 'user' | 'admin';
   phone: string;
+  address?: string;
   profilePicture?: string;
   created_at?: string;
 }
@@ -108,20 +109,4 @@ export interface AdminOverviewData {
 export interface UserWithAccounts extends User {
   accounts: BankAccount[];
   totalBalanceUSD: number;
-}
-
-export interface UserProfile {
-  id: string;
-  email: string;
-  full_name: string;
-  role: 'user' | 'admin';
-  phone: string;
-  profilePicture?: string;
-  security_pin?: string;
-  created_at?: string;
-  account_number: string;
-  routing_number: string;
-  status: string;
-  encryption_status?: string;
-  accounts_count?: number;
 }
