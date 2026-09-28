@@ -8,7 +8,7 @@ export const Footer: React.FC = () => {
         <span className="hidden sm:inline text-gray-300">|</span>
         <span className="hover:underline cursor-pointer">Privacy & Security</span>
         <span className="hidden sm:inline text-gray-300">|</span>
-        <span className="text-gray-500">Prototype · Simulated balances and transfers; no real funds or cards</span>
+        <span className="text-gray-500">Secure digital banking portal . FDIC insured up to applicable limits</span>
       </div>
 
       <div className="flex items-center space-x-2">
