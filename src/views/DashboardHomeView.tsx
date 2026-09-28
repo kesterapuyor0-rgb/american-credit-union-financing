@@ -17,13 +17,10 @@ import {
   Settings,
 } from 'lucide-react';
 
-function getLocalGreeting(): { text: string; location: string } {
+function getLocalGreeting(): { text: string } {
   const hour = new Date().getHours();
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-  const location = timeZone.split('/').pop()?.replace(/_/g, ' ') || '';
   return {
     text: hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening',
-    location: location.startsWith('Etc ') || location === 'UTC' ? '' : location,
   };
 }
 
@@ -210,7 +207,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             </label>
           </div>
           <div className="min-w-0">
-            <p className="text-sm text-slate-500">{greeting.text} 👋{greeting.location ? ` · ${greeting.location}` : ''}</p>
+            <p className="text-sm text-slate-500">{greeting.text} 👋</p>
             <h1 className="truncate text-lg font-semibold text-slate-900">{user.full_name}</h1>
             {pictureMessage && <p role="status" className="truncate text-xs text-slate-500">{uploadingPicture ? 'Uploading photo…' : pictureMessage}</p>}
           </div>
