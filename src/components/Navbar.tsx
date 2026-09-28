@@ -1,13 +1,12 @@
 import React from 'react';
 import { BrandLogo } from './BrandLogo';
 import { User } from '../types';
-import { Lock, LogOut, ShieldCheck, ChevronDown, User as UserIcon } from 'lucide-react';
+import { Lock, ChevronDown } from 'lucide-react';
 
 interface NavbarProps {
   user: User | null;
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  onSignOut: () => void;
   isAdminView?: boolean;
   onOpenProfileModal?: () => void;
 }
@@ -16,14 +15,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   user,
   activeTab,
   setActiveTab,
-  onSignOut,
   isAdminView = false,
   onOpenProfileModal,
 }) => {
   return (
     <div className="sticky top-0 z-50 w-full shrink-0 bg-white">
       {/* Top Header - Professional Polish: Navy Blue + Red Accent Border */}
-      <header className="flex h-20 shrink-0 items-center justify-between gap-2 border-b-4 border-[#C9932E] bg-[#0F766E] px-3 py-3 text-white shadow-lg sm:gap-4 sm:px-8">
+      <header className="flex min-h-20 shrink-0 items-center justify-between gap-2 border-b-4 border-[#C9932E] bg-[#0F766E] px-3 py-3 text-white shadow-lg sm:gap-4 sm:px-8">
         <div className="flex min-w-0 flex-1 items-center space-x-2 sm:flex-none sm:space-x-4">
           <div
             className="min-w-0 cursor-pointer"
@@ -46,42 +44,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* User Account Bar & High-Contrast Sign Out */}
+        {/* Full user name opens account profile details. */}
         {user ? (
-          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-            {/* Clickable user profile trigger */}
+          <div className="flex min-w-0 shrink items-center">
             <button
               id="btn-user-profile-trigger"
               type="button"
               onClick={onOpenProfileModal}
-              className="flex items-center gap-2 rounded-sm border border-white/10 px-1.5 py-1.5 text-left transition-colors hover:bg-white/10 cursor-pointer group sm:gap-2.5 sm:px-2.5"
+              className="flex max-w-[48vw] items-center gap-1.5 rounded-sm px-1.5 py-2 text-right transition-colors hover:bg-white/10 cursor-pointer group sm:max-w-none sm:gap-2.5 sm:px-2.5 sm:text-left"
               title="Click to view Account Profile & Identification"
             >
-              <div className="w-8 h-8 rounded-full bg-white/15 border border-white/25 flex items-center justify-center text-white text-xs font-bold font-serif group-hover:bg-white/25 transition-colors shrink-0">
-                {user.profilePicture ? (
-                  <img src={user.profilePicture} alt="Profile" className="w-full h-full rounded-full object-cover" />
-                ) : (
-                  user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'
-                )}
-              </div>
-              <div className="flex flex-col items-start hidden sm:flex">
-                <span className="text-[9px] opacity-80 uppercase tracking-widest text-slate-200">
+              <div className="flex min-w-0 flex-col items-end sm:items-start">
+                <span className="hidden text-[9px] opacity-80 uppercase tracking-widest text-slate-200 sm:block">
                   {isAdminView ? 'SYSTEM OPERATOR' : 'SECURE ACCOUNT'}
                 </span>
-                <span className="text-sm font-semibold text-white truncate max-w-[180px] group-hover:text-blue-100 flex items-center gap-1">
-                  <span>{user.full_name}</span>
-                  <ChevronDown className="w-3 h-3 text-white/70 group-hover:text-white" />
+                <span className="break-words text-sm font-bold leading-tight text-white group-hover:text-blue-100 sm:text-base">
+                  {user.full_name}
                 </span>
               </div>
-            </button>
-
-            <button
-              id="btn-signout"
-              onClick={onSignOut}
-              className="bg-white text-[#0F766E] px-3.5 sm:px-4 py-1.5 rounded-sm font-bold text-xs sm:text-sm hover:bg-gray-100 uppercase transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Sign Out</span>
+              <ChevronDown aria-hidden="true" className="h-3 w-3 shrink-0 text-white/70 group-hover:text-white" />
             </button>
           </div>
         ) : null}

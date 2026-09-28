@@ -17,7 +17,8 @@ import {
   FileSpreadsheet,
   Lock,
   ArrowDownCircle,
-  ArrowUpCircle
+  ArrowUpCircle,
+  LogOut
 } from 'lucide-react';
 
 interface AdminViewProps {
@@ -468,9 +469,12 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
               }}
               disabled={loading}
               className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-xs text-white font-medium flex items-center gap-1.5 cursor-pointer"
-            >
+          >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Refresh Ledger</span>
+          </button>
+          <button type="button" onClick={onSignOut} className="flex items-center gap-1.5 rounded border border-slate-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700">
+            <LogOut className="h-3.5 w-3.5" /> Sign Out
           </button>
         </div>
       </div>

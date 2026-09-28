@@ -335,7 +335,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                 <div aria-hidden="true" className="absolute -right-4 -top-8 -z-10 h-40 w-40 rounded-full border border-white/10" />
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60"> REWARDS CARD</p>
+x                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] tet-white/60"> REWARDS CARD</p>
                     <p className="mt-1 text-sm font-semibold">{card.product_name}</p>
                   </div>
                   <span className="rounded-md border border-white/25 bg-white/10 px-2 py-1 text-xs font-bold tracking-wide">{card.network || 'Visa'}</span>

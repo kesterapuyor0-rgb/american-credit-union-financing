@@ -1,5 +1,5 @@
 import React, { ChangeEvent, FormEvent, useEffect, useState } from 'react';
-import { Camera, CheckCircle2, LoaderCircle, Mail, MapPin, Phone, Save, UserRound } from 'lucide-react';
+import { Camera, CheckCircle2, LoaderCircle, LogOut, Mail, MapPin, Phone, Save, UserRound } from 'lucide-react';
 import { User } from '../types';
 import { getAuthHeaders } from '../utils/api';
 
@@ -7,6 +7,7 @@ interface ProfileViewProps {
   user: User;
   onProfilePictureChange: (profilePicture: string) => void;
   onUserUpdated: (updates: Partial<User>) => void;
+  onSignOut: () => void;
 }
 
 interface ProfileForm {
@@ -14,7 +15,7 @@ interface ProfileForm {
   address: string;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ user, onProfilePictureChange, onUserUpdated }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({ user, onProfilePictureChange, onUserUpdated, onSignOut }) => {
   const [form, setForm] = useState<ProfileForm>({ phone: user.phone || '', address: user.address || '' });
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -171,6 +172,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onProfilePicture
           </button>
         </div>
       </form>
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">Sign out</h2>
+          <p className="mt-1 text-xs text-slate-500">End your current session on this device.</p>
+        </div>
+        <button type="button" onClick={onSignOut} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-rose-200 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50">
+          <LogOut aria-hidden="true" className="h-4 w-4" /> Sign Out
+        </button>
+      </div>
       <div className="flex items-center gap-2 text-xs text-emerald-800"><CheckCircle2 aria-hidden="true" className="h-4 w-4" />Your full name cannot be changed from this form.</div>
     </section>
   );

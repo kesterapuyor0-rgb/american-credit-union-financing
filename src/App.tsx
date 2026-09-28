@@ -237,7 +237,6 @@ export default function App() {
           user={user}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          onSignOut={handleSignOut}
         />
         <Forbidden403View
           onRedirectToDashboard={() => {
@@ -259,7 +258,6 @@ export default function App() {
           user={user}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          onSignOut={handleSignOut}
           isAdminView={true}
         />
         <main className="max-w-7xl mx-auto w-full px-4 sm:px-8 py-6 flex-1">
@@ -308,6 +306,7 @@ export default function App() {
         return <ProfileView
           key="profile"
           user={user}
+          onSignOut={handleSignOut}
           onProfilePictureChange={(profilePicture) => setUser((current) => current ? { ...current, profilePicture } : current)}
           onUserUpdated={(updates) => setUser((current) => current ? { ...current, ...updates } : current)}
         />;
@@ -329,7 +328,6 @@ export default function App() {
         user={user}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onSignOut={handleSignOut}
         isAdminView={false}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
       />
