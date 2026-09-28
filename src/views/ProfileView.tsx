@@ -159,7 +159,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </div>
             <div>
               <div className="text-xs uppercase tracking-widest font-bold text-blue-200">
-                American Credit Union Financing demo profile
+                Profile & account details
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold font-serif tracking-tight text-white mt-0.5">
                 {user.full_name}
@@ -272,7 +272,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <div className="p-5 space-y-4 text-xs">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <span className="text-gray-500 font-medium">Bank Name:</span>
-              <span className="font-bold text-gray-900">American Credit Union Financing (demo)</span>
+              <span className="font-bold text-gray-900">American Credit Union Financing</span>
             </div>
 
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
@@ -322,7 +322,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
             <div className="flex items-center justify-between">
               <span className="text-gray-500 font-medium">Encryption & Protection:</span>
-              <span className="font-bold text-emerald-700">Demo account</span>
+              <span className="font-bold text-emerald-700">Prototype profile</span>
             </div>
           </div>
         </div>
@@ -334,7 +334,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <div className="flex items-center space-x-2">
             <Hash className="w-4 h-4 text-[#0F766E]" />
             <h2 className="text-sm font-bold text-[#0F766E] uppercase tracking-wide">
-              Demo account data stored by this application
+              Account information
             </h2>
           </div>
           <span className="text-xs text-gray-500">

@@ -211,7 +211,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
               SECURE ACCESS
             </span>
             <span className="text-sm font-medium text-white">
-              American Credit Union Financing · Demo
+              American Credit Union Financing
             </span>
           </div>
           <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-sm border border-white/20">
@@ -503,7 +503,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
           <div className="bg-gray-50 p-4 border-t border-gray-200 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Demo portal · no real financial services</span>
+            <span>Prototype portal · no real financial services</span>
           </div>
         </div>
       </main>
@@ -511,11 +511,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
       {/* Corporate Security Footer */}
       <footer className="h-[40px] bg-white border-t border-gray-200 px-4 sm:px-8 flex items-center justify-between shrink-0 text-[10px] text-gray-500">
         <div className="flex items-center space-x-4">
-          <span>© {new Date().getFullYear()} American Credit Union Financing · Demo</span>
+          <span>© {new Date().getFullYear()} American Credit Union Financing</span>
           <span className="hidden sm:inline">|</span>
           <a href="#privacy" className="hover:underline hidden sm:inline">Privacy</a>
           <a href="#security" className="hover:underline hidden sm:inline">Security</a>
-          <span className="hidden sm:inline">Simulated accounts only</span>
+          <span className="hidden sm:inline">Simulated account activity</span>
         </div>
         <div className="flex items-center space-x-2">
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />

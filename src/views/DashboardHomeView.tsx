@@ -35,6 +35,7 @@ interface DashboardHomeViewProps {
   onNavigateToTransfer: (fromAccountId?: string) => void;
   onNavigateToTab: (tab: string) => void;
   onProfilePictureChange: (profilePicture: string) => void;
+  showCardsOnly?: boolean;
 }
 
 export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
@@ -46,6 +47,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   onNavigateToTransfer,
   onNavigateToTab,
   onProfilePictureChange,
+  showCardsOnly = false,
 }) => {
   const [activeAccountId, setActiveAccountId] = useState('');
   const [balanceVisible, setBalanceVisible] = useState(true);
@@ -190,15 +192,16 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-7 pb-6">
-      <header className="flex items-center justify-between gap-4">
+      {!showCardsOnly && <>
+      <header className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex min-w-0 items-center gap-3">
           <div className="relative h-12 w-12 shrink-0">
-            <div className="h-12 w-12 overflow-hidden rounded-full bg-slate-200 text-slate-700 ring-1 ring-slate-300 flex items-center justify-center text-lg font-semibold">
+            <div className="h-12 w-12 overflow-hidden rounded-full bg-emerald-50 text-teal-800 ring-2 ring-[#D6A84F] flex items-center justify-center text-lg font-semibold">
               {user.profilePicture ? (
                 <img src={user.profilePicture} alt={`${user.full_name} profile`} className="h-full w-full object-cover" />
               ) : (user.full_name?.charAt(0).toUpperCase() || 'U')}
             </div>
-            <label className="absolute -bottom-1 -right-1 grid h-6 w-6 cursor-pointer place-items-center rounded-full border border-white bg-slate-800 text-white" title="Change profile photo">
+            <label className="absolute -bottom-1 -right-1 grid h-6 w-6 cursor-pointer place-items-center rounded-full border border-white bg-teal-800 text-white shadow-sm" title="Change profile photo">
               <Plus className="h-3.5 w-3.5" />
               <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingPicture} className="sr-only" />
             </label>
@@ -209,18 +212,18 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             {pictureMessage && <p role="status" className="truncate text-xs text-slate-500">{uploadingPicture ? 'Uploading photo…' : pictureMessage}</p>}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button type="button" aria-label="Notifications" className="relative grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700">
+        <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+          <button type="button" aria-label="Notifications" className="relative grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-teal-800 transition hover:border-teal-700 hover:bg-emerald-50">
             <Bell className="h-5 w-5" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-slate-900 ring-2 ring-white" />
+            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#C9932E] ring-2 ring-white" />
           </button>
-          <button type="button" aria-label="Settings" onClick={() => onNavigateToTab('security')} className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700">
+          <button type="button" aria-label="Settings" onClick={() => onNavigateToTab('security')} className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-teal-800 transition hover:border-teal-700 hover:bg-emerald-50">
             <Settings className="h-5 w-5" />
           </button>
         </div>
       </header>
 
-      <section aria-label="Primary account" className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+      <section aria-label="Primary account" className="rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-emerald-50 p-5 shadow-sm sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-slate-500">{activeAccount?.nickname || 'Primary Account'}</p>
@@ -233,7 +236,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               aria-label="Switch account"
               value={activeAccount?.id || ''}
               onChange={(event) => setActiveAccountId(event.target.value)}
-              className="max-w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-slate-400"
+              className="max-w-full rounded-xl border border-teal-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-teal-600"
             >
               {checkingAndSavings.map((account) => (
                 <option key={account.id} value={account.id}>{account.account_type} · {account.nickname}</option>
@@ -248,7 +251,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               {balanceVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             </button>
           </div>
-          <p className="mt-1 break-all text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+          <p className="mt-1 break-all text-3xl font-bold tracking-tight text-teal-950 sm:text-4xl">
             {balanceVisible ? formatMoney(activeAccount?.available_balance ?? activeAccount?.balance ?? 0) : '••••••'}
           </p>
         </div>
@@ -272,6 +275,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           More
         </button>
       </section>
+      </>}
 
       <section id="active-cards" className="space-y-3">
         <div className="flex items-center justify-between gap-3">
@@ -300,12 +304,12 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             </label>
             {cardType === 'Credit' && (
               <label className="space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">
-                <span>Requested demo credit limit (USD)</span>
+                <span>Requested credit limit (USD)</span>
                 <input type="number" min="0" max="50000" step="100" value={requestedLimit} onChange={(event) => setRequestedLimit(event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm sm:max-w-xs" />
               </label>
             )}
             <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs leading-5 text-slate-500">Applications are reviewed by an administrator. Approval creates an in-app demo card; no external card network is contacted.</p>
+              <p className="text-xs leading-5 text-slate-500">Applications are reviewed by an administrator. Approved cards appear here as non-purchasable prototypes.</p>
               <button type="submit" disabled={submittingCard} className="shrink-0 rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50">
                 {submittingCard ? 'Submitting…' : 'Submit application'}
               </button>
@@ -322,7 +326,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                 </div>
                 <p className="mt-5 font-medium text-slate-900">{card.product_name}</p>
                 <p className="mt-1 text-sm text-slate-500">{card.card_type} · •••• {card.last4}</p>
-                {card.card_type === 'Credit' && <p className="mt-3 text-sm font-semibold text-slate-800">Demo limit {formatMoney(card.credit_limit)}</p>}
+                {card.card_type === 'Credit' && <p className="mt-3 text-sm font-semibold text-slate-800">Requested limit {formatMoney(card.credit_limit)}</p>}
               </article>
             ))}
             {legacyCards.map((card) => (

@@ -96,7 +96,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </div>
             <div className="flex items-center space-x-1 font-bold text-emerald-700 uppercase tracking-wide text-[11px]">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>{accountStatus} / Demo account</span>
+              <span>{accountStatus} / Prototype account</span>
             </div>
           </div>
 
@@ -192,7 +192,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-sm text-[11px] text-gray-600 flex items-start space-x-2">
             <Lock className="w-3.5 h-3.5 text-[#0F766E] shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-[#0F766E] block">Demo account details</span>
+              <span className="font-bold text-[#0F766E] block">Prototype account details</span>
               <span>Balances, transfers, and account numbers in this portal are simulated and do not move real funds.</span>
             </div>
           </div>

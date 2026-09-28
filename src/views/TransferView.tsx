@@ -204,7 +204,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
       <div className="mb-6 flex items-center justify-between border-b border-gray-200 pb-4">
         <div>
           <div className="text-xs font-bold text-[#C9932E] uppercase tracking-wider mb-0.5">
-            Demo transfer verification
+            Prototype transfer verification
           </div>
           <h1 className="text-2xl font-bold text-[#0F766E] font-serif">
             Pay & Transfer Funds
@@ -547,7 +547,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
           <div className="p-6">
             <div className="flex items-center gap-2 text-xs font-bold text-[#C9932E] uppercase tracking-wider mb-1">
               <ShieldCheck className="w-4 h-4" />
-              <span>Demo confirmation step</span>
+              <span>Prototype confirmation step</span>
             </div>
             <h2 className="text-xl font-bold text-[#0F766E] font-serif mb-1">
               Confirm & Authorize Transfer

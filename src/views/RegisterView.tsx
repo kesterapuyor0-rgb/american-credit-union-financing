@@ -70,7 +70,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     }
 
     if (!agreeTerms) {
-      setError('Please accept the demo portal terms.');
+      setError('Please accept the account portal prototype terms.');
       return;
     }
 
@@ -149,7 +149,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 Create Your Account
               </h1>
               <p className="text-xs text-gray-500 mt-1">
-                Create a profile in the American Credit Union Financing demo. No real account or deposit is created.
+                Create a profile in the American Credit Union Financing account portal. Account activity is simulated.
               </p>
             </div>
 
@@ -173,7 +173,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     Welcome, {successData.user.full_name}!
                   </h3>
                   <p className="text-xs text-gray-600 mt-1">
-                    Your demo checking account has been created.
+                    Your prototype checking account is ready.
                   </p>
                 </div>
 
@@ -198,7 +198,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Status:</span>
-                    <span className="font-bold text-emerald-700">Demo account</span>
+                    <span className="font-bold text-emerald-700">Prototype account</span>
                   </div>
                 </div>
 
@@ -292,7 +292,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     />
                   </div>
                   <span className="text-[11px] text-gray-500 mt-1 block">
-                    Used as contact information for your demo profile.
+                    Used as contact information for your profile.
                   </span>
                 </div>
 
@@ -384,7 +384,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     <span>
                       I certify that I am at least 18 years of age and agree to the{' '}
                       <span className="text-[#0F766E] font-semibold hover:underline">
-                        American Credit Union Financing Demo Terms
+                        American Credit Union Financing Prototype Terms
                       </span>{' '}
                       and Electronic Disclosures.
                     </span>
@@ -413,7 +413,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
           <div className="bg-gray-50 p-4 border-t border-gray-200 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Demo only · no real deposits, insurance, or payment processing</span>
+            <span>Prototype · no real deposits, insurance, or payment processing</span>
           </div>
         </div>
       </main>
@@ -421,7 +421,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       {/* Corporate Footer */}
       <footer className="h-[40px] bg-white border-t border-gray-200 px-4 sm:px-8 flex items-center justify-between shrink-0 text-[10px] text-gray-500">
         <div className="flex items-center space-x-4">
-          <span>© {new Date().getFullYear()} American Credit Union Financing · Demo</span>
+          <span>© {new Date().getFullYear()} American Credit Union Financing</span>
           <span className="hidden sm:inline">|</span>
           <a href="#privacy" className="hover:underline hidden sm:inline">Privacy</a>
           <a href="#security" className="hover:underline hidden sm:inline">Security</a>
@@ -429,7 +429,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
         <div className="flex items-center space-x-2">
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
           <span className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
-            Demo enrollment
+            Prototype enrollment
           </span>
         </div>
       </footer>

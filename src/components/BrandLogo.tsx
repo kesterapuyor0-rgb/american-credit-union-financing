@@ -37,7 +37,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
             style={{ color: subColor }}
             className="mt-0.5 text-[9px] tracking-wider uppercase font-sans font-semibold sm:text-[10px]"
           >
-            Account Portal · Demo
+            Account Portal
           </span>
         )}
       </div>

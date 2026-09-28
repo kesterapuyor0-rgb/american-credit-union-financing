@@ -190,7 +190,7 @@ router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
         account_number: primaryAccount ? primaryAccount.account_number : '4800000000',
         routing_number: primaryAccount ? primaryAccount.routing_number : '026009593',
         status: primaryAccount ? primaryAccount.status : 'Active',
-        encryption_status: 'Demo account',
+        encryption_status:`Active account',
         accounts_count: accounts.length,
       },
       accounts: accounts.map((acc) => ({

@@ -20,13 +20,13 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
           </div>
           <div>
             <div className="text-xs font-bold text-[#C9932E] uppercase tracking-wider">
-              Demo Account Security
+              Account Security
             </div>
             <h1 className="text-2xl font-bold text-[#0F766E] font-serif">
               Sign-in and Account Details
             </h1>
             <p className="text-xs text-gray-500 mt-0.5">
-              Review the contact details associated with this demo profile. This screen does not represent a regulated banking security service.
+              Review the contact details associated with your profile.
             </p>
           </div>
         </div>
@@ -47,7 +47,7 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
           </div>
 
           <p className="text-xs text-gray-600">
-            These contact details are shown for reference; this demo does not require one-time codes for transfers.
+            These contact details are shown for reference.
           </p>
 
           <div className="space-y-2.5 pt-2 text-xs">
@@ -69,12 +69,12 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
           </div>
         </div>
 
-        {/* Demo ledger details */}
+        {/* Prototype ledger details */}
         <div className="bg-white border border-gray-200 rounded-xs p-5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <div className="flex items-center gap-2">
               <FileCheck className="w-4 h-4 text-[#0F766E]" />
-              <h2 className="font-bold text-sm text-[#0F766E]">Demo ledger details</h2>
+              <h2 className="font-bold text-sm text-[#0F766E]">Account activity</h2>
             </div>
             <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-blue-100 text-blue-800 rounded">
               Simulated
@@ -82,7 +82,7 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
           </div>
 
           <p className="text-xs text-gray-600">
-            Account balances and ledger entries are sample application data. No deposits are accepted and no funds are insured or held by this application.
+            This prototype displays simulated balances and ledger entries. It does not accept deposits or hold funds.
           </p>
 
           <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xs text-xs space-y-1">
@@ -100,7 +100,7 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
         <div>
           <span className="font-bold block mb-0.5">Account safety reminder</span>
           <span>
-            Never share your password or sign-in codes. This demo will not call or text you to request credentials.
+            Never share your password or sign-in codes. This application will not call or text you to request credentials.
           </span>
         </div>
       </div>

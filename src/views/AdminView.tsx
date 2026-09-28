@@ -397,7 +397,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
               Restricted Operations Area
             </div>
             <h1 className="text-xl font-bold font-serif text-white">
-              American Credit Union Financing · Demo Ledger Administration
+              American Credit Union Financing · Ledger Administration
             </h1>
             <p className="text-xs text-slate-300">
               Authorized Administrator: <span className="font-mono text-white">{user.email}</span> | MongoDB Atlas Storage
@@ -786,7 +786,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                                 className="w-full rounded-lg border border-slate-200 p-2 text-xs outline-none focus:ring-2 focus:ring-teal-600"
                               />
                               <div className="flex flex-wrap gap-2">
-                                <button type="button" disabled={reviewingCardId === application.id} onClick={() => handleCardDecision(application.id, 'approve')} className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-800 disabled:opacity-50">Approve and issue demo card</button>
+                                <button type="button" disabled={reviewingCardId === application.id} onClick={() => handleCardDecision(application.id, 'approve')} className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-800 disabled:opacity-50">Approve prototype card</button>
                                 <button type="button" disabled={reviewingCardId === application.id} onClick={() => handleCardDecision(application.id, 'reject')} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">Reject</button>
                               </div>
                             </div>

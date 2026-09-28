@@ -134,13 +134,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div>
               <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-xs bg-white/10 text-white/90 text-[11px] font-semibold tracking-wider uppercase mb-2 border border-white/15">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Demo account portal</span>
+                <span>Account overview</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold font-serif tracking-tight text-white">
                 Welcome back, {customerName}!
               </h2>
               <p className="text-xs sm:text-sm text-gray-300 mt-1 max-w-xl leading-relaxed">
-                Explore account details, transfer and card request workflows in this demonstration. Balances and transactions are simulated; no real funds or payment cards are issued.
+                Review account details, manage transfers, and view recent activity.
               </p>
             </div>
 
@@ -267,7 +267,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </span>
               </div>
               <div className="text-[11px] text-gray-300 mt-1">
-                Demo account • No real funds held
+                Prototype account
               </div>
             </div>
           </div>
@@ -460,7 +460,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <span>Security Tip</span>
               </p>
               <p className="text-xs opacity-90 leading-relaxed text-slate-100">
-                Never share your password or sign-in codes. This demo does not contact financial institutions or process real payments.
+                Never share your password or sign-in codes. Use the prototype notice in the page footer as a reminder that account activity is simulated.
               </p>
             </div>
             <div className="absolute -right-6 -bottom-6 opacity-10 pointer-events-none">
@@ -681,7 +681,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <span className="text-[10px] font-bold text-[#C9932E] uppercase tracking-wider">
-                    American Credit Union Financing · Demo Record
+                    American Credit Union Financing · Account Activity
                   </span>
                   <h3 className="text-lg font-bold text-[#0F766E] font-serif mt-0.5">
                     {selectedTransaction.description}

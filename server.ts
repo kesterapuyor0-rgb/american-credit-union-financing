@@ -20,7 +20,7 @@ app.use(express.json({ limit: '7mb' }));
 app.use(cookieParser());
 
 app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', service: 'American Credit Union Financing demo', time: new Date().toISOString() });
+  res.json({ status: 'ok', service: 'American Credit Union Financing ', time: new Date().toISOString() });
 });
 
 app.use('/api/auth', authRoutes);
@@ -84,7 +84,7 @@ async function startServer(): Promise<void> {
   const port = Number(process.env.PORT) || 3000;
   const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1';
   app.listen(port, host, () => {
-    console.log(`American Credit Union Financing demo running on http://${host}:${port}`);
+    console.log(`American Credit Union Financing running on http://${host}:${port}`);
   });
 }
 
