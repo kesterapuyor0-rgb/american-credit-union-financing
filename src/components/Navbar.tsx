@@ -23,10 +23,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <div className="sticky top-0 z-50 w-full shrink-0 bg-white">
       {/* Top Header - Professional Polish: Navy Blue + Red Accent Border */}
-      <header className="bg-[#0F766E] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#C9932E] shadow-lg">
-        <div className="flex items-center space-x-4">
+      <header className="flex h-20 shrink-0 items-center justify-between gap-2 border-b-4 border-[#C9932E] bg-[#0F766E] px-3 py-3 text-white shadow-lg sm:gap-4 sm:px-8">
+        <div className="flex min-w-0 flex-1 items-center space-x-2 sm:flex-none sm:space-x-4">
           <div
-            className="cursor-pointer"
+            className="min-w-0 cursor-pointer"
             onClick={() => {
               if (isAdminView) {
                 setActiveTab('overview');
@@ -35,7 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
           >
-            <BrandLogo variant="white" showSubtitle={true} />
+            <BrandLogo className="h-10 min-w-0" variant="white" showSubtitle={true} />
           </div>
 
           {isAdminView && (
@@ -48,13 +48,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* User Account Bar & High-Contrast Sign Out */}
         {user ? (
-          <div className="flex items-center space-x-3 sm:space-x-4">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             {/* Clickable user profile trigger */}
             <button
               id="btn-user-profile-trigger"
               type="button"
               onClick={onOpenProfileModal}
-              className="flex items-center space-x-2.5 px-2.5 py-1.5 rounded-sm hover:bg-white/10 transition-colors cursor-pointer group text-left border border-white/10"
+              className="flex items-center gap-2 rounded-sm border border-white/10 px-1.5 py-1.5 text-left transition-colors hover:bg-white/10 cursor-pointer group sm:gap-2.5 sm:px-2.5"
               title="Click to view Account Profile & Identification"
             >
               <div className="w-8 h-8 rounded-full bg-white/15 border border-white/25 flex items-center justify-center text-white text-xs font-bold font-serif group-hover:bg-white/25 transition-colors shrink-0">

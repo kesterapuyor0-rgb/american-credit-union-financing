@@ -46,6 +46,12 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  useEffect(() => {
+    if (user && user.role !== 'admin') {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [activeTab, user?.id, user?.role]);
+
   // Check auth session on boot
   useEffect(() => {
     const initAuth = async () => {
