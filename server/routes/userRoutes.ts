@@ -108,7 +108,7 @@ router.get('/summary', requireAuth, async (req: AuthenticatedRequest, res: Respo
 router.get('/cards', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const issuedCards = await BankCard.find({ user_id: req.user!.id, status: 'Active' }).sort({ created_at: -1 })
-      .select('id user_id account_id card_type product_name last4 masked_number status credit_limit created_at').lean<any[]>();
+      .select('id user_id account_id card_type network product_name last4 masked_number status credit_limit created_at').lean<any[]>();
     const accounts = await Account.find({ id: { $in: issuedCards.map((card) => card.account_id) }, user_id: req.user!.id })
       .select('id nickname account_number balance held_balance currency').lean<any[]>();
     const accountById = new Map(accounts.map((account) => [account.id, account]));
@@ -117,7 +117,8 @@ router.get('/cards', requireAuth, async (req: AuthenticatedRequest, res: Respons
       return {
         ...card,
         last4: numericCardLastFour(card.last4),
-        masked_number: maskedCardNumber(card.card_type, card.last4),
+        network: card.network || 'Visa',
+        masked_number: maskedCardNumber(card.network || 'Visa', card.last4),
         linked_account_name: account?.nickname || '',
         linked_account_number: account?.account_number || '',
         linked_account_available: account ? Math.max(0, account.balance - (account.held_balance || 0)) : 0,
@@ -144,10 +145,11 @@ router.get('/card-applications', requireAuth, async (req: AuthenticatedRequest, 
 router.post('/card-applications', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const cardType = String(req.body?.cardType || '');
+    const network = String(req.body?.network || '');
     const accountId = String(req.body?.accountId || '').trim();
     const requestedLimit = Number(req.body?.requestedLimit || 0);
-    if (!['Debit', 'Credit'].includes(cardType) || !accountId) {
-      res.status(400).json({ error: 'Choose a card type and an eligible checking account.' });
+    if (!['Debit', 'Credit'].includes(cardType) || !['Visa', 'Mastercard'].includes(network) || !accountId) {
+      res.status(400).json({ error: 'Choose a card type, Visa or Mastercard network, and an eligible checking account.' });
       return;
     }
     if (!Number.isFinite(requestedLimit) || requestedLimit < 0 || requestedLimit > 50000) {
@@ -170,7 +172,8 @@ router.post('/card-applications', requireAuth, async (req: AuthenticatedRequest,
       user_id: req.user!.id,
       account_id: account.id,
       card_type: cardType,
-      product_name: cardType === 'Debit' ? 'Everyday Debit Card' : 'Rewards Credit Card',
+      network,
+      product_name: cardType === 'Debit' ? `Everyday ${network} Debit Card` : `Rewards ${network} Credit Card`,
       requested_limit: cardType === 'Credit' ? requestedLimit : 0,
       status: 'Pending',
       created_at: new Date(),

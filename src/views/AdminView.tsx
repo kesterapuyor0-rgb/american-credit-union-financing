@@ -819,7 +819,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                         </td>
                         <td className="px-4 py-4">
                           <p className="font-semibold text-slate-900">{application.product_name}</p>
-                          <p className="mt-1 text-slate-500">{application.card_type}{application.card_type === 'Credit' ? ` · Requested ${formatUSD(application.requested_limit)}` : ''}</p>
+                          <p className="mt-1 text-slate-500">{application.network || 'Visa'} · {application.card_type}{application.card_type === 'Credit' ? ` · Requested ${formatUSD(application.requested_limit)}` : ''}</p>
                         </td>
                         <td className="px-4 py-4 text-slate-600">{application.account_nickname || 'Checking'} · •••• {application.account_number?.slice(-4) || '—'}</td>
                         <td className="px-4 py-4 whitespace-nowrap text-slate-600">{new Date(application.created_at).toLocaleDateString()}</td>
@@ -872,7 +872,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                         const canDebit = card.card_type === 'Debit' && card.status === 'Active' && card.account_status === 'Active';
                         return <tr key={card.id}>
                           <td className="px-4 py-3"><div className="font-semibold text-slate-900">{card.customer_name}</div><div className="mt-1 text-slate-500">{card.customer_email}</div></td>
-                          <td className="px-4 py-3"><div className="font-semibold text-slate-900">{card.product_name}</div><div className="mt-1 font-mono text-slate-500">{card.card_type} · {card.masked_number || `•••• •••• •••• ${card.last4}`}</div>{card.card_type === 'Credit' && <div className="mt-1 text-slate-600">Limit: {formatUSD(card.credit_limit || 0)}</div>}</td>
+                          <td className="px-4 py-3"><div className="font-semibold text-slate-900">{card.product_name}</div><div className="mt-1 font-mono text-slate-500">{card.network || 'Visa'} · {card.masked_number || `•••• •••• •••• ${card.last4}`}</div>{card.card_type === 'Credit' && <div className="mt-1 text-slate-600">Limit: {formatUSD(card.credit_limit || 0)}</div>}</td>
                           <td className="px-4 py-3"><div>{card.account_nickname || 'Checking'}</div><div className="mt-1 text-slate-500">•••• {card.account_number?.slice(-4) || '—'} · {formatUSD(Math.max(0, (card.account_balance || 0) - (card.held_balance || 0)))} available</div></td>
                           <td className="px-4 py-3">{card.status}</td>
                           <td className="px-4 py-3"><button type="button" disabled={!canDebit} onClick={() => { setCardToDebit(card); setCardDebitAmount(''); setCardDebitReason(''); setError(null); }} className="rounded-lg bg-rose-700 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-40">Debit linked account</button></td>

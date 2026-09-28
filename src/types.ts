@@ -49,6 +49,7 @@ export interface BankCard {
   user_id: string;
   account_id: string;
   card_type: 'Debit' | 'Credit';
+  network: 'Visa' | 'Mastercard';
   product_name: string;
   last4: string;
   masked_number?: string;
@@ -74,6 +75,7 @@ export interface CardApplication {
   user_id: string;
   account_id: string;
   card_type: 'Debit' | 'Credit';
+  network: 'Visa' | 'Mastercard';
   product_name: string;
   requested_limit: number;
   status: 'Pending' | 'Approved' | 'Rejected';

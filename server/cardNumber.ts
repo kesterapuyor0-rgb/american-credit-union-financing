@@ -9,5 +9,5 @@ export const numericCardLastFour = (value: unknown): string => {
 };
 
 /** Display-only masked number; the app never stores or exposes a complete PAN. */
-export const maskedCardNumber = (cardType: string, lastFour: unknown): string =>
-  `${cardType === 'Credit' ? '5424' : '4532'} •••• •••• ${numericCardLastFour(lastFour)}`;
+export const maskedCardNumber = (network: string, lastFour: unknown): string =>
+  `${network === 'Mastercard' ? '5424' : '4532'} •••• •••• ${numericCardLastFour(lastFour)}`;
