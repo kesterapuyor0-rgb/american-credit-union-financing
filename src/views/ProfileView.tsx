@@ -128,7 +128,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <button
           type="button"
           onClick={onReturnToAccounts}
-          className="flex items-center space-x-1.5 text-xs font-semibold text-[#002663] hover:underline cursor-pointer"
+          className="flex items-center space-x-1.5 text-xs font-semibold text-[#0F766E] hover:underline cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Return to Accounts Overview</span>
@@ -140,10 +140,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
       </div>
 
-      {/* Hero Card with Bank of America Brand Banner */}
+      {/* Profile and avatar settings */}
       <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
-        <div className="h-1.5 bg-[#DC143C]" />
-        <div className="bg-[#002663] text-white p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="h-1.5 bg-[#C9932E]" />
+        <div className="bg-[#0F766E] text-white p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center space-x-4">
             <div className="flex flex-col items-center gap-2 shrink-0">
               <div className="w-16 h-16 rounded-full bg-white/10 border-2 border-white/20 overflow-hidden flex items-center justify-center text-white text-2xl font-bold font-serif shadow-inner">
@@ -159,7 +159,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </div>
             <div>
               <div className="text-xs uppercase tracking-widest font-bold text-blue-200">
-                Bank of America Preferred Client
+                American Credit Union Financing demo profile
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold font-serif tracking-tight text-white mt-0.5">
                 {user.full_name}
@@ -178,7 +178,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <button
             type="button"
             onClick={onNavigateToTransfer}
-            className="px-4 py-2.5 bg-[#DC143C] hover:bg-[#B01030] text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center space-x-2 cursor-pointer shrink-0"
+            className="px-4 py-2.5 bg-[#C9932E] hover:bg-[#A8761B] text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center space-x-2 cursor-pointer shrink-0"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Make a Transfer</span>
@@ -192,8 +192,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <UserIcon className="w-4 h-4 text-[#002663]" />
-              <h2 className="text-sm font-bold text-[#002663] uppercase tracking-wide">
+              <UserIcon className="w-4 h-4 text-[#0F766E]" />
+              <h2 className="text-sm font-bold text-[#0F766E] uppercase tracking-wide">
                 Personal Identification
               </h2>
             </div>
@@ -258,8 +258,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Building2 className="w-4 h-4 text-[#002663]" />
-              <h2 className="text-sm font-bold text-[#002663] uppercase tracking-wide">
+              <Building2 className="w-4 h-4 text-[#0F766E]" />
+              <h2 className="text-sm font-bold text-[#0F766E] uppercase tracking-wide">
                 Direct Deposit & Wire Info
               </h2>
             </div>
@@ -272,13 +272,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <div className="p-5 space-y-4 text-xs">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <span className="text-gray-500 font-medium">Bank Name:</span>
-              <span className="font-bold text-gray-900">Bank of America, N.A.</span>
+              <span className="font-bold text-gray-900">American Credit Union Financing (demo)</span>
             </div>
 
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <span className="text-gray-500 font-medium">Routing Number (ABA / ACH):</span>
               <div className="flex items-center space-x-1.5">
-                <span className="font-mono font-bold text-[#002663] text-sm">{routingNumber}</span>
+                <span className="font-mono font-bold text-[#0F766E] text-sm">{routingNumber}</span>
                 <button
                   type="button"
                   onClick={() => handleCopy(routingNumber, 'routing')}
@@ -322,7 +322,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
             <div className="flex items-center justify-between">
               <span className="text-gray-500 font-medium">Encryption & Protection:</span>
-              <span className="font-bold text-emerald-700">256-bit AES Hardware Encrypted</span>
+              <span className="font-bold text-emerald-700">Demo account</span>
             </div>
           </div>
         </div>
@@ -332,9 +332,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Hash className="w-4 h-4 text-[#002663]" />
-            <h2 className="text-sm font-bold text-[#002663] uppercase tracking-wide">
-              Registered Accounts Hosted with Bank of America
+            <Hash className="w-4 h-4 text-[#0F766E]" />
+            <h2 className="text-sm font-bold text-[#0F766E] uppercase tracking-wide">
+              Demo account data stored by this application
             </h2>
           </div>
           <span className="text-xs text-gray-500">

@@ -15,6 +15,7 @@ export interface BankAccount {
   account_type: 'Checking' | 'Savings' | 'Credit Card';
   nickname: string;
   balance: number;
+  held_balance?: number;
   currency: string;
   routing_number: string;
   credit_limit?: number;
@@ -34,11 +35,39 @@ export interface Transaction {
   description: string;
   recipient_name?: string;
   recipient_account?: string;
-  status: 'Completed' | 'Pending';
+  status: string;
   category?: string;
   date: string;
   created_at: number;
   account_name?: string;
+  account_number?: string;
+}
+
+export interface BankCard {
+  id: string;
+  user_id: string;
+  account_id: string;
+  card_type: 'Debit' | 'Credit';
+  product_name: string;
+  last4: string;
+  status: 'Active' | 'Locked';
+  credit_limit: number;
+  created_at: string;
+}
+
+export interface CardApplication {
+  id: string;
+  user_id: string;
+  account_id: string;
+  card_type: 'Debit' | 'Credit';
+  product_name: string;
+  requested_limit: number;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  created_at: string;
+  review_reason?: string;
+  reviewed_by?: string;
+  customer_name?: string;
+  customer_email?: string;
   account_number?: string;
 }
 

@@ -20,11 +20,40 @@ const accountSchema = new Schema({
   account_type: { type: String, required: true },
   nickname: { type: String, required: true },
   balance: { type: Number, required: true, default: 0 },
+  held_balance: { type: Number, required: true, default: 0 },
   currency: { type: String, required: true, default: 'USD' },
   routing_number: { type: String, required: true },
   credit_limit: { type: Number, default: 0 },
   status: { type: String, required: true, default: 'Active' },
   created_at: { type: Schema.Types.Mixed, required: true },
+}, { versionKey: false, bufferCommands: false });
+
+const cardApplicationSchema = new Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  user_id: { type: String, required: true, index: true },
+  account_id: { type: String, required: true, index: true },
+  card_type: { type: String, required: true, enum: ['Debit', 'Credit'] },
+  product_name: { type: String, required: true },
+  requested_limit: { type: Number, default: 0 },
+  status: { type: String, required: true, default: 'Pending', index: true },
+  created_at: { type: Date, required: true, default: Date.now },
+  reviewed_at: { type: Date },
+  reviewed_by: { type: String },
+  review_reason: { type: String, default: '' },
+  card_id: { type: String },
+}, { versionKey: false, bufferCommands: false });
+
+const cardSchema = new Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  application_id: { type: String, required: true, unique: true, index: true },
+  user_id: { type: String, required: true, index: true },
+  account_id: { type: String, required: true },
+  card_type: { type: String, required: true, enum: ['Debit', 'Credit'] },
+  product_name: { type: String, required: true },
+  last4: { type: String, required: true },
+  status: { type: String, required: true, default: 'Active' },
+  credit_limit: { type: Number, default: 0 },
+  created_at: { type: Date, required: true, default: Date.now },
 }, { versionKey: false, bufferCommands: false });
 
 const transactionSchema = new Schema({
@@ -74,3 +103,5 @@ export const Account = (mongoose.models.Account || mongoose.model('Account', acc
 export const Transaction = (mongoose.models.Transaction || mongoose.model('Transaction', transactionSchema)) as mongoose.Model<any>;
 export const VerificationCode = (mongoose.models.VerificationCode || mongoose.model('VerificationCode', verificationCodeSchema)) as mongoose.Model<any>;
 export const AuditLog = (mongoose.models.AuditLog || mongoose.model('AuditLog', auditLogSchema)) as mongoose.Model<any>;
+export const CardApplication = (mongoose.models.CardApplication || mongoose.model('CardApplication', cardApplicationSchema)) as mongoose.Model<any>;
+export const BankCard = (mongoose.models.BankCard || mongoose.model('BankCard', cardSchema)) as mongoose.Model<any>;

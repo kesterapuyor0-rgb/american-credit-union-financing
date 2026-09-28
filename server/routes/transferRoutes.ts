@@ -36,9 +36,10 @@ router.post('/initiate', requireAuth, async (req: AuthenticatedRequest, res: Res
       return;
     }
 
-    if (sourceAccount.balance < parsedAmount) {
+    const sourceAvailable = Math.max(0, sourceAccount.balance - (sourceAccount.held_balance || 0));
+    if (sourceAvailable < parsedAmount) {
       res.status(400).json({
-        error: `Insufficient funds. Available balance is $${sourceAccount.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD.`,
+        error: `Insufficient funds. Available balance is $${sourceAvailable.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD.`,
       });
       return;
     }
@@ -151,14 +152,22 @@ router.post('/confirm', requireAuth, async (req: AuthenticatedRequest, res: Resp
       return;
     }
 
-    if (sourceAccount.balance < amount) {
+    const sourceAvailable = Math.max(0, sourceAccount.balance - (sourceAccount.held_balance || 0));
+    if (sourceAvailable < amount) {
       res.status(400).json({ error: 'Transfer failed: Insufficient funds in source account.' });
       return;
     }
 
     // Execute transfer
     const debitedAccount = await Account.findOneAndUpdate(
-      { id: sourceAccountId, user_id: userId, balance: { $gte: amount } },
+      {
+        id: sourceAccountId,
+        user_id: userId,
+        $expr: { $gte: [
+          { $subtract: [{ $ifNull: ['$balance', 0] }, { $ifNull: ['$held_balance', 0] }] },
+          amount,
+        ] },
+      },
       { $inc: { balance: -amount } },
       { new: true }
     ).lean<any>();

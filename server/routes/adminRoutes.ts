@@ -1,6 +1,8 @@
 import { Router, Response } from 'express';
+import { randomBytes, randomUUID } from 'crypto';
+import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { User, Account, Transaction, AuditLog } from '../models.js';
+import { User, Account, Transaction, AuditLog, BankCard, CardApplication } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { requireAdmin, AuthenticatedRequest } from '../auth.js';
 
@@ -53,7 +55,10 @@ router.get('/overview', async (req: AuthenticatedRequest, res: Response): Promis
   try {
     const [totalUsers, totalAccounts, deposits, totalTransactions, pendingTransactions, totalAuditLogs] = await Promise.all([
       User.countDocuments({ role: /^user$/i }), Account.countDocuments(),
-      Account.aggregate([{ $match: { account_type: { $ne: 'Credit Card' } } }, { $group: { _id: null, sum: { $sum: '$balance' } } }]),
+      Account.aggregate([
+        { $match: { account_type: { $ne: 'Credit Card' } } },
+        { $group: { _id: null, sum: { $sum: { $max: [0, { $subtract: ['$balance', { $ifNull: ['$held_balance', 0] }] }] } } } },
+      ]),
       Transaction.countDocuments(), Transaction.countDocuments({ status: /^pending$/i }), AuditLog.countDocuments(),
     ]);
 
@@ -98,12 +103,13 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
       const accounts = accountsByUser.get(u.id) || [];
       const totalBalanceUSD = accounts
         .filter((a) => a.account_type !== 'Credit Card')
-        .reduce((sum, a) => sum + a.balance, 0);
+        .reduce((sum, a) => sum + Math.max(0, a.balance - (a.held_balance || 0)), 0);
 
       return {
         ...u,
         accounts,
         totalBalanceUSD,
+        availableBalanceUSD: totalBalanceUSD,
       };
     });
 
@@ -135,83 +141,218 @@ router.get('/accounts', async (req: AuthenticatedRequest, res: Response): Promis
   }
 });
 
+// GET /api/admin/card-applications
+router.get('/card-applications', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const rows = await CardApplication.find().sort({ created_at: -1 }).lean<any[]>();
+    const [owners, accounts] = await Promise.all([
+      User.find({ id: { $in: rows.map((row) => row.user_id) } }).select('id full_name email').lean<any[]>(),
+      Account.find({ id: { $in: rows.map((row) => row.account_id) } }).select('id nickname account_number').lean<any[]>(),
+    ]);
+    const ownersById = new Map(owners.map((owner) => [owner.id, owner]));
+    const accountsById = new Map(accounts.map((account) => [account.id, account]));
+    res.json({ applications: rows.map((application) => ({
+      ...application,
+      customer_name: ownersById.get(application.user_id)?.full_name || 'Unknown customer',
+      customer_email: ownersById.get(application.user_id)?.email || '',
+      account_number: accountsById.get(application.account_id)?.account_number || '',
+      account_nickname: accountsById.get(application.account_id)?.nickname || '',
+    })) });
+  } catch (err) {
+    res.status(500).json({ error: errorMessage(err, 'Failed to load card applications.') });
+  }
+});
+
+// POST /api/admin/card-applications/decision
+router.post('/card-applications/decision', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const applicationId = String(req.body?.applicationId || '').trim();
+  const decision = String(req.body?.decision || '').trim().toLowerCase();
+  const reason = String(req.body?.reason || '').trim();
+  if (!applicationId || !['approve', 'reject'].includes(decision) || !reason) {
+    res.status(400).json({ error: 'Choose approve or reject and enter a review reason.' });
+    return;
+  }
+  if (reason.length > 500) {
+    res.status(400).json({ error: 'Review reasons must be 500 characters or fewer.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let reviewedApplication: any;
+    let issuedCard: any = null;
+    await session.withTransaction(async () => {
+      reviewedApplication = await CardApplication.findOneAndUpdate(
+        { id: applicationId, status: 'Pending' },
+        { $set: {
+          status: decision === 'approve' ? 'Approved' : 'Rejected',
+          reviewed_at: new Date(), reviewed_by: req.user!.id, review_reason: reason,
+        } },
+        { new: true, session }
+      ).lean<any>();
+      if (!reviewedApplication) throw new Error('This application has already been reviewed or does not exist.');
+
+      if (decision === 'approve') {
+        const linkedAccount = await Account.findOne({
+          id: reviewedApplication.account_id,
+          user_id: reviewedApplication.user_id,
+          account_type: 'Checking',
+          status: 'Active',
+        }).session(session).lean<any>();
+        if (!linkedAccount) throw new Error('The linked checking account is no longer active.');
+        issuedCard = {
+          id: `card_${randomUUID()}`,
+          application_id: reviewedApplication.id,
+          user_id: reviewedApplication.user_id,
+          account_id: reviewedApplication.account_id,
+          card_type: reviewedApplication.card_type,
+          product_name: reviewedApplication.product_name,
+          last4: randomBytes(2).toString('hex').toUpperCase(),
+          status: 'Active',
+          credit_limit: reviewedApplication.card_type === 'Credit' ? reviewedApplication.requested_limit : 0,
+          created_at: new Date(),
+        };
+        await BankCard.create([issuedCard], { session });
+        await CardApplication.updateOne({ id: applicationId }, { $set: { card_id: issuedCard.id } }, { session });
+      }
+
+      await AuditLog.create([{
+        id: `log_card_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: decision === 'approve' ? 'CARD_APPLICATION_APPROVED' : 'CARD_APPLICATION_REJECTED',
+        target_user_id: reviewedApplication.user_id,
+        target_account_id: reviewedApplication.account_id,
+        amount: reviewedApplication.requested_limit || undefined,
+        details: `${decision === 'approve' ? 'Approved' : 'Rejected'} ${reviewedApplication.product_name} application ${applicationId}. Review reason: ${reason}`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+    });
+    res.json({ success: true, application: reviewedApplication, card: issuedCard });
+  } catch (err) {
+    const message = errorMessage(err, 'Unable to review card application.');
+    res.status(message.includes('already been reviewed') || message.includes('no longer active') ? 409 : 500)
+      .json({ error: message });
+  } finally {
+    await session.endSession();
+  }
+});
+
 // POST /api/admin/balance-adjustment
 router.post('/balance-adjustment', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const accountId = String(req.body?.accountId || '').trim();
+  const action = String(req.body?.action || '').trim().toLowerCase();
+  const parsedAmount = Math.round(Number(req.body?.amount) * 100) / 100;
+  const reason = String(req.body?.reason || '').trim();
+  if (!accountId || !['credit', 'debit', 'hold', 'release'].includes(action) || !reason) {
+    res.status(400).json({ error: 'Account, action, positive amount, and reason are required.' });
+    return;
+  }
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0 || parsedAmount > 10000000) {
+    res.status(400).json({ error: 'Amount must be greater than $0 and no more than $10,000,000.' });
+    return;
+  }
+  if (reason.length > 500) {
+    res.status(400).json({ error: 'Reasons must be 500 characters or fewer.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
   try {
-    const { accountId, action, amount, reason } = req.body;
-
-    if (!accountId || !action || !amount || !reason) {
-      res.status(400).json({ error: 'Account ID, action (credit/debit), amount, and reason are required.' });
-      return;
-    }
-
-    if (action !== 'credit' && action !== 'debit') {
-      res.status(400).json({ error: "Action must be either 'credit' or 'debit'." });
-      return;
-    }
-
-    const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      res.status(400).json({ error: 'Adjustment amount must be a positive number.' });
-      return;
-    }
-
     const account = await Account.findOne({ id: accountId }).lean<any>();
     if (!account) {
       res.status(404).json({ error: 'Target account not found.' });
       return;
     }
-
     const targetUser = await User.findOne({ id: account.user_id }).lean<any>();
-
-    const adjustmentAmount = action === 'credit' ? parsedAmount : -parsedAmount;
-    const updatedAccount = await Account.findOneAndUpdate(
-      { id: accountId, ...(action === 'debit' ? { balance: { $gte: parsedAmount } } : {}) },
-      { $inc: { balance: adjustmentAmount } },
-      { new: true }
-    ).lean<any>();
-    if (!updatedAccount) {
-      res.status(400).json({
-        error: `Debit amount ($${parsedAmount.toFixed(2)}) exceeds current account balance ($${account.balance.toFixed(2)}).`,
-      });
-      return;
-    }
-    const newBalance = updatedAccount.balance;
-
-    // Record adjustment transaction
-    const txId = 'tx_adj_' + Date.now();
+    const adjustmentAmount = action === 'credit' || action === 'release' ? parsedAmount : -parsedAmount;
+    const description = {
+      credit: `Admin credit: ${reason}`,
+      debit: `Admin debit: ${reason}`,
+      hold: `Payment hold placed: ${reason}`,
+      release: `Payment hold released: ${reason}`,
+    }[action];
+    let updatedAccount: any;
     const today = new Date().toISOString().split('T')[0];
-    const desc = `Bank Admin ${action === 'credit' ? 'Credit' : 'Debit'}: ${reason.trim()}`;
+    await session.withTransaction(async () => {
+      let filter: Record<string, any> = { id: accountId };
+      let update: Record<string, any>;
+      if (action === 'credit') {
+        update = { $inc: { balance: parsedAmount } };
+      } else if (action === 'debit') {
+        filter.$expr = { $gte: [
+          { $subtract: [{ $ifNull: ['$balance', 0] }, { $ifNull: ['$held_balance', 0] }] },
+          parsedAmount,
+        ] };
+        update = { $inc: { balance: -parsedAmount } };
+      } else if (action === 'hold') {
+        filter.$expr = { $gte: [
+          { $subtract: [{ $ifNull: ['$balance', 0] }, { $ifNull: ['$held_balance', 0] }] },
+          parsedAmount,
+        ] };
+        update = { $inc: { held_balance: parsedAmount } };
+      } else {
+        filter.held_balance = { $gte: parsedAmount };
+        update = { $inc: { held_balance: -parsedAmount } };
+      }
 
-    await Transaction.create({
-      id: txId, user_id: account.user_id, account_id: accountId, type: 'admin_adjustment',
-      amount: adjustmentAmount, currency: 'USD', description: desc,
-      recipient_name: 'Bank Administrator', recipient_account: `...${account.account_number.slice(-4)}`,
-      status: 'Completed', category: 'Adjustment', date: today, created_at: Date.now(),
+      updatedAccount = await Account.findOneAndUpdate(filter, update, { new: true, session }).lean<any>();
+      if (!updatedAccount) throw new Error(action === 'release'
+        ? 'The requested amount exceeds the account’s current held balance.'
+        : 'The requested amount exceeds the account’s available balance.');
+
+      await Transaction.create([{
+        id: `tx_adj_${randomUUID()}`,
+        user_id: account.user_id,
+        account_id: accountId,
+        type: action === 'hold' ? 'admin_hold' : action === 'release' ? 'admin_release' : 'admin_adjustment',
+        amount: adjustmentAmount,
+        currency: account.currency || 'USD',
+        description,
+        recipient_name: 'Account Administration',
+        recipient_account: `...${String(account.account_number).slice(-4)}`,
+        status: action === 'hold' ? 'Held' : 'Completed',
+        category: action === 'hold' || action === 'release' ? 'Payment hold' : 'Adjustment',
+        date: today,
+        created_at: Date.now(),
+      }], { session });
+
+      await AuditLog.create([{
+        id: `log_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: `ADMIN_${action.toUpperCase()}`,
+        target_user_id: account.user_id,
+        target_account_id: accountId,
+        amount: parsedAmount,
+        details: `${description} for ${targetUser?.email || 'unknown customer'} on account ending ${String(account.account_number).slice(-4)}.`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
     });
 
-    // Record Audit Log
-    const logId = 'log_' + Date.now();
-    const auditAction = action === 'credit' ? 'BALANCE_CREDIT' : 'BALANCE_DEBIT';
-    const details = `Directly ${action}ed $${parsedAmount.toFixed(2)} USD to account ${account.account_number} (${account.nickname}) owned by ${targetUser ? targetUser.email : 'Unknown'}. Reason: "${reason}"`;
-
-    await AuditLog.create({
-      id: logId, admin_id: req.user!.id, admin_email: req.user!.email,
-      action: auditAction, target_user_id: account.user_id, target_account_id: accountId,
-      amount: parsedAmount, details, ip_address: req.ip || '127.0.0.1', created_at: new Date().toISOString(),
-    });
-
+    const availableBalance = Math.max(0, updatedAccount.balance - (updatedAccount.held_balance || 0));
     res.json({
       success: true,
-      newBalance,
+      newBalance: updatedAccount.balance,
+      availableBalance,
+      heldBalance: updatedAccount.held_balance || 0,
       adjustedAmount: parsedAmount,
       action,
       accountNumber: account.account_number,
-      message: `Account successfully ${action}ed by $${parsedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD. New balance: $${newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD.`,
+      message: `${description} — available balance is $${availableBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}.`,
     });
   } catch (err: any) {
-    console.error('Error in balance adjustment:', err);
-    res.status(500).json({ error: errorMessage(err, 'Failed to process balance adjustment.') });
+    const message = errorMessage(err, 'Failed to process the account action.');
+    if (message.includes('exceeds the account’s current held balance') || message.includes('exceeds the account’s available balance')) {
+      res.status(409).json({ error: message });
+      return;
+    }
+    console.error('Error in balance adjustment:', message);
+    res.status(500).json({ error: 'Failed to process the account action.' });
+  } finally {
+    await session.endSession();
   }
 });
 

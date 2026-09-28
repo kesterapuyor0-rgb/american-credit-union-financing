@@ -59,9 +59,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       {/* Modal Container */}
       <div className="relative bg-white border border-gray-200 rounded-sm shadow-2xl max-w-md w-full overflow-hidden z-10 animate-in zoom-in-95 duration-200">
         {/* Navy Header with Red Accent line */}
-        <div className="h-1.5 bg-[#DC143C]" />
+        <div className="h-1.5 bg-[#C9932E]" />
         
-        <div className="bg-[#002663] text-white px-6 py-5 flex items-center justify-between">
+        <div className="bg-[#0F766E] text-white px-6 py-5 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white font-bold text-lg font-serif">
               {user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
@@ -96,7 +96,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </div>
             <div className="flex items-center space-x-1 font-bold text-emerald-700 uppercase tracking-wide text-[11px]">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>{accountStatus} / 256-bit Encrypted</span>
+              <span>{accountStatus} / Demo account</span>
             </div>
           </div>
 
@@ -165,7 +165,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 <span className="font-medium">Account Number:</span>
               </div>
               <div className="flex items-center space-x-1.5">
-                <span className="font-mono font-bold text-[#002663]">
+                <span className="font-mono font-bold text-[#0F766E]">
                   {showFullAccount ? accountNumber : maskedAccount}
                 </span>
                 <button
@@ -190,10 +190,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
           {/* Security Notice */}
           <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-sm text-[11px] text-gray-600 flex items-start space-x-2">
-            <Lock className="w-3.5 h-3.5 text-[#002663] shrink-0 mt-0.5" />
+            <Lock className="w-3.5 h-3.5 text-[#0F766E] shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-[#002663] block">FDIC Insured & SafePass® Protected</span>
-              <span>All direct deposit transfers and online wire instructions utilize this verified routing and account number.</span>
+              <span className="font-bold text-[#0F766E] block">Demo account details</span>
+              <span>Balances, transfers, and account numbers in this portal are simulated and do not move real funds.</span>
             </div>
           </div>
         </div>
@@ -215,7 +215,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               onClose();
               onViewFullProfile();
             }}
-            className="px-4 py-2 bg-[#002663] hover:bg-[#001D4D] text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer"
+            className="px-4 py-2 bg-[#0F766E] hover:bg-[#115E59] text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer"
           >
             <span>View Full Profile</span>
             <ExternalLink className="w-3.5 h-3.5" />

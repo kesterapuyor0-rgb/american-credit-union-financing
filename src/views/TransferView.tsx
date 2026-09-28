@@ -203,10 +203,10 @@ export const TransferView: React.FC<TransferViewProps> = ({
       {/* Step Indicator Header */}
       <div className="mb-6 flex items-center justify-between border-b border-gray-200 pb-4">
         <div>
-          <div className="text-xs font-bold text-[#DC143C] uppercase tracking-wider mb-0.5">
-            Bank of America SafePass®
+          <div className="text-xs font-bold text-[#C9932E] uppercase tracking-wider mb-0.5">
+            Demo transfer verification
           </div>
-          <h1 className="text-2xl font-bold text-[#002663] font-serif">
+          <h1 className="text-2xl font-bold text-[#0F766E] font-serif">
             Pay & Transfer Funds
           </h1>
         </div>
@@ -214,7 +214,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
         <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
           <span
             className={`w-6 h-6 rounded-full flex items-center justify-center ${
-              step === 'details' ? 'bg-[#002663] text-white' : 'bg-emerald-100 text-emerald-800'
+              step === 'details' ? 'bg-[#0F766E] text-white' : 'bg-emerald-100 text-emerald-800'
             }`}
           >
             1
@@ -223,7 +223,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
           <span>→</span>
           <span
             className={`w-6 h-6 rounded-full flex items-center justify-center ${
-              step === '2fa' ? 'bg-[#DC143C] text-white' : step === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'
+              step === '2fa' ? 'bg-[#C9932E] text-white' : step === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'
             }`}
           >
             2
@@ -242,8 +242,8 @@ export const TransferView: React.FC<TransferViewProps> = ({
       </div>
 
       {error && (
-        <div className="mb-6 p-3.5 bg-red-50 border-l-4 border-[#DC143C] text-red-800 text-xs flex items-start gap-2.5">
-          <AlertCircle className="w-4 h-4 text-[#DC143C] flex-shrink-0 mt-0.5" />
+        <div className="mb-6 p-3.5 bg-red-50 border-l-4 border-[#C9932E] text-red-800 text-xs flex items-start gap-2.5">
+          <AlertCircle className="w-4 h-4 text-[#C9932E] flex-shrink-0 mt-0.5" />
           <div>
             <div className="font-bold">Transaction Warning:</div>
             <div>{error}</div>
@@ -254,7 +254,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
       {/* STEP 1: TRANSFER DETAILS FORM */}
       {step === 'details' && (
         <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
-          <div className="h-1.5 bg-[#002663]" />
+          <div className="h-1.5 bg-[#0F766E]" />
 
           <form onSubmit={handleInitiate} className="p-6 space-y-5">
             {/* Transfer Type Selector */}
@@ -268,11 +268,11 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   onClick={() => setTransferType('internal')}
                   className={`p-3 border rounded-sm font-semibold text-center transition-colors cursor-pointer ${
                     transferType === 'internal'
-                      ? 'border-[#002663] bg-blue-50/60 text-[#002663]'
+                      ? 'border-[#0F766E] bg-blue-50/60 text-[#0F766E]'
                       : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <Building2 className="w-4 h-4 mx-auto mb-1 text-[#002663]" />
+                  <Building2 className="w-4 h-4 mx-auto mb-1 text-[#0F766E]" />
                   Between My Accounts
                 </button>
 
@@ -281,12 +281,12 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   onClick={() => setTransferType('zelle')}
                   className={`p-3 border rounded-xs font-semibold text-center transition-colors cursor-pointer ${
                     transferType === 'zelle'
-                      ? 'border-[#002663] bg-blue-50/60 text-[#002663]'
+                      ? 'border-[#0F766E] bg-blue-50/60 text-[#0F766E]'
                       : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <Send className="w-4 h-4 mx-auto mb-1 text-[#002663]" />
-                  Send with Zelle®
+                  <Send className="w-4 h-4 mx-auto mb-1 text-[#0F766E]" />
+                  Send to saved recipient
                 </button>
 
                 <button
@@ -294,11 +294,11 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   onClick={() => setTransferType('external')}
                   className={`p-3 border rounded-xs font-semibold text-center transition-colors cursor-pointer ${
                     transferType === 'external'
-                      ? 'border-[#002663] bg-blue-50/60 text-[#002663]'
+                      ? 'border-[#0F766E] bg-blue-50/60 text-[#0F766E]'
                       : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <DollarSign className="w-4 h-4 mx-auto mb-1 text-[#002663]" />
+                  <DollarSign className="w-4 h-4 mx-auto mb-1 text-[#0F766E]" />
                   Domestic Wire / Bank
                 </button>
               </div>
@@ -316,7 +316,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                 id="select-source-account"
                 value={sourceAccountId}
                 onChange={(e) => setSourceAccountId(e.target.value)}
-                className="w-full p-2.5 text-xs sm:text-sm border border-gray-300 rounded-xs bg-white text-gray-900 focus:ring-1 focus:ring-[#002663] focus:border-[#002663] outline-hidden"
+                className="w-full p-2.5 text-xs sm:text-sm border border-gray-300 rounded-xs bg-white text-gray-900 focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden"
               >
                 {accounts.map((acc) => (
                   <option key={acc.id} value={acc.id}>
@@ -339,7 +339,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   id="select-dest-account"
                   value={destinationAccountId}
                   onChange={(e) => setDestinationAccountId(e.target.value)}
-                  className="w-full p-2.5 text-xs sm:text-sm border border-gray-300 rounded-xs bg-white text-gray-900 focus:ring-1 focus:ring-[#002663] focus:border-[#002663] outline-hidden"
+                  className="w-full p-2.5 text-xs sm:text-sm border border-gray-300 rounded-xs bg-white text-gray-900 focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden"
                 >
                   {accounts
                     .filter((a) => a.id !== sourceAccountId)
@@ -358,14 +358,14 @@ export const TransferView: React.FC<TransferViewProps> = ({
                     <button
                       type="button"
                       onClick={() => fillQuickRecipient('Sarah Jenkins', 's.jenkins@email.com')}
-                      className="text-[10px] bg-white border border-gray-300 px-2 py-0.5 rounded text-[#002663] hover:bg-gray-100"
+                      className="text-[10px] bg-white border border-gray-300 px-2 py-0.5 rounded text-[#0F766E] hover:bg-gray-100"
                     >
-                      + Sarah J. (Zelle)
+                      + Sarah J. (saved recipient)
                     </button>
                     <button
                       type="button"
                       onClick={() => fillQuickRecipient('Austin Real Estate Escrow', '9840291048')}
-                      className="text-[10px] bg-white border border-gray-300 px-2 py-0.5 rounded text-[#002663] hover:bg-gray-100"
+                      className="text-[10px] bg-white border border-gray-300 px-2 py-0.5 rounded text-[#0F766E] hover:bg-gray-100"
                     >
                       + Escrow (Wire)
                     </button>
@@ -382,7 +382,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                     placeholder="e.g. Sarah Jenkins"
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
-                    className="w-full p-2 bg-white border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#002663]"
+                    className="w-full p-2 bg-white border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E]"
                   />
                 </div>
 
@@ -400,7 +400,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                     }
                     value={recipientAccount}
                     onChange={(e) => setRecipientAccount(e.target.value)}
-                    className="w-full p-2 bg-white border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#002663]"
+                    className="w-full p-2 bg-white border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E]"
                   />
                 </div>
 
@@ -413,7 +413,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                       type="text"
                       value={recipientRouting}
                       onChange={(e) => setRecipientRouting(e.target.value)}
-                      className="w-full p-2 bg-white border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#002663]"
+                      className="w-full p-2 bg-white border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E]"
                     />
                   </div>
                 )}
@@ -441,7 +441,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full pl-8 pr-16 py-2.5 text-base font-bold text-gray-900 border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#002663] focus:border-[#002663] outline-hidden"
+                  className="w-full pl-8 pr-16 py-2.5 text-base font-bold text-gray-900 border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
                   USD
@@ -476,13 +476,13 @@ export const TransferView: React.FC<TransferViewProps> = ({
                 placeholder="e.g. Monthly rent or savings goal"
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
-                className="w-full p-2.5 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#002663] outline-hidden"
+                className="w-full p-2.5 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E] outline-hidden"
               />
             </div>
 
             {/* Delivery Channel for Security Code */}
             <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xs text-xs">
-              <span className="font-bold text-[#002663] block mb-1">
+              <span className="font-bold text-[#0F766E] block mb-1">
                 Security Verification Preference:
               </span>
               <div className="flex items-center gap-4 text-gray-700">
@@ -492,7 +492,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                     name="channel"
                     checked={channel === 'sms'}
                     onChange={() => setChannel('sms')}
-                    className="text-[#002663]"
+                    className="text-[#0F766E]"
                   />
                   <span>Text Message (SMS)</span>
                 </label>
@@ -502,7 +502,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                     name="channel"
                     checked={channel === 'email'}
                     onChange={() => setChannel('email')}
-                    className="text-[#002663]"
+                    className="text-[#0F766E]"
                   />
                   <span>Email Authorization</span>
                 </label>
@@ -523,7 +523,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                 id="btn-submit-transfer-init"
                 type="submit"
                 disabled={loading}
-                className="px-6 py-2.5 bg-[#002663] hover:bg-[#001D4D] text-white text-xs font-bold uppercase tracking-wider rounded-xs shadow-xs transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-75"
+                className="px-6 py-2.5 bg-[#0F766E] hover:bg-[#115E59] text-white text-xs font-bold uppercase tracking-wider rounded-xs shadow-xs transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-75"
               >
                 {loading ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -542,14 +542,14 @@ export const TransferView: React.FC<TransferViewProps> = ({
       {/* STEP 2: REVIEW & TWO-STEP VERIFICATION */}
       {step === '2fa' && (
         <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
-          <div className="h-1.5 bg-[#DC143C]" />
+          <div className="h-1.5 bg-[#C9932E]" />
 
           <div className="p-6">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#DC143C] uppercase tracking-wider mb-1">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#C9932E] uppercase tracking-wider mb-1">
               <ShieldCheck className="w-4 h-4" />
-              <span>SafePass® Security Step</span>
+              <span>Demo confirmation step</span>
             </div>
-            <h2 className="text-xl font-bold text-[#002663] font-serif mb-1">
+            <h2 className="text-xl font-bold text-[#0F766E] font-serif mb-1">
               Confirm & Authorize Transfer
             </h2>
             <p className="text-xs text-gray-500 mb-5">
@@ -560,7 +560,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
             <div className="bg-gray-50 border border-gray-200 rounded-sm p-4 mb-5 text-xs space-y-2.5">
               <div className="flex justify-between pb-2 border-b border-gray-200">
                 <span className="text-gray-500">Transfer Amount:</span>
-                <span className="font-mono font-bold text-base text-[#002663]">
+                <span className="font-mono font-bold text-base text-[#0F766E]">
                   {formatUSD(parseFloat(amount))} USD
                 </span>
               </div>
@@ -606,7 +606,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                 </div>
                 <div className="mt-1.5 flex items-baseline gap-2">
                   <span className="text-emerald-700">One-Time Code:</span>
-                  <span className="text-base font-mono font-bold tracking-widest text-[#002663] bg-white px-2.5 py-0.5 rounded border border-emerald-200">
+                  <span className="text-base font-mono font-bold tracking-widest text-[#0F766E] bg-white px-2.5 py-0.5 rounded border border-emerald-200">
                     {simulatedOtp}
                   </span>
                 </div>
@@ -630,7 +630,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   required
                   placeholder="123456"
                   autoFocus
-                  className="w-full text-center text-xl font-mono tracking-widest px-3.5 py-2.5 border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#DC143C] focus:border-[#DC143C] outline-hidden transition-colors"
+                  className="w-full text-center text-xl font-mono tracking-widest px-3.5 py-2.5 border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#C9932E] focus:border-[#C9932E] outline-hidden transition-colors"
                 />
               </div>
 
@@ -647,7 +647,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   id="btn-confirm-transfer-otp"
                   type="submit"
                   disabled={loading || otpCode.length !== 6}
-                  className="px-6 py-2.5 bg-[#DC143C] hover:bg-[#B01030] text-white text-xs font-bold uppercase tracking-wider rounded-xs shadow-xs transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-60"
+                  className="px-6 py-2.5 bg-[#C9932E] hover:bg-[#A8761B] text-white text-xs font-bold uppercase tracking-wider rounded-xs shadow-xs transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-60"
                 >
                   {loading ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
@@ -674,7 +674,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
               <CheckCircle2 className="w-8 h-8 text-emerald-600" />
             </div>
 
-            <h2 className="text-2xl font-bold text-[#002663] font-serif">
+            <h2 className="text-2xl font-bold text-[#0F766E] font-serif">
               Transfer Authorized & Completed
             </h2>
             <p className="text-xs text-gray-500 mt-1">
@@ -729,7 +729,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
               <button
                 type="button"
                 onClick={onCancel}
-                className="px-5 py-2 bg-[#002663] hover:bg-[#001D4D] text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-sm transition-colors cursor-pointer"
+                className="px-5 py-2 bg-[#0F766E] hover:bg-[#115E59] text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-sm transition-colors cursor-pointer"
               >
                 Return to Accounts Overview
               </button>

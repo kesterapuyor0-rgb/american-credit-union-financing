@@ -178,11 +178,11 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[#F4F6F8] flex flex-col items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="w-8 h-8 text-[#002663] animate-spin" />
-          <div className="text-sm font-bold text-[#002663] font-serif tracking-wide">
-            Bank of America Online Banking
+          <RefreshCw className="w-8 h-8 text-[#0F766E] animate-spin" />
+          <div className="text-sm font-bold text-[#0F766E] font-serif tracking-wide">
+            American Credit Union Financing
           </div>
-          <div className="text-xs text-gray-500">Establishing 256-bit secure handshake...</div>
+          <div className="text-xs text-gray-500">Loading your demo account...</div>
         </div>
       </div>
     );

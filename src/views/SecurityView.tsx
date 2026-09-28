@@ -19,14 +19,14 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
             <ShieldCheck className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-xs font-bold text-[#DC143C] uppercase tracking-wider">
-              Security Center & Fraud Protection
+            <div className="text-xs font-bold text-[#C9932E] uppercase tracking-wider">
+              Demo Account Security
             </div>
-            <h1 className="text-2xl font-bold text-[#002663] font-serif">
-              SafePass® Multi-Factor Security
+            <h1 className="text-2xl font-bold text-[#0F766E] font-serif">
+              Sign-in and Account Details
             </h1>
             <p className="text-xs text-gray-500 mt-0.5">
-              Your accounts are safeguarded with mandatory multi-factor authentication on logins and money transfers.
+              Review the contact details associated with this demo profile. This screen does not represent a regulated banking security service.
             </p>
           </div>
         </div>
@@ -34,27 +34,27 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
 
       {/* Security Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* SafePass 2FA Status */}
+        {/* Sign-in contact details */}
         <div className="bg-white border border-gray-200 rounded-xs p-5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <div className="flex items-center gap-2">
-              <KeyRound className="w-4 h-4 text-[#002663]" />
-              <h2 className="font-bold text-sm text-[#002663]">SafePass® Two-Step Verification</h2>
+              <KeyRound className="w-4 h-4 text-[#0F766E]" />
+              <h2 className="font-bold text-sm text-[#0F766E]">Profile contact details</h2>
             </div>
             <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 rounded">
-              Active & Enforced
+              On file
             </span>
           </div>
 
           <p className="text-xs text-gray-600">
-            A one-time 6-digit authorization code is required for every sign-in and every outbound transfer.
+            These contact details are shown for reference; this demo does not require one-time codes for transfers.
           </p>
 
           <div className="space-y-2.5 pt-2 text-xs">
             <div className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xs border border-gray-200">
               <div className="flex items-center gap-2">
                 <Smartphone className="w-4 h-4 text-gray-500" />
-                <span className="font-medium text-gray-700">Verified Mobile (SMS):</span>
+                <span className="font-medium text-gray-700">Mobile:</span>
               </div>
               <span className="font-mono text-gray-900 font-semibold">{maskedPhone}</span>
             </div>
@@ -62,31 +62,31 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
             <div className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xs border border-gray-200">
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-gray-500" />
-                <span className="font-medium text-gray-700">Verified Secure Email:</span>
+                <span className="font-medium text-gray-700">Email:</span>
               </div>
               <span className="font-mono text-gray-900 font-semibold">{maskedEmail}</span>
             </div>
           </div>
         </div>
 
-        {/* FDIC Insurance & Currency Protection */}
+        {/* Demo ledger details */}
         <div className="bg-white border border-gray-200 rounded-xs p-5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <div className="flex items-center gap-2">
-              <FileCheck className="w-4 h-4 text-[#002663]" />
-              <h2 className="font-bold text-sm text-[#002663]">Deposit Insurance & Currency</h2>
+              <FileCheck className="w-4 h-4 text-[#0F766E]" />
+              <h2 className="font-bold text-sm text-[#0F766E]">Demo ledger details</h2>
             </div>
             <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-blue-100 text-blue-800 rounded">
-              FDIC Insured
+              Simulated
             </span>
           </div>
 
           <p className="text-xs text-gray-600">
-            Funds in all Bank of America deposit accounts are insured by the Federal Deposit Insurance Corporation (FDIC) up to $250,000 per depositor.
+            Account balances and ledger entries are sample application data. No deposits are accepted and no funds are insured or held by this application.
           </p>
 
           <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xs text-xs space-y-1">
-            <div className="font-bold text-[#002663]">Denomination Standard</div>
+            <div className="font-bold text-[#0F766E]">Denomination Standard</div>
             <div className="text-gray-600">
               All balances, settlements, wire transfers, and account histories are natively calculated and executed in United States Dollars (USD / $).
             </div>
@@ -98,9 +98,9 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
       <div className="bg-amber-50 border border-amber-200 rounded-xs p-4 text-xs text-amber-900 flex items-start gap-3">
         <AlertCircle className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
         <div>
-          <span className="font-bold block mb-0.5">Bank of America Security Notice</span>
+          <span className="font-bold block mb-0.5">Account safety reminder</span>
           <span>
-            Bank of America will never call or text you asking for your password or your one-time SafePass® authorization code. Never share your 6-digit codes with anyone.
+            Never share your password or sign-in codes. This demo will not call or text you to request credentials.
           </span>
         </div>
       </div>

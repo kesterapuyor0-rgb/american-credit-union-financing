@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { NextFunction, Request, Response } from 'express';
-import { User, Account, Transaction, VerificationCode, AuditLog } from './models.js';
+import { User, Account, Transaction, VerificationCode, AuditLog, CardApplication, BankCard } from './models.js';
 
 let connectionPromise: Promise<typeof mongoose> | null = null;
 
@@ -18,11 +18,12 @@ export async function connectDatabase(): Promise<typeof mongoose> {
 
     connectionPromise = mongoose.connect(mongoUri, {
       bufferCommands: false,
-      serverSelectionTimeoutMS: Number(process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS) || 5000,
-      maxPoolSize: 5,
+      serverSelectionTimeoutMS: Number(process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS) || 10000,
+      maxPoolSize: 10,
     }).then(async (connection) => {
       await Promise.all([
         User.init(), Account.init(), Transaction.init(), VerificationCode.init(), AuditLog.init(),
+        CardApplication.init(), BankCard.init(),
       ]);
       const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
       const adminPassword = process.env.ADMIN_PASSWORD;

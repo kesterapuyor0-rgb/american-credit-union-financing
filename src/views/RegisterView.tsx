@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BofALogo } from '../components/BofALogo';
+import { BrandLogo } from '../components/BrandLogo';
 import { User } from '../types';
 import { safeParseResponse, setStoredAuthToken } from '../utils/api';
 import {
@@ -70,7 +70,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     }
 
     if (!agreeTerms) {
-      setError('Please accept the Bank of America Online Banking Service Agreement.');
+      setError('Please accept the demo portal terms.');
       return;
     }
 
@@ -116,9 +116,9 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
   return (
     <div className="min-h-screen bg-[#F3F4F6] flex flex-col justify-between font-sans">
       {/* Corporate Header */}
-      <header className="bg-[#002663] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#DC143C] shadow-lg">
+      <header className="bg-[#0F766E] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#C9932E] shadow-lg">
         <div className="cursor-pointer" onClick={() => onNavigateToLogin()}>
-          <BofALogo variant="white" showSubtitle={true} />
+          <BrandLogo variant="white" showSubtitle={true} />
         </div>
 
         <div className="flex items-center space-x-3 text-xs">
@@ -126,7 +126,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateToLogin()}
-            className="bg-white text-[#002663] px-3.5 py-1.5 rounded-sm font-bold hover:bg-gray-100 uppercase transition-colors shadow-xs cursor-pointer"
+            className="bg-white text-[#0F766E] px-3.5 py-1.5 rounded-sm font-bold hover:bg-gray-100 uppercase transition-colors shadow-xs cursor-pointer"
           >
             Sign In
           </button>
@@ -136,27 +136,27 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       {/* Main Registration Body */}
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6 my-6">
         <div className="bg-white border border-gray-200 rounded-sm shadow-xl max-w-lg w-full overflow-hidden">
-          <div className="h-1.5 bg-[#DC143C]" />
+          <div className="h-1.5 bg-[#C9932E]" />
 
           <div className="p-6 sm:p-8">
             {/* Header section */}
             <div className="mb-6">
-              <div className="flex items-center gap-2 text-xs font-bold text-[#DC143C] uppercase tracking-wider mb-1">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#C9932E] uppercase tracking-wider mb-1">
                 <ShieldCheck className="w-4 h-4" />
                 <span>New Client Enrollment</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-[#002663] font-serif tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#0F766E] font-serif tracking-tight">
                 Create Your Account
               </h1>
               <p className="text-xs text-gray-500 mt-1">
-                Enroll in Bank of America Online Banking to receive an instant 10-digit account number and FDIC-insured checking account.
+                Create a profile in the American Credit Union Financing demo. No real account or deposit is created.
               </p>
             </div>
 
             {/* Error Banner */}
             {error && (
-              <div className="mb-5 p-3.5 bg-red-50 border-l-4 border-[#DC143C] text-red-800 text-xs flex items-start gap-2.5 rounded-r-sm">
-                <AlertCircle className="w-4 h-4 text-[#DC143C] shrink-0 mt-0.5" />
+              <div className="mb-5 p-3.5 bg-red-50 border-l-4 border-[#C9932E] text-red-800 text-xs flex items-start gap-2.5 rounded-r-sm">
+                <AlertCircle className="w-4 h-4 text-[#C9932E] shrink-0 mt-0.5" />
                 <span className="font-medium leading-relaxed">{error}</span>
               </div>
             )}
@@ -169,18 +169,18 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-bold text-[#002663] font-serif">
+                  <h3 className="text-xl font-bold text-[#0F766E] font-serif">
                     Welcome, {successData.user.full_name}!
                   </h3>
                   <p className="text-xs text-gray-600 mt-1">
-                    Your Bank of America Advantage Checking account has been created and verified.
+                    Your demo checking account has been created.
                   </p>
                 </div>
 
                 <div className="bg-gray-50 border border-gray-200 rounded-sm p-4 text-xs space-y-2 text-left">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Account Number:</span>
-                    <span className="font-mono font-bold text-[#002663] text-sm">
+                    <span className="font-mono font-bold text-[#0F766E] text-sm">
                       {successData.accountNumber}
                     </span>
                   </div>
@@ -198,7 +198,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Status:</span>
-                    <span className="font-bold text-emerald-700">Active & 256-bit Encrypted</span>
+                    <span className="font-bold text-emerald-700">Demo account</span>
                   </div>
                 </div>
 
@@ -206,7 +206,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onRegisterSuccess(successData.user, successData.token)}
-                    className="flex-1 py-3 px-4 bg-[#002663] hover:bg-[#001D4D] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                    className="flex-1 py-3 px-4 bg-[#0F766E] hover:bg-[#115E59] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>Proceed to Dashboard</span>
                     <ArrowRight className="w-4 h-4" />
@@ -241,7 +241,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       placeholder="e.g. Eleanor Vance"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="w-full pl-9 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#002663] focus:border-[#002663] outline-hidden transition-colors"
+                      className="w-full pl-9 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
                     />
                   </div>
                 </div>
@@ -263,7 +263,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       placeholder="name@domain.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-9 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#002663] focus:border-[#002663] outline-hidden transition-colors"
+                      className="w-full pl-9 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
                     />
                   </div>
                   <span className="text-[11px] text-gray-500 mt-1 block">
@@ -288,11 +288,11 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       placeholder="(555) 000-0000"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="w-full pl-9 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#002663] focus:border-[#002663] outline-hidden transition-colors"
+                      className="w-full pl-9 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
                     />
                   </div>
                   <span className="text-[11px] text-gray-500 mt-1 block">
-                    Required for SafePass® Two-Step SMS authentication.
+                    Used as contact information for your demo profile.
                   </span>
                 </div>
 
@@ -313,7 +313,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         placeholder="••••••••"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-3 py-2.5 pr-8 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#002663] focus:border-[#002663] outline-hidden transition-colors"
+                        className="w-full px-3 py-2.5 pr-8 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
                       />
                       <button
                         type="button"
@@ -339,7 +339,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       placeholder="••••••••"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#002663] focus:border-[#002663] outline-hidden transition-colors"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
                     />
                   </div>
                 </div>
@@ -363,7 +363,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       placeholder="4 Digits"
                       value={securityPin}
                       onChange={(e) => setSecurityPin(e.target.value.replace(/\D/g, ''))}
-                      className="w-full pl-9 pr-3 py-2.5 text-sm font-mono tracking-widest border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#002663] focus:border-[#002663] outline-hidden"
+                      className="w-full pl-9 pr-3 py-2.5 text-sm font-mono tracking-widest border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden"
                     />
                   </div>
                   <span className="text-[11px] text-gray-500 mt-1 block">
@@ -379,12 +379,12 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       type="checkbox"
                       checked={agreeTerms}
                       onChange={(e) => setAgreeTerms(e.target.checked)}
-                      className="mt-0.5 rounded-sm text-[#002663] focus:ring-[#002663]"
+                      className="mt-0.5 rounded-sm text-[#0F766E] focus:ring-[#0F766E]"
                     />
                     <span>
                       I certify that I am at least 18 years of age and agree to the{' '}
-                      <span className="text-[#002663] font-semibold hover:underline">
-                        Bank of America Online Banking Agreement
+                      <span className="text-[#0F766E] font-semibold hover:underline">
+                        American Credit Union Financing Demo Terms
                       </span>{' '}
                       and Electronic Disclosures.
                     </span>
@@ -396,7 +396,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                   id="btn-submit-register"
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 px-4 bg-[#002663] hover:bg-[#001D4D] text-white font-bold text-sm uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 mt-5 cursor-pointer disabled:opacity-75"
+                  className="w-full py-3.5 px-4 bg-[#0F766E] hover:bg-[#115E59] text-white font-bold text-sm uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 mt-5 cursor-pointer disabled:opacity-75"
                 >
                   {loading ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
@@ -413,7 +413,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
           <div className="bg-gray-50 p-4 border-t border-gray-200 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>FDIC Insured up to $250,000 | 256-Bit SSL Encryption</span>
+            <span>Demo only · no real deposits, insurance, or payment processing</span>
           </div>
         </div>
       </main>
@@ -421,7 +421,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       {/* Corporate Footer */}
       <footer className="h-[40px] bg-white border-t border-gray-200 px-4 sm:px-8 flex items-center justify-between shrink-0 text-[10px] text-gray-500">
         <div className="flex items-center space-x-4">
-          <span>© {new Date().getFullYear()} Bank of America Corporation. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} American Credit Union Financing · Demo</span>
           <span className="hidden sm:inline">|</span>
           <a href="#privacy" className="hover:underline hidden sm:inline">Privacy</a>
           <a href="#security" className="hover:underline hidden sm:inline">Security</a>
@@ -429,7 +429,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
         <div className="flex items-center space-x-2">
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
           <span className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
-            256-bit Secure Enrollment
+            Demo enrollment
           </span>
         </div>
       </footer>

@@ -317,7 +317,7 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
   res.clearCookie('boa_token');
-  res.json({ success: true, message: 'Successfully signed out from Bank of America Online Banking.' });
+  res.json({ success: true, message: 'Successfully signed out from American Credit Union Financing demo.' });
 });
 
 // POST /api/auth/register
@@ -463,7 +463,7 @@ router.post('/register', async (req, res): Promise<void> => {
     // 7. Structured HTTP 201 JSON Response
     res.status(201).json({
       success: true,
-      message: 'Your Bank of America Online Banking enrollment is complete!',
+      message: 'Your American Credit Union Financing demo enrollment is complete!',
       token: authToken,
       user: {
         id: userId,

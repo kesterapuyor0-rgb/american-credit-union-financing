@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
-import { User, Account, Transaction, AuditLog } from '../models.js';
+import { randomUUID } from 'crypto';
+import { User, Account, Transaction, AuditLog, BankCard, CardApplication } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { requireAuth, AuthenticatedRequest } from '../auth.js';
 
@@ -21,7 +22,7 @@ router.get('/accounts', requireAuth, async (req: AuthenticatedRequest, res: Resp
         ...acc,
         display_number: `...${last4}`,
         masked_number: `Account ending in ${last4}`,
-        available_balance: acc.balance,
+        available_balance: Math.max(0, acc.balance - (acc.held_balance || 0)),
       };
     });
 
@@ -83,7 +84,7 @@ router.get('/summary', requireAuth, async (req: AuthenticatedRequest, res: Respo
         totalCreditUsed += acc.balance;
         totalCreditLimit += (acc.credit_limit || 0);
       } else {
-        totalCheckingSavings += acc.balance;
+        totalCheckingSavings += Math.max(0, acc.balance - (acc.held_balance || 0));
       }
     });
 
@@ -99,6 +100,68 @@ router.get('/summary', requireAuth, async (req: AuthenticatedRequest, res: Respo
   } catch (err: any) {
     console.error('Error fetching user summary:', err);
     res.status(500).json({ error: errorMessage(err, 'Failed to retrieve summary.') });
+  }
+});
+
+// GET /api/user/cards
+router.get('/cards', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const cards = await BankCard.find({ user_id: req.user!.id }).sort({ created_at: -1 })
+      .select('id user_id account_id card_type product_name last4 status credit_limit created_at').lean<any[]>();
+    res.json({ cards });
+  } catch (err) {
+    res.status(500).json({ error: errorMessage(err, 'Failed to retrieve your cards.') });
+  }
+});
+
+// GET /api/user/card-applications
+router.get('/card-applications', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const applications = await CardApplication.find({ user_id: req.user!.id }).sort({ created_at: -1 }).lean<any[]>();
+    res.json({ applications });
+  } catch (err) {
+    res.status(500).json({ error: errorMessage(err, 'Failed to retrieve your card applications.') });
+  }
+});
+
+// POST /api/user/card-applications
+router.post('/card-applications', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const cardType = String(req.body?.cardType || '');
+    const accountId = String(req.body?.accountId || '').trim();
+    const requestedLimit = Number(req.body?.requestedLimit || 0);
+    if (!['Debit', 'Credit'].includes(cardType) || !accountId) {
+      res.status(400).json({ error: 'Choose a card type and an eligible checking account.' });
+      return;
+    }
+    if (!Number.isFinite(requestedLimit) || requestedLimit < 0 || requestedLimit > 50000) {
+      res.status(400).json({ error: 'Requested limit must be between $0 and $50,000.' });
+      return;
+    }
+    const account = await Account.findOne({ id: accountId, user_id: req.user!.id, account_type: 'Checking', status: 'Active' })
+      .select('id').lean<any>();
+    if (!account) {
+      res.status(404).json({ error: 'Select an active checking account to link to the card.' });
+      return;
+    }
+    const pendingApplication = await CardApplication.findOne({ user_id: req.user!.id, card_type: cardType, status: 'Pending' }).select('id').lean<any>();
+    if (pendingApplication) {
+      res.status(409).json({ error: `You already have a pending ${cardType.toLowerCase()} card application.` });
+      return;
+    }
+    const application = await CardApplication.create({
+      id: `card_app_${randomUUID()}`,
+      user_id: req.user!.id,
+      account_id: account.id,
+      card_type: cardType,
+      product_name: cardType === 'Debit' ? 'Everyday Debit Card' : 'Rewards Credit Card',
+      requested_limit: cardType === 'Credit' ? requestedLimit : 0,
+      status: 'Pending',
+      created_at: new Date(),
+    });
+    res.status(201).json({ success: true, application });
+  } catch (err) {
+    res.status(500).json({ error: errorMessage(err, 'Unable to submit your card application.') });
   }
 });
 
@@ -127,7 +190,7 @@ router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
         account_number: primaryAccount ? primaryAccount.account_number : '4800000000',
         routing_number: primaryAccount ? primaryAccount.routing_number : '026009593',
         status: primaryAccount ? primaryAccount.status : 'Active',
-        encryption_status: 'Active (256-bit AES Hardware Encrypted)',
+        encryption_status: 'Demo account',
         accounts_count: accounts.length,
       },
       accounts: accounts.map((acc) => ({

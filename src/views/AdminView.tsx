@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, AuditLog, AdminOverviewData, UserWithAccounts, BankAccount, Transaction } from '../types';
+import { User, AuditLog, AdminOverviewData, UserWithAccounts, BankAccount, Transaction, CardApplication } from '../types';
 import { getStoredAuthToken } from '../utils/api';
 import {
   ShieldAlert,
@@ -26,11 +26,14 @@ interface AdminViewProps {
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'audit' | 'transactions'>('users');
+const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audit' | 'transactions'>('users');
   const [overview, setOverview] = useState<AdminOverviewData | null>(null);
   const [users, setUsers] = useState<UserWithAccounts[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [pendingDeposits, setPendingDeposits] = useState<Transaction[]>([]);
+  const [cardApplications, setCardApplications] = useState<CardApplication[]>([]);
+  const [cardReviewReasons, setCardReviewReasons] = useState<Record<string, string>>({});
+  const [reviewingCardId, setReviewingCardId] = useState<string | null>(null);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,7 +47,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
   const [targetAccountOwner, setTargetAccountOwner] = useState<string>('');
-  const [adjustAction, setAdjustAction] = useState<'credit' | 'debit'>('credit');
+  const [adjustAction, setAdjustAction] = useState<'credit' | 'debit' | 'hold' | 'release'>('credit');
   const [adjustAmount, setAdjustAmount] = useState<string>('');
   const [adjustReason, setAdjustReason] = useState<string>('');
   const [submittingAdjustment, setSubmittingAdjustment] = useState(false);
@@ -108,6 +111,20 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
     }
   };
 
+  const fetchCardApplications = async () => {
+    try {
+      const res = await fetch('/api/admin/card-applications', {
+        headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {},
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to load card applications.');
+      const data = await res.json();
+      setCardApplications(Array.isArray(data.applications) ? data.applications : []);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load card applications.');
+    }
+  };
+
   const fetchAuditLogs = async () => {
     try {
       const res = await fetch('/api/admin/audit-logs', {
@@ -142,7 +159,38 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
     fetchAuditLogs();
     fetchTransactions();
     fetchPendingDeposits();
+    fetchCardApplications();
   }, []);
+
+  const handleCardDecision = async (applicationId: string, decision: 'approve' | 'reject') => {
+    const reason = String(cardReviewReasons[applicationId] || '').trim();
+    if (!reason) {
+      setError('Enter a review reason before approving or rejecting a card application.');
+      return;
+    }
+    setReviewingCardId(applicationId);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/card-applications/decision', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ applicationId, decision, reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to review card application.');
+      setSuccessMsg(decision === 'approve' ? 'Card application approved and card activated.' : 'Card application rejected.');
+      await Promise.all([fetchCardApplications(), fetchUsers(), fetchOverview(), fetchAuditLogs()]);
+      setTimeout(() => setSuccessMsg(null), 6000);
+    } catch (err: any) {
+      setError(err.message || 'Unable to review card application.');
+    } finally {
+      setReviewingCardId(null);
+    }
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,7 +242,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
     setError(null);
 
     try {
-      const res = await fetch('/api/admin/credit-user', {
+      const res = await fetch('/api/admin/balance-adjustment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -204,7 +252,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
         body: JSON.stringify({
           accountId: creditAccountId,
           amount: parsed,
-          memo: creditMemo.trim(),
+          action: 'credit',
+          reason: creditMemo.trim(),
           token: activeToken,
         }),
       });
@@ -340,7 +389,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
       {/* Admin Warning Banner */}
       <div className="bg-[#1E293B] text-white p-5 rounded-xs shadow-xs border border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-[#DC143C] rounded-xs text-white">
+          <div className="p-2.5 bg-[#C9932E] rounded-xs text-white">
             <ShieldAlert className="w-6 h-6" />
           </div>
           <div>
@@ -348,7 +397,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
               Restricted Operations Area
             </div>
             <h1 className="text-xl font-bold font-serif text-white">
-              Bank of America Core Systems & Ledger Management
+              American Credit Union Financing · Demo Ledger Administration
             </h1>
             <p className="text-xs text-slate-300">
               Authorized Administrator: <span className="font-mono text-white">{user.email}</span> | MongoDB Atlas Storage
@@ -364,6 +413,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                 fetchAuditLogs();
                 fetchTransactions();
                 fetchPendingDeposits();
+                fetchCardApplications();
               }}
               disabled={loading}
               className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-xs text-white font-medium flex items-center gap-1.5 cursor-pointer"
@@ -376,10 +426,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
 
       {/* Metrics Row */}
       {overview && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-4 border border-gray-200 rounded-sm shadow-sm">
             <div className="text-xs text-gray-500 font-medium">Total Registered Users</div>
-            <div className="text-2xl font-bold text-[#002663] font-serif mt-1">
+            <div className="text-2xl font-bold text-[#0F766E] font-serif mt-1">
               {overview.totalUsers}
             </div>
             <div className="text-[11px] text-gray-500 mt-0.5">Consumer & Business Profiles</div>
@@ -403,7 +453,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
 
           <div className="bg-white p-4 border border-gray-200 rounded-sm shadow-sm">
             <div className="text-xs text-gray-500 font-medium">Audited Actions</div>
-            <div className="text-2xl font-bold text-[#DC143C] font-serif mt-1">
+            <div className="text-2xl font-bold text-[#C9932E] font-serif mt-1">
               {overview.totalAuditLogs}
             </div>
             <div className="text-[11px] text-gray-500 mt-0.5">Immutable audit events</div>
@@ -427,7 +477,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
               onClick={() => setActiveTab('users')}
               className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
                 activeTab === 'users'
-                  ? 'bg-[#002663] text-white'
+                  ? 'bg-[#0F766E] text-white'
                   : 'text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -440,17 +490,30 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                 }}
                 className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
                   activeTab === 'pending'
-                    ? 'bg-[#DC143C] text-white'
+                    ? 'bg-[#C9932E] text-white'
                     : 'text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 Pending Deposit Requests ({pendingDeposits.length})
               </button>
             <button
+              onClick={() => {
+                setActiveTab('cards');
+                fetchCardApplications();
+              }}
+              className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
+                activeTab === 'cards'
+                  ? 'bg-[#0F766E] text-white'
+                  : 'text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Card applications ({cardApplications.filter((application) => application.status === 'Pending').length})
+            </button>
+            <button
               onClick={() => setActiveTab('audit')}
               className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
                 activeTab === 'audit'
-                  ? 'bg-[#002663] text-white'
+                  ? 'bg-[#0F766E] text-white'
                   : 'text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -460,7 +523,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
               onClick={() => setActiveTab('transactions')}
               className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
                 activeTab === 'transactions'
-                  ? 'bg-[#002663] text-white'
+                  ? 'bg-[#0F766E] text-white'
                   : 'text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -475,8 +538,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
             {/* Header: Manage Customer Balances Panel */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-gray-200">
               <div>
-                <h3 className="text-base font-bold text-[#002663] font-serif flex items-center gap-2">
-                  <Users className="w-4 h-4 text-[#002663]" />
+                <h3 className="text-base font-bold text-[#0F766E] font-serif flex items-center gap-2">
+                  <Users className="w-4 h-4 text-[#0F766E]" />
                   <span>Manage Customer Balances</span>
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -488,7 +551,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                 id="btn-admin-credit-customer-modal"
                 type="button"
                 onClick={() => openCreditModal()}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#DC143C] hover:bg-[#B01030] text-white font-bold text-xs uppercase tracking-wider rounded-xs shadow-xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#C9932E] hover:bg-[#A8761B] text-white font-bold text-xs uppercase tracking-wider rounded-xs shadow-xs transition-colors cursor-pointer"
               >
                 <PlusCircle className="w-3.5 h-3.5" />
                 <span>Add Funds / Credit Account</span>
@@ -505,12 +568,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                   placeholder="Search by customer name, email, or account number..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#002663] outline-hidden"
+                  className="w-full pl-9 pr-3 py-2 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E] outline-hidden"
                 />
               </div>
               <button
                 type="submit"
-                className="px-4 py-2 bg-[#002663] text-white text-xs font-semibold rounded-xs hover:bg-[#001D4D] cursor-pointer"
+                className="px-4 py-2 bg-[#0F766E] text-white text-xs font-semibold rounded-xs hover:bg-[#115E59] cursor-pointer"
               >
                 Search
               </button>
@@ -536,7 +599,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                     <th className="py-3 px-4">Account Number</th>
                     <th className="py-3 px-4">Account Nickname / Type</th>
                     <th className="py-3 px-4">Account Holder</th>
-                    <th className="py-3 px-4">Current Balance (USD)</th>
+                    <th className="py-3 px-4">Available / Held (USD)</th>
                     <th className="py-3 px-4">Status</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
@@ -545,7 +608,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                   {users.flatMap((u) =>
                     (u.accounts || []).map((acc) => (
                       <tr key={acc.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-3.5 px-4 font-mono font-bold text-[#002663]">
+                        <td className="py-3.5 px-4 font-mono font-bold text-[#0F766E]">
                           {acc.account_number}
                         </td>
                         <td className="py-3.5 px-4">
@@ -557,7 +620,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                           <div className="text-[11px] text-gray-500 font-mono">{u.email}</div>
                         </td>
                         <td className="py-3.5 px-4 font-mono font-bold text-sm text-gray-900">
-                          {formatUSD(acc.balance)} USD
+                          <div>{formatUSD(acc.account_type === 'Credit Card' ? acc.balance : Math.max(0, acc.balance - (acc.held_balance || 0)))} available</div>
+                          {acc.account_type !== 'Credit Card' && Number(acc.held_balance || 0) > 0 && (
+                            <div className="mt-1 text-[11px] font-medium text-amber-700">{formatUSD(acc.held_balance || 0)} held</div>
+                          )}
                         </td>
                         <td className="py-3.5 px-4">
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -581,7 +647,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                               id={`btn-adjust-account-${acc.id}`}
                               type="button"
                               onClick={() => openAdjustment(acc, u.full_name)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#002663] text-white hover:bg-[#001D4D] text-xs font-medium rounded-xs shadow-2xs transition-colors cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#0F766E] text-white hover:bg-[#115E59] text-xs font-medium rounded-xs shadow-2xs transition-colors cursor-pointer"
                             >
                               <Sliders className="w-3.5 h-3.5" />
                               <span>Adjust</span>
@@ -602,7 +668,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
           <div className="p-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-gray-200">
               <div>
-                <h3 className="text-base font-bold text-[#DC143C] font-serif flex items-center gap-2">
+                <h3 className="text-base font-bold text-[#C9932E] font-serif flex items-center gap-2">
                   <ArrowDownCircle className="w-4 h-4" />
                   <span>Pending Deposit Requests</span>
                 </h3>
@@ -668,6 +734,73 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'cards' && (
+          <section className="p-4 sm:p-5">
+            <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Card applications</h3>
+                <p className="mt-1 text-xs text-slate-500">Review requests. Every decision requires a reason and is added to the audit log.</p>
+              </div>
+              <button type="button" onClick={fetchCardApplications} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Refresh applications</button>
+            </div>
+            {cardApplications.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">No card applications yet.</div>
+            ) : (
+              <div className="w-full overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full min-w-[850px] text-left text-xs">
+                  <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-600">
+                    <tr>
+                      <th className="px-4 py-3">Customer</th>
+                      <th className="px-4 py-3">Requested card</th>
+                      <th className="px-4 py-3">Linked account</th>
+                      <th className="px-4 py-3">Request date</th>
+                      <th className="px-4 py-3">Status / review</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {cardApplications.map((application) => (
+                      <tr key={application.id} className="align-top">
+                        <td className="px-4 py-4">
+                          <p className="font-semibold text-slate-900">{application.customer_name || 'Customer'}</p>
+                          <p className="mt-1 text-slate-500">{application.customer_email}</p>
+                        </td>
+                        <td className="px-4 py-4">
+                          <p className="font-semibold text-slate-900">{application.product_name}</p>
+                          <p className="mt-1 text-slate-500">{application.card_type}{application.card_type === 'Credit' ? ` · Requested ${formatUSD(application.requested_limit)}` : ''}</p>
+                        </td>
+                        <td className="px-4 py-4 text-slate-600">{application.account_nickname || 'Checking'} · •••• {application.account_number?.slice(-4) || '—'}</td>
+                        <td className="px-4 py-4 whitespace-nowrap text-slate-600">{new Date(application.created_at).toLocaleDateString()}</td>
+                        <td className="w-[340px] px-4 py-4">
+                          <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ${application.status === 'Pending' ? 'bg-amber-50 text-amber-800' : application.status === 'Approved' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>{application.status}</span>
+                          {application.status === 'Pending' ? (
+                            <div className="mt-2 space-y-2">
+                              <textarea
+                                rows={2}
+                                maxLength={500}
+                                aria-label={`Review reason for ${application.customer_name}`}
+                                placeholder="Required approval or rejection reason"
+                                value={cardReviewReasons[application.id] || ''}
+                                onChange={(event) => setCardReviewReasons((current) => ({ ...current, [application.id]: event.target.value }))}
+                                className="w-full rounded-lg border border-slate-200 p-2 text-xs outline-none focus:ring-2 focus:ring-teal-600"
+                              />
+                              <div className="flex flex-wrap gap-2">
+                                <button type="button" disabled={reviewingCardId === application.id} onClick={() => handleCardDecision(application.id, 'approve')} className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-800 disabled:opacity-50">Approve and issue demo card</button>
+                                <button type="button" disabled={reviewingCardId === application.id} onClick={() => handleCardDecision(application.id, 'reject')} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">Reject</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="mt-2 max-w-[300px] whitespace-normal text-slate-500">{application.review_reason}</p>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
         )}
 
         {/* TAB 3: AUDIT LOGS */}
@@ -748,7 +881,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                   {allTransactions.map((t) => (
                     <tr key={t.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3 px-4 font-mono text-gray-600 whitespace-nowrap">{t.date}</td>
-                      <td className="py-3 px-4 font-mono text-[#002663] font-semibold">
+                      <td className="py-3 px-4 font-mono text-[#0F766E] font-semibold">
                         {t.account_number || t.account_name}
                       </td>
                       <td className="py-3 px-4">
@@ -782,15 +915,15 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
       {adjustModalOpen && selectedAccount && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-2xs">
           <div className="bg-white border border-gray-300 rounded-xs shadow-2xl max-w-lg w-full overflow-hidden">
-            <div className="h-1.5 bg-[#DC143C]" />
+            <div className="h-1.5 bg-[#C9932E]" />
 
             <form onSubmit={handleProcessAdjustment} className="p-6 space-y-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <span className="text-xs font-bold text-[#DC143C] uppercase tracking-wider">
+                  <span className="text-xs font-bold text-[#C9932E] uppercase tracking-wider">
                     Administrative Ledger Override
                   </span>
-                  <h3 className="text-xl font-bold text-[#002663] font-serif mt-0.5">
+                  <h3 className="text-xl font-bold text-[#0F766E] font-serif mt-0.5">
                     Direct Balance Adjustment
                   </h3>
                 </div>
@@ -817,18 +950,18 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Current Balance:</span>
-                  <span className="font-mono font-bold text-sm text-[#002663]">
+                  <span className="font-mono font-bold text-sm text-[#0F766E]">
                     {formatUSD(selectedAccount.balance)} USD
                   </span>
                 </div>
               </div>
 
-              {/* Action: Credit or Debit */}
+              {/* Account action */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                   Adjustment Operation
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setAdjustAction('credit')}
@@ -854,6 +987,22 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                     <ArrowDownCircle className="w-4 h-4 text-red-600" />
                     <span>Debit (-) Deduct USD</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdjustAction('hold')}
+                    className={`py-2.5 px-3 rounded-xs border text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors ${adjustAction === 'hold' ? 'bg-amber-50 border-amber-500 text-amber-900' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    <Lock className="w-4 h-4 text-amber-600" />
+                    <span>Place payment hold</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdjustAction('release')}
+                    className={`py-2.5 px-3 rounded-xs border text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors ${adjustAction === 'release' ? 'bg-sky-50 border-sky-500 text-sky-900' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    <Lock className="w-4 h-4 text-sky-600" />
+                    <span>Release hold</span>
+                  </button>
                 </div>
               </div>
 
@@ -863,7 +1012,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                   htmlFor="input-adjust-amount"
                   className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1"
                 >
-                  Amount to {adjustAction === 'credit' ? 'Credit' : 'Debit'} (USD)
+                  Amount to {adjustAction === 'credit' ? 'Add' : adjustAction === 'debit' ? 'Deduct' : adjustAction === 'hold' ? 'Hold' : 'Release'} (USD)
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-gray-500">
@@ -878,7 +1027,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                     placeholder="0.00"
                     value={adjustAmount}
                     onChange={(e) => setAdjustAmount(e.target.value)}
-                    className="w-full pl-8 pr-12 py-2 text-base font-bold border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#002663]"
+                    className="w-full pl-8 pr-12 py-2 text-base font-bold border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E]"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
                     USD
@@ -901,12 +1050,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                   placeholder="e.g. Approved fee reversal for wire inquiry, customer relationship adjustment"
                   value={adjustReason}
                   onChange={(e) => setAdjustReason(e.target.value)}
-                  className="w-full p-2.5 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#002663]"
+                  className="w-full p-2.5 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E]"
                 />
               </div>
 
               {error && (
-                <div className="p-2.5 bg-red-50 border-l-4 border-[#DC143C] text-red-800 text-xs">
+                <div className="p-2.5 bg-red-50 border-l-4 border-[#C9932E] text-red-800 text-xs">
                   {error}
                 </div>
               )}
@@ -923,12 +1072,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                   id="btn-confirm-adjust-ledger"
                   type="submit"
                   disabled={submittingAdjustment}
-                  className="px-5 py-2 bg-[#DC143C] hover:bg-[#B01030] text-white text-xs font-bold uppercase tracking-wider rounded-xs shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                  className="px-5 py-2 bg-[#C9932E] hover:bg-[#A8761B] text-white text-xs font-bold uppercase tracking-wider rounded-xs shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
                 >
                   {submittingAdjustment ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                   ) : (
-                    <span>Apply {adjustAction === 'credit' ? 'Credit' : 'Debit'} to Ledger</span>
+                    <span>{adjustAction === 'credit' ? 'Add funds' : adjustAction === 'debit' ? 'Deduct funds' : adjustAction === 'hold' ? 'Place hold' : 'Release hold'}</span>
                   )}
                 </button>
               </div>
@@ -943,7 +1092,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
         >
           <div className="bg-white border border-gray-300 rounded-sm shadow-2xl max-w-lg w-full overflow-hidden">
-            <div className="bg-[#002663] text-white px-6 py-4 flex items-center justify-between border-b-2 border-[#DC143C]">
+            <div className="bg-[#0F766E] text-white px-6 py-4 flex items-center justify-between border-b-2 border-[#C9932E]">
               <div className="flex items-center space-x-2.5">
                 <div className="p-1.5 bg-white/10 rounded-sm">
                   <ArrowUpCircle className="w-5 h-5 text-emerald-400" />
@@ -978,7 +1127,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                   id="select-credit-customer-account"
                   value={creditAccountId}
                   onChange={(e) => setCreditAccountId(e.target.value)}
-                  className="w-full text-xs font-medium p-2.5 border border-gray-300 rounded-xs bg-white focus:ring-1 focus:ring-[#002663] outline-hidden"
+                  className="w-full text-xs font-medium p-2.5 border border-gray-300 rounded-xs bg-white focus:ring-1 focus:ring-[#0F766E] outline-hidden"
                   required
                 >
                   <option value="">-- Select Customer Account --</option>
@@ -1012,7 +1161,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Account Number:</span>
-                      <span className="font-mono font-bold text-[#002663]">
+                      <span className="font-mono font-bold text-[#0F766E]">
                         {chosenAcc.account_number}
                       </span>
                     </div>
@@ -1047,7 +1196,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                     placeholder="0.00"
                     value={creditAmount}
                     onChange={(e) => setCreditAmount(e.target.value)}
-                    className="w-full pl-8 pr-12 py-2 text-base font-bold font-mono border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#002663]"
+                    className="w-full pl-8 pr-12 py-2 text-base font-bold font-mono border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E]"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
                     USD
@@ -1084,12 +1233,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) 
                   placeholder="e.g. Account opening deposit bonus, Customer courtesy credit"
                   value={creditMemo}
                   onChange={(e) => setCreditMemo(e.target.value)}
-                  className="w-full p-2.5 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#002663]"
+                  className="w-full p-2.5 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E]"
                 />
               </div>
 
               {error && (
-                <div className="p-2.5 bg-red-50 border-l-4 border-[#DC143C] text-red-800 text-xs">
+                <div className="p-2.5 bg-red-50 border-l-4 border-[#C9932E] text-red-800 text-xs">
                   {error}
                 </div>
               )}

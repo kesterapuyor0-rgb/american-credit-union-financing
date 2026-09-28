@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BofALogo } from '../components/BofALogo';
+import { BrandLogo } from '../components/BrandLogo';
 import { User } from '../types';
 import { safeParseResponse, setStoredAuthToken } from '../utils/api';
 import {
@@ -190,9 +190,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
   return (
     <div className="min-h-screen bg-[#F3F4F6] flex flex-col justify-between font-sans">
       {/* Professional Polish Header: Navy Blue + Flag Red Accent Border */}
-      <header className="bg-[#002663] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#DC143C] shadow-lg">
+      <header className="bg-[#0F766E] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#C9932E] shadow-lg">
         <div className="flex items-center space-x-4">
-          <BofALogo variant="white" showSubtitle={true} />
+          <BrandLogo variant="white" showSubtitle={true} />
         </div>
 
         <div className="flex items-center space-x-3 text-xs">
@@ -211,7 +211,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
               SECURE ACCESS
             </span>
             <span className="text-sm font-medium text-white">
-              256-Bit SSL Encryption
+              American Credit Union Financing · Demo
             </span>
           </div>
           <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-sm border border-white/20">
@@ -227,12 +227,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8">
         <div className="w-full max-w-md bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
           {/* Top Flag Red Accent Bar */}
-          <div className="h-1.5 bg-[#DC143C] w-full" />
+          <div className="h-1.5 bg-[#C9932E] w-full" />
 
           <div className="p-6 sm:p-8">
             {step === 'credentials' ? (
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-[#002663] mb-1 font-serif tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-bold text-[#0F766E] mb-1 font-serif tracking-tight">
                   {adminOnly ? 'Core Ledger Administrator Sign-In' : 'Log In to Online Banking'}
                 </h1>
                 <p className="text-xs text-gray-500 mb-6">
@@ -249,8 +249,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 )}
 
                 {error && (
-                  <div className="mb-5 p-3 bg-red-50 border-l-4 border-[#DC143C] text-red-800 text-xs flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-[#DC143C] flex-shrink-0 mt-0.5" />
+                  <div className="mb-5 p-3 bg-red-50 border-l-4 border-[#C9932E] text-red-800 text-xs flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-[#C9932E] flex-shrink-0 mt-0.5" />
                     <span>{error}</span>
                   </div>
                 )}
@@ -270,7 +270,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="customer@bankofamerica.com"
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#002663] focus:border-[#002663] outline-hidden transition-colors"
+                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
                     />
                   </div>
 
@@ -289,7 +289,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         placeholder="••••••••"
-                        className="w-full px-3.5 py-2.5 pr-10 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#002663] focus:border-[#002663] outline-hidden transition-colors"
+                        className="w-full px-3.5 py-2.5 pr-10 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
                       />
                       <button
                         type="button"
@@ -307,11 +307,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         type="checkbox"
                         checked={rememberId}
                         onChange={(e) => setRememberId(e.target.checked)}
-                        className="rounded-sm text-[#002663] focus:ring-[#002663]"
+                        className="rounded-sm text-[#0F766E] focus:ring-[#0F766E]"
                       />
                       <span>Save this Online ID</span>
                     </label>
-                    <a href="#help" className="text-[#002663] hover:underline font-semibold">
+                    <a href="#help" className="text-[#0F766E] hover:underline font-semibold">
                       Forgot ID/Passcode?
                     </a>
                   </div>
@@ -320,7 +320,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     id="btn-submit-login"
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 px-4 bg-[#002663] hover:bg-[#001D4D] text-white font-bold text-sm uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 mt-4 cursor-pointer disabled:opacity-75"
+                    className="w-full py-3 px-4 bg-[#0F766E] hover:bg-[#115E59] text-white font-bold text-sm uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 mt-4 cursor-pointer disabled:opacity-75"
                   >
                     {loading ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />
@@ -342,7 +342,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       id="btn-goto-register"
                       type="button"
                       onClick={onNavigateToRegister}
-                      className="text-xs font-bold text-[#002663] hover:text-[#DC143C] hover:underline cursor-pointer inline-flex items-center gap-1 transition-colors"
+                      className="text-xs font-bold text-[#0F766E] hover:text-[#C9932E] hover:underline cursor-pointer inline-flex items-center gap-1 transition-colors"
                     >
                       <span>Create an Account / Enroll Now</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -353,11 +353,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
             ) : (
               /* Two-Step Verification Screen */
               <div>
-                <div className="flex items-center gap-2 text-xs font-bold text-[#DC143C] uppercase tracking-wider mb-1">
+                <div className="flex items-center gap-2 text-xs font-bold text-[#C9932E] uppercase tracking-wider mb-1">
                   <ShieldCheck className="w-4 h-4" />
                   <span>Two-Step Verification</span>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-bold text-[#002663] mb-1 font-serif tracking-tight">
+                <h2 className="text-xl sm:text-2xl font-bold text-[#0F766E] mb-1 font-serif tracking-tight">
                   Verify Your Identity
                 </h2>
                 <p className="text-xs text-gray-600 mb-4">
@@ -374,7 +374,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         name="channel"
                         checked={selectedChannel === 'sms'}
                         onChange={() => setSelectedChannel('sms')}
-                        className="text-[#002663] focus:ring-[#002663]"
+                        className="text-[#0F766E] focus:ring-[#0F766E]"
                       />
                       <Smartphone className="w-3.5 h-3.5 text-gray-500" />
                       <span>Text Message (SMS) to {maskedPhone}</span>
@@ -385,7 +385,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         name="channel"
                         checked={selectedChannel === 'email'}
                         onChange={() => setSelectedChannel('email')}
-                        className="text-[#002663] focus:ring-[#002663]"
+                        className="text-[#0F766E] focus:ring-[#0F766E]"
                       />
                       <Mail className="w-3.5 h-3.5 text-gray-500" />
                       <span>Email to {maskedEmail}</span>
@@ -411,7 +411,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     </div>
                     <div className="mt-1 flex items-baseline gap-2">
                       <span className="text-xs text-emerald-700">Code:</span>
-                      <span className="text-base font-mono font-bold tracking-widest text-[#002663] bg-white px-2.5 py-0.5 rounded-sm border border-emerald-200">
+                      <span className="text-base font-mono font-bold tracking-widest text-[#0F766E] bg-white px-2.5 py-0.5 rounded-sm border border-emerald-200">
                         {simulatedOtp}
                       </span>
                     </div>
@@ -426,8 +426,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 )}
 
                 {error && (
-                  <div className="mb-4 p-3 bg-red-50 border-l-4 border-[#DC143C] text-red-800 text-xs flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-[#DC143C] flex-shrink-0 mt-0.5" />
+                  <div className="mb-4 p-3 bg-red-50 border-l-4 border-[#C9932E] text-red-800 text-xs flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-[#C9932E] flex-shrink-0 mt-0.5" />
                     <span>{error}</span>
                   </div>
                 )}
@@ -449,7 +449,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       required
                       placeholder="123456"
                       autoFocus
-                      className="w-full text-center text-xl font-mono tracking-widest px-3.5 py-2.5 border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#002663] focus:border-[#002663] outline-hidden transition-colors"
+                      className="w-full text-center text-xl font-mono tracking-widest px-3.5 py-2.5 border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
                     />
                   </div>
 
@@ -458,7 +458,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       type="button"
                       onClick={handleResendOtp}
                       disabled={resendCooldown > 0 || loading}
-                      className="text-[#002663] hover:underline font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer"
+                      className="text-[#0F766E] hover:underline font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer"
                     >
                       <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
                       <span>
@@ -485,7 +485,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     id="btn-submit-otp"
                     type="submit"
                     disabled={loading || otpCode.length !== 6}
-                    className="w-full py-3 px-4 bg-[#DC143C] hover:bg-[#B01030] text-white font-bold text-sm uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                    className="w-full py-3 px-4 bg-[#C9932E] hover:bg-[#A8761B] text-white font-bold text-sm uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                   >
                     {loading ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />
@@ -503,7 +503,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
           <div className="bg-gray-50 p-4 border-t border-gray-200 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Bank of America SafePass® 256-bit Security Active</span>
+            <span>Demo portal · no real financial services</span>
           </div>
         </div>
       </main>
@@ -511,11 +511,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
       {/* Corporate Security Footer */}
       <footer className="h-[40px] bg-white border-t border-gray-200 px-4 sm:px-8 flex items-center justify-between shrink-0 text-[10px] text-gray-500">
         <div className="flex items-center space-x-4">
-          <span>© {new Date().getFullYear()} Bank of America Corporation. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} American Credit Union Financing · Demo</span>
           <span className="hidden sm:inline">|</span>
           <a href="#privacy" className="hover:underline hidden sm:inline">Privacy</a>
           <a href="#security" className="hover:underline hidden sm:inline">Security</a>
-          <a href="#housing" className="hover:underline hidden sm:inline">Equal Housing Lender</a>
+          <span className="hidden sm:inline">Simulated accounts only</span>
         </div>
         <div className="flex items-center space-x-2">
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />

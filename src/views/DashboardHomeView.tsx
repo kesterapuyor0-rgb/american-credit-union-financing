@@ -1,5 +1,5 @@
-import React, { useMemo, useState, ChangeEvent } from 'react';
-import { User, BankAccount, Transaction } from '../types';
+import React, { useMemo, useState, ChangeEvent, useEffect } from 'react';
+import { User, BankAccount, Transaction, BankCard, CardApplication } from '../types';
 import { AddFundsModal } from '../components/AddFundsModal';
 import { getAuthHeaders } from '../utils/api';
 import {
@@ -15,6 +15,16 @@ import {
   Plus,
   Settings,
 } from 'lucide-react';
+
+function getLocalGreeting(): { text: string; location: string } {
+  const hour = new Date().getHours();
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  const location = timeZone.split('/').pop()?.replace(/_/g, ' ') || '';
+  return {
+    text: hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening',
+    location: location.startsWith('Etc ') || location === 'UTC' ? '' : location,
+  };
+}
 
 interface DashboardHomeViewProps {
   user: User;
@@ -43,14 +53,50 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const [pictureMessage, setPictureMessage] = useState('');
   const [depositOpen, setDepositOpen] = useState(false);
   const [receiveCopied, setReceiveCopied] = useState(false);
+  const [cards, setCards] = useState<BankCard[]>([]);
+  const [cardApplications, setCardApplications] = useState<CardApplication[]>([]);
+  const [applyForCard, setApplyForCard] = useState(false);
+  const [cardType, setCardType] = useState<'Debit' | 'Credit'>('Debit');
+  const [cardAccountId, setCardAccountId] = useState('');
+  const [requestedLimit, setRequestedLimit] = useState('1000');
+  const [submittingCard, setSubmittingCard] = useState(false);
+  const [cardMessage, setCardMessage] = useState('');
+  const [greeting, setGreeting] = useState(() => getLocalGreeting());
 
   const checkingAndSavings = accounts.filter((account) =>
     account.account_type === 'Checking' || account.account_type === 'Savings'
   );
   const defaultAccount = checkingAndSavings.find((account) => account.account_type === 'Checking') || checkingAndSavings[0] || accounts[0];
   const activeAccount = accounts.find((account) => account.id === activeAccountId) || defaultAccount;
-  const creditCards = accounts.filter((account) => account.account_type === 'Credit Card');
+  const legacyCards = accounts.filter((account) => account.account_type === 'Credit Card');
   const recentTransactions = useMemo(() => transactions.slice(0, 3), [transactions]);
+
+  useEffect(() => {
+    const refreshGreeting = () => setGreeting(getLocalGreeting());
+    refreshGreeting();
+    const timer = window.setInterval(refreshGreeting, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const loadCards = async () => {
+      try {
+        const [cardsResponse, applicationsResponse] = await Promise.all([
+          fetch('/api/user/cards', { headers: getAuthHeaders(), credentials: 'include' }),
+          fetch('/api/user/card-applications', { headers: getAuthHeaders(), credentials: 'include' }),
+        ]);
+        if (!cardsResponse.ok || !applicationsResponse.ok) throw new Error('Unable to load card information.');
+        const [cardsData, applicationsData] = await Promise.all([cardsResponse.json(), applicationsResponse.json()]);
+        setCards(Array.isArray(cardsData.cards) ? cardsData.cards : []);
+        setCardApplications(Array.isArray(applicationsData.applications) ? applicationsData.applications : []);
+      } catch (error) {
+        setCardMessage(error instanceof Error ? error.message : 'Unable to load card information.');
+      }
+    };
+    void loadCards();
+    const refreshTimer = window.setInterval(() => void loadCards(), 30_000);
+    return () => window.clearInterval(refreshTimer);
+  }, [user.id]);
 
   const formatMoney = (amount: number) => new Intl.NumberFormat('en-US', {
     style: 'currency', currency: 'USD', minimumFractionDigits: 2,
@@ -107,6 +153,41 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     }
   };
 
+  const handleCardApplication = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!cardAccountId) {
+      setCardMessage('Choose an active checking account to link to the card.');
+      return;
+    }
+    setSubmittingCard(true);
+    setCardMessage('');
+    try {
+      const response = await fetch('/api/user/card-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify({
+          cardType,
+          accountId: cardAccountId,
+          requestedLimit: cardType === 'Credit' ? Number(requestedLimit) : 0,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to submit your card application.');
+      setCardMessage('Application submitted. You can track its review status below.');
+      setApplyForCard(false);
+      const applicationsResponse = await fetch('/api/user/card-applications', { headers: getAuthHeaders(), credentials: 'include' });
+      if (applicationsResponse.ok) {
+        const applicationsData = await applicationsResponse.json();
+        setCardApplications(Array.isArray(applicationsData.applications) ? applicationsData.applications : []);
+      }
+    } catch (error) {
+      setCardMessage(error instanceof Error ? error.message : 'Unable to submit your card application.');
+    } finally {
+      setSubmittingCard(false);
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-5xl space-y-7 pb-6">
       <header className="flex items-center justify-between gap-4">
@@ -123,7 +204,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             </label>
           </div>
           <div className="min-w-0">
-            <p className="text-sm text-slate-500">Good evening 👋</p>
+            <p className="text-sm text-slate-500">{greeting.text} 👋{greeting.location ? ` · ${greeting.location}` : ''}</p>
             <h1 className="truncate text-lg font-semibold text-slate-900">{user.full_name}</h1>
             {pictureMessage && <p role="status" className="truncate text-xs text-slate-500">{uploadingPicture ? 'Uploading photo…' : pictureMessage}</p>}
           </div>
@@ -168,12 +249,12 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             </button>
           </div>
           <p className="mt-1 break-all text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-            {balanceVisible ? formatMoney(activeAccount?.balance || 0) : '••••••'}
+            {balanceVisible ? formatMoney(activeAccount?.available_balance ?? activeAccount?.balance ?? 0) : '••••••'}
           </p>
         </div>
       </section>
 
-      <section aria-label="Quick actions" className="grid grid-cols-4 gap-2 sm:gap-5">
+      <section aria-label="Quick actions" className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
         <button type="button" onClick={() => setDepositOpen(true)} className="flex flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
           <span className="grid h-14 w-14 place-items-center rounded-full border border-slate-200 bg-white shadow-sm"><Plus className="h-5 w-5" /></span>
           Top Up
@@ -195,13 +276,56 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
       <section id="active-cards" className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-900">Your Active Cards</h2>
-          <button type="button" onClick={() => { onNavigateToTab('cards'); window.setTimeout(() => document.getElementById('active-cards')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }} className="inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900">
-            Manage <ChevronRight className="h-4 w-4" />
+          <button type="button" onClick={() => setApplyForCard((open) => !open)} className="inline-flex items-center gap-1 text-sm font-medium text-teal-700 hover:text-teal-900">
+            {applyForCard ? 'Close' : 'Apply for a card'} <ChevronRight className="h-4 w-4" />
           </button>
         </div>
-        {creditCards.length ? (
+        {applyForCard && (
+          <form onSubmit={handleCardApplication} className="grid gap-3 rounded-2xl border border-teal-100 bg-white p-4 sm:grid-cols-2 sm:p-5">
+            <label className="space-y-1 text-xs font-medium text-slate-700">
+              <span>Card type</span>
+              <select value={cardType} onChange={(event) => setCardType(event.target.value as 'Debit' | 'Credit')} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                <option value="Debit">Everyday Debit Card</option>
+                <option value="Credit">Rewards Credit Card</option>
+              </select>
+            </label>
+            <label className="space-y-1 text-xs font-medium text-slate-700">
+              <span>Link to checking account</span>
+              <select value={cardAccountId} onChange={(event) => setCardAccountId(event.target.value)} required className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                <option value="">Choose an account</option>
+                {accounts.filter((account) => account.account_type === 'Checking' && account.status === 'Active').map((account) => (
+                  <option key={account.id} value={account.id}>{account.nickname} · •••• {account.account_number.slice(-4)}</option>
+                ))}
+              </select>
+            </label>
+            {cardType === 'Credit' && (
+              <label className="space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">
+                <span>Requested demo credit limit (USD)</span>
+                <input type="number" min="0" max="50000" step="100" value={requestedLimit} onChange={(event) => setRequestedLimit(event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm sm:max-w-xs" />
+              </label>
+            )}
+            <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs leading-5 text-slate-500">Applications are reviewed by an administrator. Approval creates an in-app demo card; no external card network is contacted.</p>
+              <button type="submit" disabled={submittingCard} className="shrink-0 rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50">
+                {submittingCard ? 'Submitting…' : 'Submit application'}
+              </button>
+            </div>
+          </form>
+        )}
+        {(cards.length > 0 || legacyCards.length > 0) ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            {creditCards.map((card) => (
+            {cards.map((card) => (
+              <article key={card.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <CreditCard className="h-5 w-5 text-teal-700" />
+                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs text-emerald-700">{card.status}</span>
+                </div>
+                <p className="mt-5 font-medium text-slate-900">{card.product_name}</p>
+                <p className="mt-1 text-sm text-slate-500">{card.card_type} · •••• {card.last4}</p>
+                {card.card_type === 'Credit' && <p className="mt-3 text-sm font-semibold text-slate-800">Demo limit {formatMoney(card.credit_limit)}</p>}
+              </article>
+            ))}
+            {legacyCards.map((card) => (
               <article key={card.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <CreditCard className="h-5 w-5 text-slate-600" />
@@ -220,6 +344,21 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             <p className="mt-1 text-sm text-slate-500">Your cards will appear here when available.</p>
           </div>
         )}
+        {cardApplications.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-slate-800">Application status</h3>
+            {cardApplications.map((application) => (
+              <div key={application.id} className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-800">{application.product_name}</p>
+                  {application.review_reason && <p className="mt-1 text-xs text-slate-500">{application.review_reason}</p>}
+                </div>
+                <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-medium ${application.status === 'Approved' ? 'bg-emerald-50 text-emerald-700' : application.status === 'Rejected' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-800'}`}>{application.status}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {cardMessage && <p role="status" className="text-xs text-slate-600">{cardMessage}</p>}
       </section>
 
       {recentTransactions.length > 0 && (

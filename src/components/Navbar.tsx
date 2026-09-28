@@ -1,5 +1,5 @@
 import React from 'react';
-import { BofALogo } from './BofALogo';
+import { BrandLogo } from './BrandLogo';
 import { User } from '../types';
 import { Lock, LogOut, ShieldCheck, ChevronDown, User as UserIcon } from 'lucide-react';
 
@@ -23,7 +23,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <div className="sticky top-0 z-50 w-full shrink-0 bg-white">
       {/* Top Header - Professional Polish: Navy Blue + Red Accent Border */}
-      <header className="bg-[#002663] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#DC143C] shadow-lg">
+      <header className="bg-[#0F766E] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#C9932E] shadow-lg">
         <div className="flex items-center space-x-4">
           <div
             className="cursor-pointer"
@@ -35,7 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
           >
-            <BofALogo variant="white" showSubtitle={true} />
+            <BrandLogo variant="white" showSubtitle={true} />
           </div>
 
           {isAdminView && (
@@ -78,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="btn-signout"
               onClick={onSignOut}
-              className="bg-white text-[#002663] px-3.5 sm:px-4 py-1.5 rounded-sm font-bold text-xs sm:text-sm hover:bg-gray-100 uppercase transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="bg-white text-[#0F766E] px-3.5 sm:px-4 py-1.5 rounded-sm font-bold text-xs sm:text-sm hover:bg-gray-100 uppercase transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Sign Out</span>
@@ -96,8 +96,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('accounts')}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'accounts'
-                  ? 'border-b-4 border-[#002663] text-[#002663] font-bold'
-                  : 'text-gray-600 hover:text-[#002663] font-medium'
+                  ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
+                  : 'text-gray-600 hover:text-[#0F766E] font-medium'
               }`}
             >
               Accounts
@@ -108,8 +108,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('transfers')}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'transfers'
-                  ? 'border-b-4 border-[#002663] text-[#002663] font-bold'
-                  : 'text-gray-600 hover:text-[#002663] font-medium'
+                  ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
+                  : 'text-gray-600 hover:text-[#0F766E] font-medium'
               }`}
             >
               Transfers
@@ -120,8 +120,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('history')}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'history'
-                  ? 'border-b-4 border-[#002663] text-[#002663] font-bold'
-                  : 'text-gray-600 hover:text-[#002663] font-medium'
+                  ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
+                  : 'text-gray-600 hover:text-[#0F766E] font-medium'
               }`}
             >
               Bill Pay & Activity
@@ -132,8 +132,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('security')}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'security'
-                  ? 'border-b-4 border-[#002663] text-[#002663] font-bold'
-                  : 'text-gray-600 hover:text-[#002663] font-medium'
+                  ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
+                  : 'text-gray-600 hover:text-[#0F766E] font-medium'
               }`}
             >
               Security Center
@@ -144,8 +144,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('profile')}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'profile'
-                  ? 'border-b-4 border-[#002663] text-[#002663] font-bold'
-                  : 'text-gray-600 hover:text-[#002663] font-medium'
+                  ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
+                  : 'text-gray-600 hover:text-[#0F766E] font-medium'
               }`}
             >
               Profile & Details
@@ -178,7 +178,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('users')}
               className={`px-3 py-1.5 rounded-sm font-semibold transition-colors cursor-pointer ${
                 activeTab === 'users'
-                  ? 'bg-[#DC143C] text-white shadow-xs'
+                  ? 'bg-[#C9932E] text-white shadow-xs'
                   : 'text-slate-300 hover:bg-slate-800'
               }`}
             >
@@ -189,7 +189,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('audit')}
               className={`px-3 py-1.5 rounded-sm font-semibold transition-colors cursor-pointer ${
                 activeTab === 'audit'
-                  ? 'bg-[#DC143C] text-white shadow-xs'
+                  ? 'bg-[#C9932E] text-white shadow-xs'
                   : 'text-slate-300 hover:bg-slate-800'
               }`}
             >
@@ -200,7 +200,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('transactions')}
               className={`px-3 py-1.5 rounded-sm font-semibold transition-colors cursor-pointer ${
                 activeTab === 'transactions'
-                  ? 'bg-[#DC143C] text-white shadow-xs'
+                  ? 'bg-[#C9932E] text-white shadow-xs'
                   : 'text-slate-300 hover:bg-slate-800'
               }`}
             >
