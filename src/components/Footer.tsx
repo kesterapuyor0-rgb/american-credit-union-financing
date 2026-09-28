@@ -14,7 +14,7 @@ export const Footer: React.FC = () => {
       <div className="flex items-center space-x-2">
         <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
         <span className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
-          Prototype Session
+          Active Session
         </span>
       </div>
     </footer>

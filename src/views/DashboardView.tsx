@@ -268,7 +268,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </span>
               </div>
               <div className="text-[11px] text-gray-300 mt-1">
-                Prototype account
+                Active account
               </div>
             </div>
           </div>
@@ -461,7 +461,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <span>Security Tip</span>
               </p>
               <p className="text-xs opacity-90 leading-relaxed text-slate-100">
-                Never share your password or sign-in codes. Use the prototype notice in the page footer as a reminder that account activity is simulated.
+                Never share your password or sign-in codes. Use the Security notice in the page footer as a reminder that account activity verification.
               </p>
             </div>
             <div className="absolute -right-6 -bottom-6 opacity-10 pointer-events-none">

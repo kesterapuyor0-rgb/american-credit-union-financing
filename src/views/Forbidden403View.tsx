@@ -42,7 +42,7 @@ export const Forbidden403View: React.FC<Forbidden403ViewProps> = ({ onRedirectTo
           </h1>
 
           <p className="text-xs text-gray-600 leading-relaxed mb-6">
-            Access to administrative tools in this prototype is restricted to accounts with administrator permissions. Your request has been denied.
+            Access to administrative tools in this plaform is restricted to accounts with administrator permissions. Your request has been denied.
           </p>
 
           <div className="p-3 bg-gray-50 border border-gray-200 rounded-xs text-xs text-gray-500 mb-6 font-mono">

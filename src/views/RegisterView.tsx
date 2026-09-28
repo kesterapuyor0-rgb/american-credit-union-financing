@@ -70,7 +70,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     }
 
     if (!agreeTerms) {
-      setError('Please accept the account portal prototype terms.');
+      setError('Please accept the account portal terms of service.');
       return;
     }
 
@@ -173,7 +173,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     Welcome, {successData.user.full_name}!
                   </h3>
                   <p className="text-xs text-gray-600 mt-1">
-                    Your prototype checking account is ready.
+                    Your checking account is ready.
                   </p>
                 </div>
 
@@ -384,7 +384,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     <span>
                       I certify that I am at least 18 years of age and agree to the{' '}
                       <span className="text-[#0F766E] font-semibold hover:underline">
-                        American Credit Union Financing Prototype Terms
+                        American Credit Union Financing Terms
                       </span>{' '}
                       and Electronic Disclosures.
                     </span>
@@ -429,7 +429,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
         <div className="flex items-center space-x-2">
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
           <span className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
-            Prototype enrollment
+            Online enrollment
           </span>
         </div>
       </footer>

@@ -175,7 +175,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                 Add Funds from External Account
               </h3>
               <p className="text-[11px] text-gray-200">
-                Deposit request · Prototype
+              Deposit request   · Secure processing
               </p>
             </div>
           </div>

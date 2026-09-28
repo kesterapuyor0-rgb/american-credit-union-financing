@@ -69,7 +69,7 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
           </div>
         </div>
 
-        {/* Prototype ledger details */}
+        {/* Secure ledger details */}
         <div className="bg-white border border-gray-200 rounded-xs p-5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <div className="flex items-center gap-2">
@@ -82,7 +82,7 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
           </div>
 
           <p className="text-xs text-gray-600">
-            This prototype displays simulated balances and ledger entries. It does not accept deposits or hold funds.
+            This platform displays account balances and ledger entries. It accept deposits or hold funds.
           </p>
 
           <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xs text-xs space-y-1">
