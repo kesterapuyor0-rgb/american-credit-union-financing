@@ -26,7 +26,7 @@ function getLocalGreeting(): { text: string; location: string } {
   };
 }
 
-interface DashboardHomeViewProps {
+export interface DashboardHomeViewProps {
   user: User;
   token?: string;
   accounts: BankAccount[];
@@ -365,7 +365,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         {cardMessage && <p role="status" className="text-xs text-slate-600">{cardMessage}</p>}
       </section>
 
-      {recentTransactions.length > 0 && (
+      {!showCardsOnly && recentTransactions.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">Recent Activity</h2>
@@ -389,3 +389,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     </div>
   );
 };
+
+export const CardsManagementView: React.FC<Omit<DashboardHomeViewProps, 'showCardsOnly'>> = (props) => (
+  <DashboardHomeView {...props} showCardsOnly />
+);

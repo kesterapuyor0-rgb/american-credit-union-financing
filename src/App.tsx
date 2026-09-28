@@ -12,7 +12,7 @@ import { RegisterView } from './views/RegisterView';
 import { ProfileView } from './views/ProfileView';
 import { ProfileModal } from './components/ProfileModal';
 import { RefreshCw } from 'lucide-react';
-import { DashboardHomeView } from './views/DashboardHomeView';
+import { CardsManagementView, DashboardHomeView } from './views/DashboardHomeView';
 import { BottomNavigation } from './components/BottomNavigation';
 import { getStoredAuthToken, setStoredAuthToken, clearStoredAuthToken } from './utils/api';
 
@@ -271,41 +271,23 @@ export default function App() {
   }
 
   const renderCustomerView = () => {
+    const dashboardProps = {
+      user,
+      token,
+      accounts,
+      transactions,
+      onRefresh: fetchUserData,
+      onNavigateToTransfer: handleNavigateToTransfer,
+      onNavigateToTab: setActiveTab,
+      onProfilePictureChange: (profilePicture: string) => setUser((current) => current ? { ...current, profilePicture } : current),
+    };
+
     switch (activeTab) {
       case 'home':
-        return <DashboardHomeView
-          user={user}
-          token={token}
-          accounts={accounts}
-          transactions={transactions}
-          onRefresh={fetchUserData}
-          onNavigateToTransfer={handleNavigateToTransfer}
-          onNavigateToTab={setActiveTab}
-          onProfilePictureChange={(profilePicture) => setUser((current) => current ? { ...current, profilePicture } : current)}
-        />;
-      case 'cards':
-        return <DashboardHomeView
-          user={user}
-          token={token}
-          accounts={accounts}
-          transactions={transactions}
-          onRefresh={fetchUserData}
-          onNavigateToTransfer={handleNavigateToTransfer}
-          onNavigateToTab={setActiveTab}
-          onProfilePictureChange={(profilePicture) => setUser((current) => current ? { ...current, profilePicture } : current)}
-          showCardsOnly
-        />;
-      case 'transfer':
-        return <TransferView
-          user={user}
-          token={token}
-          accounts={accounts}
-          initialFromAccountId={initialTransferSourceId}
-          onTransferComplete={fetchUserData}
-          onCancel={() => setActiveTab('home')}
-        />;
+        return <DashboardHomeView key="home" {...dashboardProps} />;
       case 'history':
         return <DashboardView
+          key="history"
           user={user}
           token={token}
           accounts={accounts}
@@ -315,27 +297,31 @@ export default function App() {
           onRefresh={fetchUserData}
           onNavigateToTransfer={handleNavigateToTransfer}
         />;
-      case 'security':
-        return <SecurityView user={user} />;
+      case 'transfer':
+        return <TransferView
+          key="transfer"
+          user={user}
+          token={token}
+          accounts={accounts}
+          initialFromAccountId={initialTransferSourceId}
+          onTransferComplete={fetchUserData}
+          onCancel={() => setActiveTab('home')}
+        />;
       case 'profile':
         return <ProfileView
+          key="profile"
           user={user}
           accounts={accounts}
           onProfilePictureChange={(profilePicture) => setUser((current) => current ? { ...current, profilePicture } : current)}
           onReturnToAccounts={() => setActiveTab('home')}
           onNavigateToTransfer={() => setActiveTab('transfer')}
         />;
+      case 'cards':
+        return <CardsManagementView key="cards" {...dashboardProps} />;
+      case 'security':
+        return <SecurityView key="security" user={user} />;
       default:
-        return <DashboardHomeView
-          user={user}
-          token={token}
-          accounts={accounts}
-          transactions={transactions}
-          onRefresh={fetchUserData}
-          onNavigateToTransfer={handleNavigateToTransfer}
-          onNavigateToTab={setActiveTab}
-          onProfilePictureChange={(profilePicture) => setUser((current) => current ? { ...current, profilePicture } : current)}
-        />;
+        return <DashboardHomeView key="home-fallback" {...dashboardProps} />;
     }
   };
 
