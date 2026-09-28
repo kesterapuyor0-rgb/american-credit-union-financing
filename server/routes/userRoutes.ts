@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { User, Account, Transaction, AuditLog, BankCard, CardApplication } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { requireAuth, AuthenticatedRequest } from '../auth.js';
+import { maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
 
 const router = Router();
 router.use(requireDatabase);
@@ -115,7 +116,8 @@ router.get('/cards', requireAuth, async (req: AuthenticatedRequest, res: Respons
       const account = accountById.get(card.account_id);
       return {
         ...card,
-        masked_number: card.masked_number || `${card.card_type === 'Credit' ? '5424' : '4532'} •••• •••• ${card.last4}`,
+        last4: numericCardLastFour(card.last4),
+        masked_number: maskedCardNumber(card.card_type, card.last4),
         linked_account_name: account?.nickname || '',
         linked_account_number: account?.account_number || '',
         linked_account_available: account ? Math.max(0, account.balance - (account.held_balance || 0)) : 0,

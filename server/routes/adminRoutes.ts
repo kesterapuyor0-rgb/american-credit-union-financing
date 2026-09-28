@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { User, Account, Transaction, AuditLog, BankCard, CardApplication } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { requireAdmin, AuthenticatedRequest } from '../auth.js';
+import { maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
 
 const router = Router();
 
@@ -201,7 +202,6 @@ router.post('/card-applications/decision', async (req: AuthenticatedRequest, res
         }).session(session).lean<any>();
         if (!linkedAccount) throw new Error('The linked checking account is no longer active.');
         const last4 = String(randomInt(0, 10000)).padStart(4, '0');
-        const issuerPrefix = reviewedApplication.card_type === 'Credit' ? '5424' : '4532';
         issuedCard = {
           id: `card_${randomUUID()}`,
           application_id: reviewedApplication.id,
@@ -210,7 +210,7 @@ router.post('/card-applications/decision', async (req: AuthenticatedRequest, res
           card_type: reviewedApplication.card_type,
           product_name: reviewedApplication.product_name,
           last4,
-          masked_number: `${issuerPrefix} •••• •••• ${last4}`,
+          masked_number: maskedCardNumber(reviewedApplication.card_type, last4),
           status: 'Active',
           credit_limit: reviewedApplication.card_type === 'Credit' ? reviewedApplication.requested_limit : 0,
           created_at: new Date(),
@@ -374,7 +374,8 @@ router.get('/cards', async (_req: AuthenticatedRequest, res: Response): Promise<
       const account = accountById.get(card.account_id);
       return {
         ...card,
-        masked_number: card.masked_number || `${card.card_type === 'Credit' ? '5424' : '4532'} •••• •••• ${card.last4}`,
+        last4: numericCardLastFour(card.last4),
+        masked_number: maskedCardNumber(card.card_type, card.last4),
         customer_name: owner?.full_name || 'Unknown customer',
         customer_email: owner?.email || '',
         account_nickname: account?.nickname || '',
@@ -433,7 +434,7 @@ router.post('/cards/:cardId/debit', async (req: AuthenticatedRequest, res: Respo
         currency: account.currency || 'USD',
         description,
         recipient_name: 'Card transaction',
-        recipient_account: `•••• ${card.last4}`,
+        recipient_account: `•••• ${numericCardLastFour(card.last4)}`,
         status: 'Completed',
         category: 'Card debit',
         date: new Date().toISOString().slice(0, 10),
@@ -447,7 +448,7 @@ router.post('/cards/:cardId/debit', async (req: AuthenticatedRequest, res: Respo
         target_user_id: card.user_id,
         target_account_id: account.id,
         amount,
-        details: `${description} for ${owner?.email || 'customer'} using ${card.product_name} ending ${card.last4}.`,
+        details: `${description} for ${owner?.email || 'customer'} using ${card.product_name} ending ${numericCardLastFour(card.last4)}.`,
         ip_address: req.ip || '127.0.0.1',
         created_at: new Date().toISOString(),
       }], { session });
