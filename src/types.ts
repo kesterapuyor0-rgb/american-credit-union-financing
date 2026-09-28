@@ -51,6 +51,11 @@ export interface BankCard {
   card_type: 'Debit' | 'Credit';
   product_name: string;
   last4: string;
+  masked_number?: string;
+  linked_account_name?: string;
+  linked_account_number?: string;
+  linked_account_available?: number;
+  currency?: string;
   status: 'Active' | 'Locked';
   credit_limit: number;
   created_at: string;

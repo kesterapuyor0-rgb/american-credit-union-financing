@@ -106,8 +106,22 @@ router.get('/summary', requireAuth, async (req: AuthenticatedRequest, res: Respo
 // GET /api/user/cards
 router.get('/cards', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const cards = await BankCard.find({ user_id: req.user!.id }).sort({ created_at: -1 })
-      .select('id user_id account_id card_type product_name last4 status credit_limit created_at').lean<any[]>();
+    const issuedCards = await BankCard.find({ user_id: req.user!.id, status: 'Active' }).sort({ created_at: -1 })
+      .select('id user_id account_id card_type product_name last4 masked_number status credit_limit created_at').lean<any[]>();
+    const accounts = await Account.find({ id: { $in: issuedCards.map((card) => card.account_id) }, user_id: req.user!.id })
+      .select('id nickname account_number balance held_balance currency').lean<any[]>();
+    const accountById = new Map(accounts.map((account) => [account.id, account]));
+    const cards = issuedCards.map((card) => {
+      const account = accountById.get(card.account_id);
+      return {
+        ...card,
+        masked_number: card.masked_number || `${card.card_type === 'Credit' ? '5424' : '4532'} •••• •••• ${card.last4}`,
+        linked_account_name: account?.nickname || '',
+        linked_account_number: account?.account_number || '',
+        linked_account_available: account ? Math.max(0, account.balance - (account.held_balance || 0)) : 0,
+        currency: account?.currency || 'USD',
+      };
+    });
     res.json({ cards });
   } catch (err) {
     res.status(500).json({ error: errorMessage(err, 'Failed to retrieve your cards.') });

@@ -52,6 +52,7 @@ const cardSchema = new Schema({
   card_type: { type: String, required: true, enum: ['Debit', 'Credit'] },
   product_name: { type: String, required: true },
   last4: { type: String, required: true },
+  masked_number: { type: String, default: '' },
   status: { type: String, required: true, default: 'Active' },
   credit_limit: { type: Number, default: 0 },
   created_at: { type: Date, required: true, default: Date.now },

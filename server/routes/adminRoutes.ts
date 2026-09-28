@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { randomBytes, randomUUID } from 'crypto';
+import { randomInt, randomUUID } from 'crypto';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { User, Account, Transaction, AuditLog, BankCard, CardApplication } from '../models.js';
@@ -200,6 +200,8 @@ router.post('/card-applications/decision', async (req: AuthenticatedRequest, res
           status: 'Active',
         }).session(session).lean<any>();
         if (!linkedAccount) throw new Error('The linked checking account is no longer active.');
+        const last4 = String(randomInt(0, 10000)).padStart(4, '0');
+        const issuerPrefix = reviewedApplication.card_type === 'Credit' ? '5424' : '4532';
         issuedCard = {
           id: `card_${randomUUID()}`,
           application_id: reviewedApplication.id,
@@ -207,7 +209,8 @@ router.post('/card-applications/decision', async (req: AuthenticatedRequest, res
           account_id: reviewedApplication.account_id,
           card_type: reviewedApplication.card_type,
           product_name: reviewedApplication.product_name,
-          last4: randomBytes(2).toString('hex').toUpperCase(),
+          last4,
+          masked_number: `${issuerPrefix} •••• •••• ${last4}`,
           status: 'Active',
           credit_limit: reviewedApplication.card_type === 'Credit' ? reviewedApplication.requested_limit : 0,
           created_at: new Date(),
@@ -359,7 +362,7 @@ router.post('/balance-adjustment', async (req: AuthenticatedRequest, res: Respon
 // GET /api/admin/cards — active issued cards with linked ledger details.
 router.get('/cards', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const cards = await BankCard.find().sort({ created_at: -1 }).lean<any[]>();
+    const cards = await BankCard.find({ status: 'Active' }).sort({ created_at: -1 }).lean<any[]>();
     const [owners, accounts] = await Promise.all([
       User.find({ id: { $in: cards.map((card) => card.user_id) } }).select('id full_name email').lean<any[]>(),
       Account.find({ id: { $in: cards.map((card) => card.account_id) } }).select('id nickname account_number balance held_balance currency status').lean<any[]>(),
@@ -371,6 +374,7 @@ router.get('/cards', async (_req: AuthenticatedRequest, res: Response): Promise<
       const account = accountById.get(card.account_id);
       return {
         ...card,
+        masked_number: card.masked_number || `${card.card_type === 'Credit' ? '5424' : '4532'} •••• •••• ${card.last4}`,
         customer_name: owner?.full_name || 'Unknown customer',
         customer_email: owner?.email || '',
         account_nickname: account?.nickname || '',

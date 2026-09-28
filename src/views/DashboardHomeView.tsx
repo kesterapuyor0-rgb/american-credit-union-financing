@@ -90,7 +90,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         ]);
         if (!cardsResponse.ok || !applicationsResponse.ok) throw new Error('Unable to load card information.');
         const [cardsData, applicationsData] = await Promise.all([cardsResponse.json(), applicationsResponse.json()]);
-        setCards(Array.isArray(cardsData.cards) ? cardsData.cards : []);
+        setCards(Array.isArray(cardsData.cards) ? cardsData.cards.filter((card: BankCard) => card.status === 'Active') : []);
         setCardApplications(Array.isArray(applicationsData.applications) ? applicationsData.applications : []);
       } catch (error) {
         setCardMessage(error instanceof Error ? error.message : 'Unable to load card information.');
@@ -323,11 +323,16 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               <article key={card.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <CreditCard className="h-5 w-5 text-teal-700" />
-                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs text-emerald-700">{card.status}</span>
+                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs text-emerald-700">Approved</span>
                 </div>
                 <p className="mt-5 font-medium text-slate-900">{card.product_name}</p>
-                <p className="mt-1 text-sm text-slate-500">{card.card_type} · •••• {card.last4}</p>
-                {card.card_type === 'Credit' && <p className="mt-3 text-sm font-semibold text-slate-800">Requested limit {formatMoney(card.credit_limit)}</p>}
+                <p className="mt-1 font-mono text-sm tracking-wide text-slate-600">{card.masked_number || `•••• •••• •••• ${card.last4}`}</p>
+                {card.card_type === 'Credit' ? (
+                  <p className="mt-3 text-sm font-semibold text-slate-800">Approved credit limit {formatMoney(card.credit_limit)}</p>
+                ) : (
+                  <p className="mt-3 text-sm font-semibold text-slate-800">Linked checking available {formatMoney(card.linked_account_available || 0)}</p>
+                )}
+                <p className="mt-2 text-[11px] text-slate-500">Prototype card · Not valid for purchases</p>
               </article>
             ))}
             {legacyCards.map((card) => (
