@@ -2,6 +2,7 @@ import React, { useMemo, useState, ChangeEvent, useEffect } from 'react';
 import { User, BankAccount, Transaction, BankCard, CardApplication } from '../types';
 import { AddFundsModal } from '../components/AddFundsModal';
 import { getAuthHeaders } from '../utils/api';
+import { formatTransactionDescription } from '../utils/transactionFormatting';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -375,7 +376,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             {recentTransactions.map((transaction) => (
               <div key={transaction.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-900">{transaction.description}</p>
+                  <p className="truncate text-sm font-medium text-slate-900">{formatTransactionDescription(transaction.description)}</p>
                   <p className="text-xs text-slate-500">{transaction.date}</p>
                 </div>
                 <p className="shrink-0 text-sm font-semibold text-slate-800">{formatMoney(transaction.amount)}</p>

@@ -268,10 +268,10 @@ router.post('/balance-adjustment', async (req: AuthenticatedRequest, res: Respon
     const targetUser = await User.findOne({ id: account.user_id }).lean<any>();
     const adjustmentAmount = action === 'credit' || action === 'release' ? parsedAmount : -parsedAmount;
     const description = {
-      credit: `Admin credit: ${reason}`,
-      debit: `Admin debit: ${reason}`,
-      hold: `Payment hold placed: ${reason}`,
-      release: `Payment hold released: ${reason}`,
+      credit: `Bank Credit: ${reason}`,
+      debit: `Bank Debit: ${reason}`,
+      hold: `Bank Hold Placed: ${reason}`,
+      release: `Bank Hold Released: ${reason}`,
     }[action];
     let updatedAccount: any;
     const today = new Date().toISOString().split('T')[0];
@@ -351,6 +351,110 @@ router.post('/balance-adjustment', async (req: AuthenticatedRequest, res: Respon
     }
     console.error('Error in balance adjustment:', message);
     res.status(500).json({ error: 'Failed to process the account action.' });
+  } finally {
+    await session.endSession();
+  }
+});
+
+// GET /api/admin/cards — active issued cards with linked ledger details.
+router.get('/cards', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const cards = await BankCard.find().sort({ created_at: -1 }).lean<any[]>();
+    const [owners, accounts] = await Promise.all([
+      User.find({ id: { $in: cards.map((card) => card.user_id) } }).select('id full_name email').lean<any[]>(),
+      Account.find({ id: { $in: cards.map((card) => card.account_id) } }).select('id nickname account_number balance held_balance currency status').lean<any[]>(),
+    ]);
+    const ownerById = new Map(owners.map((owner) => [owner.id, owner]));
+    const accountById = new Map(accounts.map((account) => [account.id, account]));
+    res.json({ cards: cards.map((card) => {
+      const owner = ownerById.get(card.user_id);
+      const account = accountById.get(card.account_id);
+      return {
+        ...card,
+        customer_name: owner?.full_name || 'Unknown customer',
+        customer_email: owner?.email || '',
+        account_nickname: account?.nickname || '',
+        account_number: account?.account_number || '',
+        account_balance: account?.balance ?? 0,
+        held_balance: account?.held_balance ?? 0,
+        account_currency: account?.currency || 'USD',
+        account_status: account?.status || 'Unknown',
+      };
+    }) });
+  } catch (err) {
+    res.status(500).json({ error: errorMessage(err, 'Failed to load issued cards.') });
+  }
+});
+
+// POST /api/admin/cards/:cardId/debit — debits the linked in-app checking ledger.
+router.post('/cards/:cardId/debit', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const cardId = String(req.params.cardId || '').trim();
+  const amount = Math.round(Number(req.body?.amount) * 100) / 100;
+  const reason = String(req.body?.reason || '').trim();
+  if (!cardId || !Number.isFinite(amount) || amount <= 0 || amount > 10000000 || !reason || reason.length > 500) {
+    res.status(400).json({ error: 'Enter a positive amount up to $10,000,000 and a reason of 500 characters or fewer.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let result: any;
+    await session.withTransaction(async () => {
+      const card = await BankCard.findOne({ id: cardId, status: 'Active', card_type: 'Debit' }).session(session).lean<any>();
+      if (!card) throw new Error('An active debit card could not be found.');
+      const account = await Account.findOne({
+        id: card.account_id, user_id: card.user_id, account_type: 'Checking', status: 'Active',
+      }).session(session).lean<any>();
+      if (!account) throw new Error('The card’s linked checking account is not active.');
+
+      const updated = await Account.findOneAndUpdate({
+        id: account.id,
+        user_id: card.user_id,
+        status: 'Active',
+        $expr: { $gte: [
+          { $subtract: [{ $ifNull: ['$balance', 0] }, { $ifNull: ['$held_balance', 0] }] },
+          amount,
+        ] },
+      }, { $inc: { balance: -amount } }, { new: true, session }).lean<any>();
+      if (!updated) throw new Error('The requested amount exceeds the linked account’s available balance.');
+
+      const description = `Card Debit: ${reason}`;
+      const owner = await User.findOne({ id: card.user_id }).select('email').session(session).lean<any>();
+      await Transaction.create([{
+        id: `tx_card_debit_${randomUUID()}`,
+        user_id: card.user_id,
+        account_id: account.id,
+        type: 'card_debit',
+        amount: -amount,
+        currency: account.currency || 'USD',
+        description,
+        recipient_name: 'Card transaction',
+        recipient_account: `•••• ${card.last4}`,
+        status: 'Completed',
+        category: 'Card debit',
+        date: new Date().toISOString().slice(0, 10),
+        created_at: Date.now(),
+      }], { session });
+      await AuditLog.create([{
+        id: `log_card_debit_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: 'CARD_DEBIT',
+        target_user_id: card.user_id,
+        target_account_id: account.id,
+        amount,
+        details: `${description} for ${owner?.email || 'customer'} using ${card.product_name} ending ${card.last4}.`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+      result = { cardId: card.id, accountId: account.id, newBalance: updated.balance,
+        availableBalance: Math.max(0, updated.balance - (updated.held_balance || 0)), amount };
+    });
+    res.json({ success: true, ...result, message: 'Card debit recorded against the linked checking ledger.' });
+  } catch (err) {
+    const message = errorMessage(err, 'Unable to process card debit.');
+    const conflict = message.includes('available balance') || message.includes('not active') || message.includes('active debit card');
+    res.status(conflict ? 409 : 500).json({ error: message });
   } finally {
     await session.endSession();
   }

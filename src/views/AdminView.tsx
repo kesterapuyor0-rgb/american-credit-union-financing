@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { User, AuditLog, AdminOverviewData, UserWithAccounts, BankAccount, Transaction, CardApplication } from '../types';
+import { User, AuditLog, AdminOverviewData, UserWithAccounts, BankAccount, Transaction, CardApplication, BankCard } from '../types';
 import { getStoredAuthToken } from '../utils/api';
+import { formatTransactionDescription } from '../utils/transactionFormatting';
 import {
   ShieldAlert,
   Search,
@@ -32,6 +33,11 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [pendingDeposits, setPendingDeposits] = useState<Transaction[]>([]);
   const [cardApplications, setCardApplications] = useState<CardApplication[]>([]);
+  const [issuedCards, setIssuedCards] = useState<BankCard[]>([]);
+  const [cardToDebit, setCardToDebit] = useState<BankCard | null>(null);
+  const [cardDebitAmount, setCardDebitAmount] = useState('');
+  const [cardDebitReason, setCardDebitReason] = useState('');
+  const [submittingCardDebit, setSubmittingCardDebit] = useState(false);
   const [cardReviewReasons, setCardReviewReasons] = useState<Record<string, string>>({});
   const [reviewingCardId, setReviewingCardId] = useState<string | null>(null);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
@@ -125,6 +131,20 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
     }
   };
 
+  const fetchIssuedCards = async () => {
+    try {
+      const res = await fetch('/api/admin/cards', {
+        headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {},
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to load issued cards.');
+      const data = await res.json();
+      setIssuedCards(Array.isArray(data.cards) ? data.cards : []);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load issued cards.');
+    }
+  };
+
   const fetchAuditLogs = async () => {
     try {
       const res = await fetch('/api/admin/audit-logs', {
@@ -160,6 +180,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
     fetchTransactions();
     fetchPendingDeposits();
     fetchCardApplications();
+    fetchIssuedCards();
   }, []);
 
   const handleCardDecision = async (applicationId: string, decision: 'approve' | 'reject') => {
@@ -183,12 +204,42 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Unable to review card application.');
       setSuccessMsg(decision === 'approve' ? 'Card application approved and card activated.' : 'Card application rejected.');
-      await Promise.all([fetchCardApplications(), fetchUsers(), fetchOverview(), fetchAuditLogs()]);
+      await Promise.all([fetchCardApplications(), fetchIssuedCards(), fetchUsers(), fetchOverview(), fetchAuditLogs()]);
       setTimeout(() => setSuccessMsg(null), 6000);
     } catch (err: any) {
       setError(err.message || 'Unable to review card application.');
     } finally {
       setReviewingCardId(null);
+    }
+  };
+
+  const handleCardDebit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!cardToDebit || !cardDebitReason.trim() || Number(cardDebitAmount) <= 0) return;
+    setSubmittingCardDebit(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/cards/${encodeURIComponent(cardToDebit.id)}/debit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ amount: Number(cardDebitAmount), reason: cardDebitReason.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to record card debit.');
+      setSuccessMsg('Card debit recorded against the linked checking ledger.');
+      setCardToDebit(null);
+      setCardDebitAmount('');
+      setCardDebitReason('');
+      await Promise.all([fetchIssuedCards(), fetchUsers(), fetchOverview(), fetchAuditLogs(), fetchTransactions()]);
+      setTimeout(() => setSuccessMsg(null), 6000);
+    } catch (err: any) {
+      setError(err.message || 'Unable to record card debit.');
+    } finally {
+      setSubmittingCardDebit(false);
     }
   };
 
@@ -800,6 +851,38 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                 </table>
               </div>
             )}
+            <div className="mt-8">
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Issued cards</h3>
+                  <p className="mt-1 text-xs text-slate-500">Card debits are recorded against the linked in-app checking ledger.</p>
+                </div>
+                <button type="button" onClick={fetchIssuedCards} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Refresh cards</button>
+              </div>
+              {issuedCards.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">No issued cards found.</div>
+              ) : (
+                <div className="w-full overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full min-w-[760px] text-left text-xs">
+                    <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-600">
+                      <tr><th className="px-4 py-3">Cardholder</th><th className="px-4 py-3">Card</th><th className="px-4 py-3">Linked account</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {issuedCards.map((card) => {
+                        const canDebit = card.card_type === 'Debit' && card.status === 'Active' && card.account_status === 'Active';
+                        return <tr key={card.id}>
+                          <td className="px-4 py-3"><div className="font-semibold text-slate-900">{card.customer_name}</div><div className="mt-1 text-slate-500">{card.customer_email}</div></td>
+                          <td className="px-4 py-3"><div className="font-semibold text-slate-900">{card.product_name}</div><div className="mt-1 text-slate-500">{card.card_type} · •••• {card.last4}</div></td>
+                          <td className="px-4 py-3"><div>{card.account_nickname || 'Checking'}</div><div className="mt-1 text-slate-500">•••• {card.account_number?.slice(-4) || '—'} · {formatUSD(Math.max(0, (card.account_balance || 0) - (card.held_balance || 0)))} available</div></td>
+                          <td className="px-4 py-3">{card.status}</td>
+                          <td className="px-4 py-3"><button type="button" disabled={!canDebit} onClick={() => { setCardToDebit(card); setCardDebitAmount(''); setCardDebitReason(''); setError(null); }} className="rounded-lg bg-rose-700 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-40">Debit linked account</button></td>
+                        </tr>;
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </section>
         )}
 
@@ -885,7 +968,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                         {t.account_number || t.account_name}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-gray-900">{t.description}</div>
+                        <div className="font-semibold text-gray-900">{formatTransactionDescription(t.description)}</div>
                         <div className="text-[11px] text-gray-500">Category: {t.category || t.type}</div>
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
@@ -1272,6 +1355,28 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
               </div>
             </form>
           </div>
+        </div>
+      )}
+      {cardToDebit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" role="presentation" onClick={() => setCardToDebit(null)}>
+          <form onSubmit={handleCardDebit} onClick={(event) => event.stopPropagation()} className="w-full max-w-md space-y-4 rounded-2xl bg-white p-5 shadow-2xl sm:p-6" role="dialog" aria-modal="true" aria-labelledby="card-debit-title">
+            <div>
+              <h2 id="card-debit-title" className="text-lg font-bold text-slate-900">Record card debit</h2>
+              <p className="mt-1 text-sm text-slate-600">{cardToDebit.customer_name} · {cardToDebit.product_name} ending {cardToDebit.last4}</p>
+              <p className="mt-1 text-xs text-slate-500">This updates the linked checking ledger and creates a transaction and audit entry.</p>
+            </div>
+            <label className="block text-sm font-medium text-slate-700">Amount (USD)
+              <input type="number" min="0.01" max="10000000" step="0.01" required value={cardDebitAmount} onChange={(event) => setCardDebitAmount(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 px-3 text-base" />
+            </label>
+            <label className="block text-sm font-medium text-slate-700">Reason
+              <textarea required maxLength={500} rows={3} value={cardDebitReason} onChange={(event) => setCardDebitReason(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 p-3 text-sm" />
+            </label>
+            {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setCardToDebit(null)} className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700">Cancel</button>
+              <button type="submit" disabled={submittingCardDebit} className="min-h-10 rounded-lg bg-rose-700 px-4 text-sm font-semibold text-white disabled:opacity-50">{submittingCardDebit ? 'Processing…' : 'Record debit'}</button>
+            </div>
+          </form>
         </div>
       )}
     </div>

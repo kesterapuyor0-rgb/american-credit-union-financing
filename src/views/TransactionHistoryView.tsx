@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, CheckCircle2, Clock3, Download, FileText, Filter, RefreshCw, Search, X } from 'lucide-react';
 import { Transaction, User } from '../types';
+import { formatTransactionDescription } from '../utils/transactionFormatting';
 
 interface TransactionHistoryViewProps {
   user: User;
@@ -27,7 +28,7 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
       const status = transaction.status?.toLowerCase() || 'completed';
       const matchesStatus = statusFilter === 'all' || status === statusFilter;
       const searchableText = [
-        transaction.description,
+        formatTransactionDescription(transaction.description),
         transaction.recipient_name,
         transaction.account_name,
         transaction.amount.toString(),
@@ -46,7 +47,7 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
       ['Date', 'Description', 'Account', 'Status', 'Amount (USD)'],
       ...filteredTransactions.map((transaction) => [
         transaction.date,
-        transaction.description,
+        formatTransactionDescription(transaction.description),
         transaction.account_name || transaction.account_number || '',
         transaction.status,
         transaction.amount,
@@ -133,7 +134,7 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
                     <tr key={transaction.id} onClick={() => setSelectedTransaction(transaction)} className="cursor-pointer hover:bg-emerald-50/50">
                       <td className="whitespace-nowrap px-4 py-4 text-slate-600 sm:px-5">{transaction.date}</td>
                       <td className="px-4 py-4 sm:px-5">
-                        <div className="font-medium text-slate-900">{transaction.description}</div>
+                        <div className="font-medium text-slate-900">{formatTransactionDescription(transaction.description)}</div>
                         <div className="mt-0.5 text-xs text-slate-500">{transaction.account_name || transaction.account_number || 'Account activity'}{transaction.recipient_name ? ` · ${transaction.recipient_name}` : ''}</div>
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 sm:px-5">
@@ -163,7 +164,7 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Transaction details</p>
-                <h2 id="transaction-detail-heading" className="mt-1 text-lg font-semibold text-teal-900">{selectedTransaction.description}</h2>
+                <h2 id="transaction-detail-heading" className="mt-1 text-lg font-semibold text-teal-900">{formatTransactionDescription(selectedTransaction.description)}</h2>
               </div>
               <button type="button" onClick={() => setSelectedTransaction(null)} aria-label="Close transaction details" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X aria-hidden="true" className="h-5 w-5" /></button>
             </div>

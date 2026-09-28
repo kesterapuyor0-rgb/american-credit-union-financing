@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BankAccount, Transaction, User, UserSummary } from '../types';
+import { formatTransactionDescription } from '../utils/transactionFormatting';
 import {
   CreditCard,
   Landmark,
@@ -98,7 +99,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const exportCSV = () => {
     const headers = 'Date,Description,Account,Status,Amount (USD)\n';
     const rows = filteredTransactions
-      .map((t) => `"${t.date}","${t.description}","${t.account_name}","${t.status}","${t.amount}"`)
+      .map((t) => `"${t.date}","${formatTransactionDescription(t.description)}","${t.account_name}","${t.status}","${t.amount}"`)
       .join('\n');
     const blob = new Blob([headers + rows], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -616,7 +617,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                           <td className="px-6 py-4">
                             <div className="flex flex-col">
-                              <span className="font-bold text-gray-900">{tx.description}</span>
+                              <span className="font-bold text-gray-900">{formatTransactionDescription(tx.description)}</span>
                               <span className="text-[11px] text-gray-400">
                                 {tx.account_name} {tx.recipient_name ? `• To: ${tx.recipient_name}` : ''}
                               </span>
@@ -684,7 +685,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     American Credit Union Financing · Account Activity
                   </span>
                   <h3 className="text-lg font-bold text-[#0F766E] font-serif mt-0.5">
-                    {selectedTransaction.description}
+                    {formatTransactionDescription(selectedTransaction.description)}
                   </h3>
                 </div>
                 <button

@@ -30,7 +30,7 @@ export interface Transaction {
   id: string;
   user_id: string;
   account_id: string;
-  type: 'deposit' | 'withdrawal' | 'transfer_in' | 'transfer_out' | 'payment' | 'admin_adjustment';
+  type: 'deposit' | 'withdrawal' | 'transfer_in' | 'transfer_out' | 'payment' | 'admin_adjustment' | 'admin_credit' | 'admin_debit' | 'admin_hold' | 'admin_release' | 'card_debit' | 'card_credit';
   amount: number;
   currency: string;
   description: string;
@@ -54,6 +54,14 @@ export interface BankCard {
   status: 'Active' | 'Locked';
   credit_limit: number;
   created_at: string;
+  customer_name?: string;
+  customer_email?: string;
+  account_nickname?: string;
+  account_number?: string;
+  account_balance?: number;
+  held_balance?: number;
+  account_currency?: string;
+  account_status?: string;
 }
 
 export interface CardApplication {
