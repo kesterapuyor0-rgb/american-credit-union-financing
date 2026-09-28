@@ -19,7 +19,7 @@ import { getStoredAuthToken, setStoredAuthToken, clearStoredAuthToken } from './
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string>(() => getStoredAuthToken());
-  const [activeTab, setActiveTab] = useState<string>('accounts');
+  const [activeTab, setActiveTab] = useState<string>('home');
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<UserSummary | null>(null);
@@ -156,7 +156,7 @@ export default function App() {
       navigateTo('/admin');
     } else {
       navigateTo('/dashboard');
-      setActiveTab('accounts');
+      setActiveTab('home');
     }
   };
 
@@ -178,7 +178,7 @@ export default function App() {
 
   const handleNavigateToTransfer = (fromAccountId?: string) => {
     setInitialTransferSourceId(fromAccountId);
-    setActiveTab('transfers');
+    setActiveTab('transfer');
   };
 
   if (loading) {
@@ -243,7 +243,7 @@ export default function App() {
           onRedirectToDashboard={() => {
             setForbiddenAccess(false);
             navigateTo('/dashboard');
-            setActiveTab('accounts');
+            setActiveTab('home');
           }}
         />
         <Footer />
@@ -272,7 +272,7 @@ export default function App() {
 
   const renderCustomerView = () => {
     switch (activeTab) {
-      case 'accounts':
+      case 'home':
         return <DashboardHomeView
           user={user}
           token={token}
@@ -295,14 +295,14 @@ export default function App() {
           onProfilePictureChange={(profilePicture) => setUser((current) => current ? { ...current, profilePicture } : current)}
           showCardsOnly
         />;
-      case 'transfers':
+      case 'transfer':
         return <TransferView
           user={user}
           token={token}
           accounts={accounts}
           initialFromAccountId={initialTransferSourceId}
           onTransferComplete={fetchUserData}
-          onCancel={() => setActiveTab('accounts')}
+          onCancel={() => setActiveTab('home')}
         />;
       case 'history':
         return <DashboardView
@@ -322,8 +322,8 @@ export default function App() {
           user={user}
           accounts={accounts}
           onProfilePictureChange={(profilePicture) => setUser((current) => current ? { ...current, profilePicture } : current)}
-          onReturnToAccounts={() => setActiveTab('accounts')}
-          onNavigateToTransfer={() => setActiveTab('transfers')}
+          onReturnToAccounts={() => setActiveTab('home')}
+          onNavigateToTransfer={() => setActiveTab('transfer')}
         />;
       default:
         return <DashboardHomeView

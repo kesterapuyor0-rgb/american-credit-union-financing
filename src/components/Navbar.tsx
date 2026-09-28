@@ -31,7 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               if (isAdminView) {
                 setActiveTab('overview');
               } else {
-                setActiveTab('accounts');
+                setActiveTab('home');
               }
             }}
           >
@@ -93,9 +93,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex space-x-6 sm:space-x-10 h-full overflow-x-auto no-scrollbar">
             <button
               id="tab-accounts"
-              onClick={() => setActiveTab('accounts')}
+              onClick={() => setActiveTab('home')}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
-                activeTab === 'accounts'
+                activeTab === 'home'
                   ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
                   : 'text-gray-600 hover:text-[#0F766E] font-medium'
               }`}
@@ -105,9 +105,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               id="tab-transfers"
-              onClick={() => setActiveTab('transfers')}
+              onClick={() => setActiveTab('transfer')}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
-                activeTab === 'transfers'
+                activeTab === 'transfer'
                   ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
                   : 'text-gray-600 hover:text-[#0F766E] font-medium'
               }`}

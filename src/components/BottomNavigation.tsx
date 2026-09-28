@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowLeftRight, CreditCard, Home, Clock3, UserRound } from 'lucide-react';
 
-export type CustomerTab = 'accounts' | 'history' | 'transfers' | 'profile' | 'cards';
+export type CustomerTab = 'home' | 'history' | 'transfer' | 'profile' | 'cards';
 
 interface BottomNavigationProps {
   activeTab: string;
@@ -20,13 +20,13 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab, o
     style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.5rem)' }}
   >
     <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
-      <button type="button" onClick={() => onNavigate('accounts')} className={itemClass(activeTab === 'accounts')} aria-current={activeTab === 'accounts' ? 'page' : undefined}>
+      <button type="button" onClick={() => onNavigate('home')} className={itemClass(activeTab === 'home')} aria-current={activeTab === 'home' ? 'page' : undefined}>
         <Home aria-hidden="true" className="h-5 w-5 shrink-0" /><span className="whitespace-nowrap">Home</span>
       </button>
       <button type="button" onClick={() => onNavigate('history')} className={itemClass(activeTab === 'history')} aria-current={activeTab === 'history' ? 'page' : undefined}>
         <Clock3 aria-hidden="true" className="h-5 w-5 shrink-0" /><span className="whitespace-nowrap">History</span>
       </button>
-      <button type="button" onClick={() => onNavigate('transfers')} className={itemClass(activeTab === 'transfers')} aria-current={activeTab === 'transfers' ? 'page' : undefined}>
+      <button type="button" onClick={() => onNavigate('transfer')} className={itemClass(activeTab === 'transfer')} aria-current={activeTab === 'transfer' ? 'page' : undefined}>
         <ArrowLeftRight aria-hidden="true" className="h-5 w-5 shrink-0" /><span className="whitespace-nowrap">Transfer</span>
       </button>
       <button type="button" onClick={() => onNavigate('profile')} className={itemClass(activeTab === 'profile')} aria-current={activeTab === 'profile' ? 'page' : undefined}>
