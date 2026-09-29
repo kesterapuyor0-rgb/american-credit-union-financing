@@ -205,12 +205,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="text-xs text-gray-500 italic hidden lg:inline">
               Last login: Today at 09:42 AM EST
             </span>
-            <div className="hidden sm:flex items-center space-x-1.5 bg-emerald-50 px-2 py-1 rounded-sm border border-emerald-200">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
-                Encrypted
-              </span>
-            </div>
           </div>
         </nav>
       )}
