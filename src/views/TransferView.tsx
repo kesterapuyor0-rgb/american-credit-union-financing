@@ -318,7 +318,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   }`}
                 >
                   <DollarSign className="w-4 h-4 shrink-0 text-[#0F766E] sm:mx-auto sm:mb-1" />
-                  Domestic Wire · $2.01 fee + $1.03 tax
+                  Domestic Wire
                 </button>
               </div>
             </div>
