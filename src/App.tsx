@@ -325,10 +325,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#F3F4F6] flex flex-col justify-between font-sans pb-[calc(5.5rem_+_env(safe-area-inset-bottom))] sm:pb-0">
       <Navbar
+        key={user.id}
         user={user}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         isAdminView={false}
+        transactions={transactions}
       />
 
       <main id="customer-view" role="tabpanel" tabIndex={-1} aria-label={`${activeTab} view`} className="max-w-7xl mx-auto w-full px-4 sm:px-8 pt-6 pb-6 sm:py-6 flex-1">

@@ -6,7 +6,6 @@ import { formatTransactionDescription } from '../utils/transactionFormatting';
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  Bell,
   Check,
   ChevronRight,
   CircleEllipsis,
@@ -14,7 +13,6 @@ import {
   Eye,
   EyeOff,
   Plus,
-  Settings,
 } from 'lucide-react';
 
 function getLocalGreeting(): { text: string } {
@@ -211,15 +209,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             <h1 className="truncate text-lg font-semibold text-slate-900">{user.full_name}</h1>
             {pictureMessage && <p role="status" className="truncate text-xs text-slate-500">{uploadingPicture ? 'Uploading photo…' : pictureMessage}</p>}
           </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
-          <button type="button" aria-label="Notifications" className="relative grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-teal-800 transition hover:border-teal-700 hover:bg-emerald-50">
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#C9932E] ring-2 ring-white" />
-          </button>
-          <button type="button" aria-label="Settings" onClick={() => onNavigateToTab('security')} className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-teal-800 transition hover:border-teal-700 hover:bg-emerald-50">
-            <Settings className="h-5 w-5" />
-          </button>
         </div>
       </header>
 
