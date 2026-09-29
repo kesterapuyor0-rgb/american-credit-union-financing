@@ -66,6 +66,8 @@ const transactionSchema = new Schema({
   account_id: { type: String, required: true, index: true },
   type: { type: String, required: true },
   amount: { type: Number, required: true },
+  transfer_fee: { type: Number, default: 0 },
+  transfer_tax: { type: Number, default: 0 },
   currency: { type: String, default: 'USD' },
   description: { type: String, required: true },
   recipient_name: { type: String, default: '' },

@@ -44,13 +44,16 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
   const exportCSV = () => {
     const escapeCSV = (value: string | number | undefined) => `"${String(value ?? '').replace(/"/g, '""')}"`;
     const rows = [
-      ['Date', 'Description', 'Account', 'Status', 'Amount (USD)'],
+      ['Date', 'Description', 'Account', 'Status', 'Amount (USD)', 'Transfer fee (USD)', 'Tax (USD)', 'Total debit (USD)'],
       ...filteredTransactions.map((transaction) => [
         transaction.date,
         formatTransactionDescription(transaction.description),
         transaction.account_name || transaction.account_number || '',
         transaction.status,
         transaction.amount,
+        transaction.type === 'transfer_out' ? transaction.transfer_fee || 0 : 0,
+        transaction.type === 'transfer_out' ? transaction.transfer_tax || 0 : 0,
+        transaction.amount + (transaction.type === 'transfer_out' ? (transaction.transfer_fee || 0) + (transaction.transfer_tax || 0) : 0),
       ]),
     ];
     const csv = rows.map((row) => row.map(escapeCSV).join(',')).join('\n');
@@ -130,6 +133,9 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
                 {filteredTransactions.map((transaction) => {
                   const positive = ['deposit', 'transfer_in', 'admin_credit', 'admin_release'].includes(transaction.type) || (transaction.type === 'admin_adjustment' && transaction.amount > 0);
                   const pending = transaction.status?.toLowerCase() === 'pending';
+                  const transferFee = transaction.type === 'transfer_out' ? transaction.transfer_fee || 0 : 0;
+                  const transferTax = transaction.type === 'transfer_out' ? transaction.transfer_tax || 0 : 0;
+                  const totalDebit = transaction.amount + transferFee + transferTax;
                   return (
                     <tr key={transaction.id} onClick={() => setSelectedTransaction(transaction)} className="cursor-pointer hover:bg-emerald-50/50">
                       <td className="whitespace-nowrap px-4 py-4 text-slate-600 sm:px-5">{transaction.date}</td>
@@ -146,8 +152,9 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
                       <td className={`whitespace-nowrap px-4 py-4 text-right font-semibold sm:px-5 ${positive ? 'text-emerald-700' : 'text-slate-900'}`}>
                         <span className="inline-flex items-center justify-end gap-1">
                           {positive ? <ArrowDownLeft aria-hidden="true" className="h-4 w-4" /> : <ArrowUpRight aria-hidden="true" className="h-4 w-4" />}
-                          {positive ? '+' : '−'}{formatMoney(transaction.amount)}
+                          {positive ? '+' : '−'}{formatMoney(totalDebit)}
                         </span>
+                        {transferFee + transferTax > 0 && <span className="mt-1 block text-xs font-normal text-slate-500">Includes {formatMoney(transferFee)} fee + {formatMoney(transferTax)} tax</span>}
                       </td>
                     </tr>
                   );
@@ -169,7 +176,10 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
               <button type="button" onClick={() => setSelectedTransaction(null)} aria-label="Close transaction details" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X aria-hidden="true" className="h-5 w-5" /></button>
             </div>
             <dl className="mt-5 space-y-3 text-sm">
-              <div className="flex justify-between gap-3"><dt className="text-slate-500">Amount</dt><dd className="font-semibold text-slate-900">{formatMoney(selectedTransaction.amount)} {selectedTransaction.currency || 'USD'}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-slate-500">Transfer amount</dt><dd className="font-semibold text-slate-900">{formatMoney(selectedTransaction.amount)} {selectedTransaction.currency || 'USD'}</dd></div>
+              {selectedTransaction.type === 'transfer_out' && (selectedTransaction.transfer_fee || 0) > 0 && <div className="flex justify-between gap-3"><dt className="text-slate-500">Transfer fee</dt><dd className="font-medium text-slate-900">{formatMoney(selectedTransaction.transfer_fee || 0)} {selectedTransaction.currency || 'USD'}</dd></div>}
+              {selectedTransaction.type === 'transfer_out' && (selectedTransaction.transfer_tax || 0) > 0 && <div className="flex justify-between gap-3"><dt className="text-slate-500">Tax</dt><dd className="font-medium text-slate-900">{formatMoney(selectedTransaction.transfer_tax || 0)} {selectedTransaction.currency || 'USD'}</dd></div>}
+              {selectedTransaction.type === 'transfer_out' && <div className="flex justify-between gap-3 border-t border-slate-100 pt-3"><dt className="text-slate-500">Total debit</dt><dd className="font-semibold text-slate-900">{formatMoney(selectedTransaction.amount + (selectedTransaction.transfer_fee || 0) + (selectedTransaction.transfer_tax || 0))} {selectedTransaction.currency || 'USD'}</dd></div>}
               <div className="flex justify-between gap-3"><dt className="text-slate-500">Status</dt><dd className="font-medium text-slate-900">{selectedTransaction.status || 'Completed'}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-slate-500">Date</dt><dd className="font-medium text-slate-900">{selectedTransaction.date}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-slate-500">Reference</dt><dd className="break-all text-right font-mono text-xs text-slate-700">{selectedTransaction.id}</dd></div>

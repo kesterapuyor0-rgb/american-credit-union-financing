@@ -773,7 +773,10 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                         </td>
                         <td className="py-3.5 px-4 text-gray-700"><div className="font-medium">{formatTransactionDescription(deposit.description)}</div><div className="mt-1 text-[10px] uppercase text-gray-500">{deposit.type}</div></td>
                         <td className="py-3.5 px-4 text-gray-600">{(deposit as any).account_name || 'Account'} · •••• {(deposit as any).account_number?.slice(-4) || '—'}</td>
-                        <td className={`py-3.5 px-4 text-right font-mono font-bold ${['deposit', 'transfer_in'].includes(String(deposit.type).toLowerCase()) ? 'text-emerald-700' : 'text-slate-900'}`}>{['deposit', 'transfer_in'].includes(String(deposit.type).toLowerCase()) ? '+' : '−'}{formatUSD(deposit.amount)}</td>
+                        <td className={`py-3.5 px-4 text-right font-mono font-bold ${['deposit', 'transfer_in'].includes(String(deposit.type).toLowerCase()) ? 'text-emerald-700' : 'text-slate-900'}`}>
+                          {['deposit', 'transfer_in'].includes(String(deposit.type).toLowerCase()) ? '+' : '−'}{formatUSD(deposit.amount + (String(deposit.type).toLowerCase() === 'transfer_out' ? (Number((deposit as any).transfer_fee) || 0) + (Number((deposit as any).transfer_tax) || 0) : 0))}
+                          {Number((deposit as any).transfer_fee) + Number((deposit as any).transfer_tax) > 0 && <span className="mt-1 block text-[10px] font-normal text-gray-500">Includes {formatUSD(Number((deposit as any).transfer_fee) || 0)} fee + {formatUSD(Number((deposit as any).transfer_tax) || 0)} tax</span>}
+                        </td>
                         <td className="py-3.5 px-4 text-[11px] text-gray-600 whitespace-nowrap">{deposit.date || deposit.created_at}</td>
                         <td className="py-3.5 px-4">
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">{deposit.status}</span>

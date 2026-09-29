@@ -392,7 +392,7 @@ x                    <p className="text-[10px] font-semibold uppercase tracking-
                   <p className="truncate text-sm font-medium text-slate-900">{formatTransactionDescription(transaction.description)}</p>
                   <p className="text-xs text-slate-500">{transaction.date}</p>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-slate-800">{formatMoney(transaction.amount)}</p>
+                <p className="shrink-0 text-sm font-semibold text-slate-800">{formatMoney(transaction.amount + (transaction.type === 'transfer_out' ? (transaction.transfer_fee || 0) + (transaction.transfer_tax || 0) : 0))}</p>
               </div>
             ))}
           </div>

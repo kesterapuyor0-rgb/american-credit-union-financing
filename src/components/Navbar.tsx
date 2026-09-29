@@ -102,7 +102,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <li key={transaction.id}>
                             <button type="button" onClick={() => openTransactionHistory(transaction.id)} className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-slate-50">
                               <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${readNotificationIds.has(transaction.id) ? 'bg-slate-200' : 'bg-teal-600'}`} />
-                              <span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium text-slate-900">{formatTransactionDescription(transaction.description)}</span><span className="mt-1 block text-xs text-slate-500">{transaction.date} · {new Intl.NumberFormat('en-US', { style: 'currency', currency: transaction.currency || 'USD' }).format(Math.abs(transaction.amount))}</span></span>
+                              <span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium text-slate-900">{formatTransactionDescription(transaction.description)}</span><span className="mt-1 block text-xs text-slate-500">{transaction.date} · {new Intl.NumberFormat('en-US', { style: 'currency', currency: transaction.currency || 'USD' }).format(Math.abs(transaction.amount + (transaction.type === 'transfer_out' ? (transaction.transfer_fee || 0) + (transaction.transfer_tax || 0) : 0)))}</span></span>
                             </button>
                           </li>
                         ))}

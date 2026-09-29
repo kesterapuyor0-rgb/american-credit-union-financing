@@ -7,6 +7,8 @@ import { requireAuth, AuthenticatedRequest, generateOTP } from '../auth.js';
 
 const router = Router();
 router.use(requireDatabase);
+const WIRE_TRANSFER_FEE = 2.01;
+const WIRE_TRANSFER_TAX = 1.03;
 
 // POST /api/transfers/initiate
 router.post('/initiate', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -24,7 +26,15 @@ router.post('/initiate', requireAuth, async (req: AuthenticatedRequest, res: Res
       channel = 'email',
     } = req.body;
 
+    if (!['internal', 'external', 'zelle', 'wire'].includes(transferType)) {
+      res.status(400).json({ error: 'Please select a valid transfer method.' });
+      return;
+    }
+
     const parsedAmount = parseFloat(amount);
+    const transferFee = transferType === 'wire' ? WIRE_TRANSFER_FEE : 0;
+    const transferTax = transferType === 'wire' ? WIRE_TRANSFER_TAX : 0;
+    const totalCharges = transferFee + transferTax;
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       res.status(400).json({ error: 'Please enter a valid transfer amount greater than $0.00 USD.' });
       return;
@@ -39,9 +49,9 @@ router.post('/initiate', requireAuth, async (req: AuthenticatedRequest, res: Res
     }
 
     const sourceAvailable = Math.max(0, sourceAccount.balance - (sourceAccount.held_balance || 0));
-    if (sourceAvailable < parsedAmount) {
+    if (sourceAvailable < parsedAmount + totalCharges) {
       res.status(400).json({
-        error: `Insufficient funds. Available balance is $${sourceAvailable.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD.`,
+        error: `Insufficient funds. This transfer requires $${(parsedAmount + totalCharges).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD including the $${transferFee.toFixed(2)} fee and $${transferTax.toFixed(2)} tax. Available balance is $${sourceAvailable.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD.`,
       });
       return;
     }
@@ -79,6 +89,8 @@ router.post('/initiate', requireAuth, async (req: AuthenticatedRequest, res: Res
       recipientAccount: destDisplayAccount,
       recipientRouting: recipientRouting || '',
       amount: parsedAmount,
+      transferFee,
+      transferTax,
       currency: 'USD',
       transferType,
       memo: memo || 'Online Banking Transfer',
@@ -98,6 +110,9 @@ router.post('/initiate', requireAuth, async (req: AuthenticatedRequest, res: Res
       require2FA: true,
       verificationId,
       amount: parsedAmount,
+      transferFee,
+      transferTax,
+      totalDebit: parsedAmount + totalCharges,
       sourceAccountNickname: sourceAccount.nickname,
       sourceAccountLast4: sourceAccount.account_number.slice(-4),
       recipientName: destDisplayName,
@@ -155,7 +170,10 @@ router.post('/confirm', requireAuth, async (req: AuthenticatedRequest, res: Resp
     }
 
     const sourceAvailable = Math.max(0, sourceAccount.balance - (sourceAccount.held_balance || 0));
-    if (sourceAvailable < amount) {
+    const transferFee = Number(payload.transferFee) || 0;
+    const transferTax = Number(payload.transferTax) || 0;
+    const totalCharges = transferFee + transferTax;
+    if (sourceAvailable < amount + totalCharges) {
       res.status(400).json({ error: 'Transfer failed: Insufficient funds in source account.' });
       return;
     }
@@ -163,7 +181,7 @@ router.post('/confirm', requireAuth, async (req: AuthenticatedRequest, res: Resp
     const txIdOut = `tx_${randomUUID()}_out`;
     const txIdIn = transferType === 'internal' && destinationAccountId ? `tx_${randomUUID()}_in` : null;
     const today = new Date().toISOString().split('T')[0];
-    const outgoingDesc = `Online Banking Transfer Out to ${recipientName}`;
+    const outgoingDesc = `${transferType === 'wire' ? 'Domestic Wire Transfer' : 'Online Banking Transfer'} Out to ${recipientName}`;
     const destAccount = txIdIn && destinationAccountId
       ? await Account.findOne({ id: destinationAccountId, user_id: userId, status: 'Active' }).lean<any>()
       : null;
@@ -173,7 +191,7 @@ router.post('/confirm', requireAuth, async (req: AuthenticatedRequest, res: Resp
     }
     const pendingRows: any[] = [{
       id: txIdOut, user_id: userId, account_id: sourceAccountId,
-      type: 'transfer_out', amount, currency: 'USD', description: outgoingDesc,
+      type: 'transfer_out', amount, transfer_fee: transferFee, transfer_tax: transferTax, currency: 'USD', description: outgoingDesc,
       recipient_name: recipientName, recipient_account: recipientAccount,
       status: 'PENDING', category: 'Transfer', related_transaction_id: txIdIn,
       date: today, created_at: Date.now(),
@@ -205,9 +223,9 @@ router.post('/confirm', requireAuth, async (req: AuthenticatedRequest, res: Resp
           status: 'Active',
           $expr: { $gte: [
             { $subtract: [{ $ifNull: ['$balance', 0] }, { $ifNull: ['$held_balance', 0] }] },
-            amount,
+            amount + totalCharges,
           ] },
-        }, { $inc: { held_balance: amount } }, { new: true, session }).lean<any>();
+        }, { $inc: { held_balance: amount + totalCharges } }, { new: true, session }).lean<any>();
         if (!reservedSource) throw new Error('Insufficient available balance to reserve this transfer.');
         await Transaction.create(pendingRows, { session });
       });
@@ -219,9 +237,12 @@ router.post('/confirm', requireAuth, async (req: AuthenticatedRequest, res: Resp
       success: true,
       transactionId: txIdOut,
       amount,
+      transferFee,
+      transferTax,
+      totalDebit: amount + totalCharges,
       recipientName,
       status: 'PENDING',
-      message: `Your transfer request of $${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD to ${recipientName} is awaiting bank/admin approval. The amount is reserved and will post only after approval.`,
+      message: `Your transfer request of $${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD to ${recipientName} is pending review. The amount is reserved and will post only after approval.`,
     });
   } catch (err: any) {
     console.error('Error confirming transfer:', err);

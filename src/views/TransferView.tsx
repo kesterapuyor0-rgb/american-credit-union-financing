@@ -38,7 +38,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
   const [step, setStep] = useState<'details' | '2fa' | 'success'>('details');
 
   // Transfer Form State
-  const [transferType, setTransferType] = useState<'internal' | 'external' | 'zelle'>('internal');
+  const [transferType, setTransferType] = useState<'internal' | 'external' | 'zelle' | 'wire'>('internal');
   const [sourceAccountId, setSourceAccountId] = useState<string>(
     initialFromAccountId || accounts[0]?.id || ''
   );
@@ -59,6 +59,8 @@ export const TransferView: React.FC<TransferViewProps> = ({
   const [simulatedOtp, setSimulatedOtp] = useState('');
   const [completedTxId, setCompletedTxId] = useState('');
   const [newSourceBalance, setNewSourceBalance] = useState<number | null>(null);
+  const [transferFee, setTransferFee] = useState(0);
+  const [transferTax, setTransferTax] = useState(0);
 
   // Status
   const [loading, setLoading] = useState(false);
@@ -66,6 +68,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
 
   const selectedSourceAccount = accounts.find((a) => a.id === sourceAccountId);
   const getAvailableBalance = (account: BankAccount) => Math.max(0, account.available_balance ?? account.balance - (account.held_balance || 0));
+  const estimatedCharges = transferType === 'wire' ? 3.04 : 0;
 
   const formatUSD = (val: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -90,7 +93,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
       return;
     }
 
-    if (numAmount > getAvailableBalance(selectedSourceAccount)) {
+    if (numAmount + estimatedCharges > getAvailableBalance(selectedSourceAccount)) {
       setError(
         `Insufficient funds. The available balance in ${selectedSourceAccount.nickname} is ${formatUSD(
           getAvailableBalance(selectedSourceAccount)
@@ -142,6 +145,8 @@ export const TransferView: React.FC<TransferViewProps> = ({
       }
 
       setVerificationId(data.verificationId);
+      setTransferFee(Number(data.transferFee) || 0);
+      setTransferTax(Number(data.transferTax) || 0);
       setMaskedContact(data.maskedContact);
       setSimulatedOtp(data.simulatedOtp);
       setStep('2fa');
@@ -263,7 +268,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                 Transfer Method
               </label>
-              <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3 sm:text-xs">
+              <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4 sm:text-xs">
                 <button
                   type="button"
                   onClick={() => setTransferType('internal')}
@@ -300,7 +305,20 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   }`}
                 >
                   <DollarSign className="w-4 h-4 shrink-0 text-[#0F766E] sm:mx-auto sm:mb-1" />
-                  Domestic Wire / Bank
+                  External Bank Transfer (ACH)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTransferType('wire')}
+                  className={`flex min-h-12 items-center gap-3 p-3 border rounded-xs font-semibold text-left transition-colors cursor-pointer sm:min-h-0 sm:flex-col sm:gap-0 sm:text-center ${
+                    transferType === 'wire'
+                      ? 'border-[#0F766E] bg-blue-50/60 text-[#0F766E]'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <DollarSign className="w-4 h-4 shrink-0 text-[#0F766E] sm:mx-auto sm:mb-1" />
+                  Domestic Wire · $2.01 fee + $1.03 tax
                 </button>
               </div>
             </div>
@@ -405,7 +423,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   />
                 </div>
 
-                {transferType === 'external' && (
+                {transferType === 'wire' && (
                   <div>
                     <label className="block font-medium text-gray-600 mb-1">
                       Routing Number (ABA)
@@ -460,6 +478,11 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   </button>
                 ))}
               </div>
+              {transferType === 'wire' && (
+                <p className="mt-2 text-xs text-gray-600">
+                  A $2.01 wire fee and $1.03 tax will be included in the total debit. Transfers between your accounts, ACH transfers, and recipient transfers have no transfer fee or tax.
+                </p>
+              )}
             </div>
 
             {/* Memo */}
@@ -580,12 +603,20 @@ export const TransferView: React.FC<TransferViewProps> = ({
                 </span>
               </div>
               <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
-                <span className="text-gray-500">Transfer Fee:</span>
-                <span className="font-bold text-emerald-700">$0.00 USD (Complimentary)</span>
+                <span className="text-gray-500">Transfer fee:</span>
+                <span className="font-bold text-gray-900">{formatUSD(transferFee)} USD</span>
+              </div>
+              <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+                <span className="text-gray-500">Tax:</span>
+                <span className="font-bold text-gray-900">{formatUSD(transferTax)} USD</span>
+              </div>
+              <div className="flex flex-col gap-1 border-t border-gray-200 pt-2 sm:flex-row sm:justify-between">
+                <span className="text-gray-500">Total debit:</span>
+                <span className="font-bold text-[#0F766E]">{formatUSD(parseFloat(amount) + transferFee + transferTax)} USD</span>
               </div>
               <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                 <span className="text-gray-500">Execution Speed:</span>
-                <span className="font-medium text-gray-700">Immediate</span>
+                <span className="font-medium text-gray-700">Pending review</span>
               </div>
             </div>
 
@@ -679,7 +710,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
               Transfer Submitted for Review
             </h2>
             <p className="text-xs text-gray-500 mt-1">
-              Your transfer request is pending bank/admin approval. The amount is reserved now and will post only after approval.
+              Your transfer request is pending. The amount is reserved now and will post after approval.
             </p>
 
             <div className="mt-6 max-w-md mx-auto bg-gray-50 border border-gray-200 rounded-sm p-4 text-xs text-left space-y-2.5">
@@ -688,6 +719,18 @@ export const TransferView: React.FC<TransferViewProps> = ({
                 <span className="break-words font-mono font-bold text-base text-gray-900 sm:text-right">
                   {formatUSD(parseFloat(amount))} USD
                 </span>
+              </div>
+              <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+                <span className="text-gray-500">Transfer fee:</span>
+                <span className="font-semibold text-gray-900">{formatUSD(transferFee)} USD</span>
+              </div>
+              <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+                <span className="text-gray-500">Tax:</span>
+                <span className="font-semibold text-gray-900">{formatUSD(transferTax)} USD</span>
+              </div>
+              <div className="flex flex-col gap-1 border-b border-gray-200 pb-2 sm:flex-row sm:justify-between">
+                <span className="text-gray-500">Total debit:</span>
+                <span className="font-bold text-gray-900">{formatUSD(parseFloat(amount) + transferFee + transferTax)} USD</span>
               </div>
               <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                 <span className="text-gray-500">Transaction ID:</span>
@@ -709,7 +752,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
               )}
               <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                 <span className="text-gray-500">Status:</span>
-                <span className="font-bold text-amber-700">Pending bank/admin approval</span>
+                <span className="font-bold text-amber-700">Pending</span>
               </div>
             </div>
 

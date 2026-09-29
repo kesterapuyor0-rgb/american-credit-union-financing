@@ -12,6 +12,11 @@ const router = Router();
 router.use(requireDatabase);
 router.use(requireAdmin);
 
+const transferDebitAmount = (transaction: any): number =>
+  Math.abs(Number(transaction.amount) || 0)
+  + Math.max(0, Number(transaction.transfer_fee) || 0)
+  + Math.max(0, Number(transaction.transfer_tax) || 0);
+
 const reviewPendingTransaction = async (
   transactionId: string,
   decision: 'approve' | 'reject',
@@ -50,10 +55,10 @@ const reviewPendingTransaction = async (
               user_id: outgoing.user_id,
               status: 'Active',
               $expr: { $and: [
-                { $gte: [{ $ifNull: ['$balance', 0] }, Math.abs(outgoing.amount)] },
-                { $gte: [{ $ifNull: ['$held_balance', 0] }, Math.abs(outgoing.amount)] },
+                { $gte: [{ $ifNull: ['$balance', 0] }, transferDebitAmount(outgoing)] },
+                { $gte: [{ $ifNull: ['$held_balance', 0] }, transferDebitAmount(outgoing)] },
               ] },
-            }, { $inc: { balance: -Math.abs(outgoing.amount), held_balance: -Math.abs(outgoing.amount) } }, { new: true, session }).lean<any>();
+            }, { $inc: { balance: -transferDebitAmount(outgoing), held_balance: -transferDebitAmount(outgoing) } }, { new: true, session }).lean<any>();
             if (!debited) throw new Error('The reserved transfer funds are no longer available.');
             const credited = await Account.findOneAndUpdate({
               id: incoming.account_id,
@@ -67,10 +72,10 @@ const reviewPendingTransaction = async (
               user_id: transaction.user_id,
               status: 'Active',
               $expr: { $and: [
-                { $gte: [{ $ifNull: ['$balance', 0] }, Math.abs(transaction.amount)] },
-                { $gte: [{ $ifNull: ['$held_balance', 0] }, Math.abs(transaction.amount)] },
+                { $gte: [{ $ifNull: ['$balance', 0] }, transferDebitAmount(transaction)] },
+                { $gte: [{ $ifNull: ['$held_balance', 0] }, transferDebitAmount(transaction)] },
               ] },
-            }, { $inc: { balance: -Math.abs(transaction.amount), held_balance: -Math.abs(transaction.amount) } }, { new: true, session }).lean<any>();
+            }, { $inc: { balance: -transferDebitAmount(transaction), held_balance: -transferDebitAmount(transaction) } }, { new: true, session }).lean<any>();
             if (!debited) throw new Error('The reserved transfer funds are no longer available.');
           } else {
             throw new Error('An incoming transfer must have its paired outgoing transaction.');
@@ -105,8 +110,8 @@ const reviewPendingTransaction = async (
         const released = await Account.findOneAndUpdate({
           id: outgoing.account_id,
           user_id: outgoing.user_id,
-          held_balance: { $gte: Math.abs(outgoing.amount) },
-        }, { $inc: { held_balance: -Math.abs(outgoing.amount) } }, { new: true, session }).lean<any>();
+          held_balance: { $gte: transferDebitAmount(outgoing) },
+        }, { $inc: { held_balance: -transferDebitAmount(outgoing) } }, { new: true, session }).lean<any>();
         if (!released) throw new Error('The reserved transfer amount could not be released.');
       }
 
@@ -121,8 +126,10 @@ const reviewPendingTransaction = async (
         action: `TRANSACTION_${decision.toUpperCase()}`,
         target_user_id: transaction.user_id,
         target_account_id: transaction.account_id,
-        amount: Math.abs(transaction.amount),
-        details: `${decision === 'approve' ? 'Approved' : 'Rejected'} ${transaction.type} transaction ${transaction.id}. Reason: ${reason}`,
+        amount: String(transaction.type).toLowerCase() === 'transfer_out'
+          ? transferDebitAmount(transaction)
+          : Math.abs(transaction.amount),
+        details: `${decision === 'approve' ? 'Approved' : 'Rejected'} ${transaction.type} transaction ${transaction.id}${Number(transaction.transfer_fee) + Number(transaction.transfer_tax) > 0 ? ` including $${Number(transaction.transfer_fee).toFixed(2)} wire fee and $${Number(transaction.transfer_tax).toFixed(2)} tax` : ''}. Reason: ${reason}`,
         ip_address: req.ip || '127.0.0.1',
         created_at: new Date().toISOString(),
       }], { session });

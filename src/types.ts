@@ -32,6 +32,8 @@ export interface Transaction {
   account_id: string;
   type: 'deposit' | 'withdrawal' | 'transfer_in' | 'transfer_out' | 'payment' | 'admin_adjustment' | 'admin_credit' | 'admin_debit' | 'admin_hold' | 'admin_release' | 'card_debit' | 'card_credit';
   amount: number;
+  transfer_fee?: number;
+  transfer_tax?: number;
   currency: string;
   description: string;
   recipient_name?: string;
