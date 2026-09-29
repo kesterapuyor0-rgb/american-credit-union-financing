@@ -183,7 +183,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
       }
 
       setCompletedTxId(data.transactionId);
-      setNewSourceBalance(data.newSourceBalance);
+      setNewSourceBalance(null);
       setStep('success');
       onTransferComplete();
     } catch (err: any) {
@@ -550,7 +550,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
               <span>Prototype confirmation step</span>
             </div>
             <h2 className="text-xl font-bold text-[#0F766E] font-serif mb-1">
-              Confirm & Authorize Transfer
+              Confirm & Submit Transfer
             </h2>
             <p className="text-xs text-gray-500 mb-5">
               Review your transaction details and enter the one-time authorization code dispatched to {maskedContact}.
@@ -654,7 +654,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   ) : (
                     <>
                       <Lock className="w-4 h-4" />
-                      <span>Authorize & Finalize Transfer</span>
+                      <span>Verify & Submit for Review</span>
                     </>
                   )}
                 </button>
@@ -675,15 +675,15 @@ export const TransferView: React.FC<TransferViewProps> = ({
             </div>
 
             <h2 className="text-2xl font-bold text-[#0F766E] font-serif">
-              Transfer Authorized & Completed
+              Transfer Submitted for Review
             </h2>
             <p className="text-xs text-gray-500 mt-1">
-              Your funds have been securely transferred and debited from your account.
+              Your transfer request is pending bank/admin approval. The amount is reserved now and will post only after approval.
             </p>
 
             <div className="mt-6 max-w-md mx-auto bg-gray-50 border border-gray-200 rounded-sm p-4 text-xs text-left space-y-2.5">
               <div className="flex justify-between pb-2 border-b border-gray-200">
-                <span className="text-gray-500">Amount Sent:</span>
+                <span className="text-gray-500">Amount Requested:</span>
                 <span className="font-mono font-bold text-base text-gray-900">
                   {formatUSD(parseFloat(amount))} USD
                 </span>
@@ -708,7 +708,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
               )}
               <div className="flex justify-between">
                 <span className="text-gray-500">Status:</span>
-                <span className="font-bold text-emerald-700">Completed (Funds Posted)</span>
+                <span className="font-bold text-amber-700">Pending bank/admin approval</span>
               </div>
             </div>
 

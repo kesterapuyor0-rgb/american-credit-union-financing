@@ -202,10 +202,10 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                   Deposit Submitted Successfully
                 </h4>
                 <p className="text-sm font-semibold text-amber-700 bg-amber-50 inline-block px-3 py-1 rounded-full">
-                  Status: PROCESSING
+                  Status: PENDING ADMIN REVIEW
                 </p>
                 <p className="text-xs text-gray-600 max-w-md mx-auto pt-1">
-                  Your deposit request has been received and is being processed via ACH. Funds typically clear within 1 to 2 business days.
+                  Your deposit request is waiting for bank/admin approval. Funds will not be added to your available balance unless it is approved.
                 </p>
               </div>
 
@@ -237,9 +237,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
 
               <div className="bg-blue-50 border border-blue-200 rounded-sm p-3 flex items-start gap-2 text-[11px] text-blue-900">
                 <ShieldCheck className="w-4 h-4 text-[#0F766E] shrink-0 mt-0.5" />
-                <span>
-                  ACH transfers undergo standard automated security checks. You can track the status in your transaction activity log.
-                </span>
+                <span>You can track this request in your transaction activity. An administrator must review it before the account balance changes.</span>
               </div>
 
               <div className="pt-2">

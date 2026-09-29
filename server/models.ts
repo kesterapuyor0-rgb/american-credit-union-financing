@@ -72,6 +72,10 @@ const transactionSchema = new Schema({
   recipient_account: { type: String, default: '' },
   status: { type: String, required: true, default: 'Completed', index: true },
   category: { type: String, default: 'General' },
+  related_transaction_id: { type: String, default: null, index: true },
+  reviewed_at: { type: Date },
+  reviewed_by: { type: String },
+  review_reason: { type: String, default: '' },
   date: { type: String, required: true, index: true },
   created_at: { type: Number, required: true },
 }, { versionKey: false, bufferCommands: false });

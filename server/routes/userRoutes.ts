@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { randomUUID } from 'crypto';
-import { User, Account, Transaction, AuditLog, BankCard, CardApplication } from '../models.js';
+import { User, Account, Transaction, BankCard, CardApplication } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { requireAuth, AuthenticatedRequest } from '../auth.js';
 import { maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
@@ -305,11 +305,11 @@ router.post(['/deposit', '/accounts/deposit'], requireAuth, async (req: Authenti
 
     let targetAccount: any = null;
     if (targetAccountId) {
-      targetAccount = await Account.findOne({ id: targetAccountId, user_id: userId }).lean<any>();
+      targetAccount = await Account.findOne({ id: targetAccountId, user_id: userId, status: 'Active' }).lean<any>();
     }
 
     if (!targetAccount) {
-      const accounts = await Account.find({ user_id: userId }).sort({ created_at: 1 }).lean<any[]>();
+      const accounts = await Account.find({ user_id: userId, status: 'Active' }).sort({ created_at: 1 }).lean<any[]>();
       accounts.sort((a, b) => ({ Checking: 1, Savings: 2 }[a.account_type as 'Checking' | 'Savings'] || 3) - ({ Checking: 1, Savings: 2 }[b.account_type as 'Checking' | 'Savings'] || 3));
       targetAccount = accounts[0] || null;
     }
@@ -318,13 +318,6 @@ router.post(['/deposit', '/accounts/deposit'], requireAuth, async (req: Authenti
       res.status(404).json({ error: 'No active recipient account found for this customer profile.' });
       return;
     }
-
-    const updatedAccount = await Account.findOneAndUpdate(
-      { id: targetAccount.id, user_id: userId },
-      { $inc: { balance: parsedAmount } },
-      { new: true }
-    ).lean<any>();
-    const newBalance = updatedAccount.balance;
 
     const txId = 'tx_dep_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const today = new Date().toISOString().split('T')[0];
@@ -335,24 +328,14 @@ router.post(['/deposit', '/accounts/deposit'], requireAuth, async (req: Authenti
       id: txId, user_id: userId, account_id: targetAccount.id,
       type: 'deposit', amount: parsedAmount, currency: 'USD', description: txDescription,
       recipient_name: cleanInstitution, recipient_account: `External ...${extLast4}`,
-      status: 'Completed', category: 'Deposit', date: today, created_at: Date.now(),
-    });
-
-    const logId = 'aud_dep_' + Date.now();
-    await AuditLog.create({
-      id: logId, admin_id: 'customer', admin_email: req.user!.email,
-      action: 'EXTERNAL_DEPOSIT', target_user_id: userId, target_account_id: targetAccount.id,
-      amount: parsedAmount,
-      details: `External ACH Transfer of $${parsedAmount.toFixed(2)} from ${cleanInstitution} (Routing: ${cleanRoutingNum}, Acct: ...${extLast4}) into account ${targetAccount.account_number}`,
-      ip_address: req.ip || '127.0.0.1', created_at: new Date().toISOString(),
+      status: 'PENDING', category: 'Deposit', date: today, created_at: Date.now(),
     });
 
     res.status(200).json({
       success: true,
-      message: `Deposit of $${parsedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} from ${cleanInstitution} successfully credited to your ${targetAccount.nickname}.`,
-      newBalance,
+      message: `Deposit request of $${parsedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} from ${cleanInstitution} is pending bank review. Funds will be added only after approval.`,
       depositedAmount: parsedAmount,
-      account: { ...updatedAccount, balance: newBalance },
+      account: { id: targetAccount.id, nickname: targetAccount.nickname, account_number: targetAccount.account_number },
       transaction: {
         id: txId,
         account_id: targetAccount.id,
@@ -363,7 +346,7 @@ router.post(['/deposit', '/accounts/deposit'], requireAuth, async (req: Authenti
         description: txDescription,
         recipient_name: cleanInstitution,
         recipient_account: `External ...${extLast4}`,
-        status: 'Completed',
+        status: 'PENDING',
         category: 'Deposit',
         date: today,
         created_at: Date.now(),

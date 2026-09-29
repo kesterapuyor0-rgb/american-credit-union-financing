@@ -1,4 +1,6 @@
 import { Router, Response } from 'express';
+import { randomUUID } from 'crypto';
+import mongoose from 'mongoose';
 import { Account, Transaction, VerificationCode } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { requireAuth, AuthenticatedRequest, generateOTP } from '../auth.js';
@@ -29,7 +31,7 @@ router.post('/initiate', requireAuth, async (req: AuthenticatedRequest, res: Res
     }
 
     // Verify source account
-    const sourceAccount = await Account.findOne({ id: sourceAccountId, user_id: userId }).lean<any>();
+    const sourceAccount = await Account.findOne({ id: sourceAccountId, user_id: userId, status: 'Active' }).lean<any>();
 
     if (!sourceAccount) {
       res.status(404).json({ error: 'Source account not found.' });
@@ -49,7 +51,7 @@ router.post('/initiate', requireAuth, async (req: AuthenticatedRequest, res: Res
     let destDisplayAccount = recipientAccount || '';
 
     if (transferType === 'internal') {
-      const destAccount = await Account.findOne({ id: destinationAccountId, user_id: userId }).lean<any>();
+      const destAccount = await Account.findOne({ id: destinationAccountId, user_id: userId, status: 'Active' }).lean<any>();
       if (!destAccount) {
         res.status(400).json({ error: 'Destination account not found.' });
         return;
@@ -145,7 +147,7 @@ router.post('/confirm', requireAuth, async (req: AuthenticatedRequest, res: Resp
     } = payload;
 
     // Check source account balance again
-    const sourceAccount = await Account.findOne({ id: sourceAccountId, user_id: userId }).lean<any>();
+    const sourceAccount = await Account.findOne({ id: sourceAccountId, user_id: userId, status: 'Active' }).lean<any>();
 
     if (!sourceAccount) {
       res.status(404).json({ error: 'Source account not found.' });
@@ -158,69 +160,73 @@ router.post('/confirm', requireAuth, async (req: AuthenticatedRequest, res: Resp
       return;
     }
 
-    // Execute transfer
-    const debitedAccount = await Account.findOneAndUpdate(
-      {
-        id: sourceAccountId,
-        user_id: userId,
-        $expr: { $gte: [
-          { $subtract: [{ $ifNull: ['$balance', 0] }, { $ifNull: ['$held_balance', 0] }] },
-          amount,
-        ] },
-      },
-      { $inc: { balance: -amount } },
-      { new: true }
-    ).lean<any>();
-    if (!debitedAccount) {
-      res.status(400).json({ error: 'Transfer failed: Insufficient funds in source account.' });
+    const txIdOut = `tx_${randomUUID()}_out`;
+    const txIdIn = transferType === 'internal' && destinationAccountId ? `tx_${randomUUID()}_in` : null;
+    const today = new Date().toISOString().split('T')[0];
+    const outgoingDesc = `Online Banking Transfer Out to ${recipientName}`;
+    const destAccount = txIdIn && destinationAccountId
+      ? await Account.findOne({ id: destinationAccountId, user_id: userId, status: 'Active' }).lean<any>()
+      : null;
+    if (txIdIn && !destAccount) {
+      res.status(409).json({ error: 'The destination account is no longer active.' });
       return;
     }
-    const newSourceBalance = debitedAccount.balance;
-
-    const txIdOut = 'tx_' + Date.now() + '_out';
-    const today = new Date().toISOString().split('T')[0];
-
-    // Create Outgoing Transaction
-    const outgoingDesc = `Online Banking Transfer Out to ${recipientName}`;
-    await Transaction.create({
+    const pendingRows: any[] = [{
       id: txIdOut, user_id: userId, account_id: sourceAccountId,
       type: 'transfer_out', amount, currency: 'USD', description: outgoingDesc,
       recipient_name: recipientName, recipient_account: recipientAccount,
-      status: 'Completed', category: 'Transfer', date: today, created_at: Date.now(),
-    });
-
-    // If destination account is internal or registered user account:
-    if (transferType === 'internal' && destinationAccountId) {
-      const destAccount = await Account.findOne({ id: destinationAccountId }).lean<any>();
-      if (destAccount) {
-        await Account.updateOne({ id: destinationAccountId }, { $inc: { balance: amount } });
-
-        const txIdIn = 'tx_' + Date.now() + '_in';
-        const incomingDesc = `Transfer Received from ${sourceAccount.nickname}`;
-        await Transaction.create({
-          id: txIdIn, user_id: destAccount.user_id, account_id: destinationAccountId,
-          type: 'transfer_in', amount, currency: 'USD', description: incomingDesc,
-          recipient_name: sourceAccount.nickname,
-          recipient_account: `...${sourceAccount.account_number.slice(-4)}`,
-          status: 'Completed', category: 'Transfer', date: today, created_at: Date.now() + 1,
-        });
-      }
+      status: 'PENDING', category: 'Transfer', related_transaction_id: txIdIn,
+      date: today, created_at: Date.now(),
+    }];
+    if (txIdIn && destAccount) {
+      pendingRows.push({
+        id: txIdIn, user_id: destAccount.user_id, account_id: destinationAccountId,
+        type: 'transfer_in', amount, currency: 'USD', description: `Transfer Received from ${sourceAccount.nickname}`,
+        recipient_name: sourceAccount.nickname,
+        recipient_account: `...${sourceAccount.account_number.slice(-4)}`,
+        status: 'PENDING', category: 'Transfer', related_transaction_id: txIdOut,
+        date: today, created_at: Date.now() + 1,
+      });
     }
 
-    // Mark verification verified
-    await VerificationCode.updateOne({ id: verificationId, verified: false }, { $set: { verified: true } });
+    // Claim the OTP and queue every side of an internal transfer atomically.
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const claimedVerification = await VerificationCode.findOneAndUpdate(
+          { id: verificationId, user_id: userId, purpose: 'transfer', code: code.trim(), verified: false, expires_at: { $gt: Date.now() } },
+          { $set: { verified: true } },
+          { new: true, session },
+        ).lean<any>();
+        if (!claimedVerification) throw new Error('This transfer authorization has already been used or expired. Please start again.');
+        const reservedSource = await Account.findOneAndUpdate({
+          id: sourceAccountId,
+          user_id: userId,
+          status: 'Active',
+          $expr: { $gte: [
+            { $subtract: [{ $ifNull: ['$balance', 0] }, { $ifNull: ['$held_balance', 0] }] },
+            amount,
+          ] },
+        }, { $inc: { held_balance: amount } }, { new: true, session }).lean<any>();
+        if (!reservedSource) throw new Error('Insufficient available balance to reserve this transfer.');
+        await Transaction.create(pendingRows, { session });
+      });
+    } finally {
+      await session.endSession();
+    }
 
     res.json({
       success: true,
       transactionId: txIdOut,
-      newSourceBalance,
       amount,
       recipientName,
-      message: `Your transfer of $${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD to ${recipientName} has been authorized and completed.`,
+      status: 'PENDING',
+      message: `Your transfer request of $${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD to ${recipientName} is awaiting bank/admin approval. The amount is reserved and will post only after approval.`,
     });
   } catch (err: any) {
     console.error('Error confirming transfer:', err);
-    res.status(500).json({ error: errorMessage(err, 'Transfer execution failed.') });
+    const message = errorMessage(err, 'Transfer submission failed.');
+    res.status(message.includes('authorization') || message.includes('Insufficient available balance') ? 409 : 500).json({ error: message });
   }
 });
 

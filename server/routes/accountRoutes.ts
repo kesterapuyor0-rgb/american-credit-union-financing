@@ -25,12 +25,12 @@ router.post('/deposit', requireAuth, async (req: AuthenticatedRequest, res: Resp
     // Find destination account belonging to this user
     let targetAccount: any = null;
     if (targetAccountId) {
-      targetAccount = await Account.findOne({ id: targetAccountId, user_id: userId }).lean<any>();
+      targetAccount = await Account.findOne({ id: targetAccountId, user_id: userId, status: 'Active' }).lean<any>();
     }
 
     if (!targetAccount) {
       // Pick primary checking or first account
-      const accounts = await Account.find({ user_id: userId }).sort({ created_at: 1 }).lean<any[]>();
+      const accounts = await Account.find({ user_id: userId, status: 'Active' }).sort({ created_at: 1 }).lean<any[]>();
       accounts.sort((a, b) => ({ Checking: 1, Savings: 2 }[a.account_type as 'Checking' | 'Savings'] || 3) - ({ Checking: 1, Savings: 2 }[b.account_type as 'Checking' | 'Savings'] || 3));
       targetAccount = accounts[0] || null;
     }

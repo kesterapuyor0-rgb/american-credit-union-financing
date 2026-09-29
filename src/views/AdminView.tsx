@@ -49,6 +49,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
 
   // Pending Deposits Processing State
   const [approvingDepositId, setApprovingDepositId] = useState<string | null>(null);
+  const [transactionReviewReasons, setTransactionReviewReasons] = useState<Record<string, string>>({});
 
   // Adjustment Modal State
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
@@ -385,12 +386,17 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
     }
   };
 
-  const handleApproveDeposit = async (depositId: string, depositAmount: number, customerName: string) => {
-    setApprovingDepositId(depositId);
+  const handleReviewTransaction = async (transaction: Transaction, decision: 'approve' | 'reject') => {
+    const reason = String(transactionReviewReasons[transaction.id] || '').trim();
+    if (!reason) {
+      setError('Enter a reason before approving or rejecting this transaction.');
+      return;
+    }
+    setApprovingDepositId(transaction.id);
     setError(null);
 
     try {
-      const res = await fetch('/api/admin/approve-deposit', {
+      const res = await fetch('/api/admin/transactions/review', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -398,20 +404,19 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
           },
           credentials: 'include',
           body: JSON.stringify({
-            transactionId: depositId,
+            transactionId: transaction.id,
+            decision,
+            reason,
             token: activeToken,
           }),
         });
 
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data?.error || 'Failed to approve deposit');
+          throw new Error(data?.error || 'Failed to review transaction.');
         }
 
-        setSuccessMsg(
-          `Deposit of $${depositAmount.toFixed(2)} approved for ${customerName}. Account balance updated.`
-        );
-      // Refresh all data after the transaction is marked APPROVED.
+      setSuccessMsg(`Transaction ${decision === 'approve' ? 'approved' : 'rejected'}.`);
       await Promise.all([
         fetchPendingDeposits(),
         fetchOverview(),
@@ -421,8 +426,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
       ]);
       setTimeout(() => setSuccessMsg(null), 6000);
     } catch (err: any) {
-      console.error('Error approving deposit:', err);
-      setError(err.message || 'Failed to approve deposit');
+      console.error('Error reviewing transaction:', err);
+      setError(err.message || 'Failed to review transaction.');
     } finally {
       setApprovingDepositId(null);
     }
@@ -549,7 +554,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                     : 'text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                Pending Deposit Requests ({pendingDeposits.length})
+                Pending Transactions ({pendingDeposits.length})
               </button>
             <button
               onClick={() => {
@@ -725,9 +730,9 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
               <div>
                 <h3 className="text-base font-bold text-[#C9932E] font-serif flex items-center gap-2">
                   <ArrowDownCircle className="w-4 h-4" />
-                  <span>Pending Deposit Requests</span>
+                  <span>Pending Transactions</span>
                 </h3>
-                <p className="text-xs text-gray-500 mt-0.5">Review customer ACH deposits and confirm funds to the destination account.</p>
+                <p className="text-xs text-gray-500 mt-0.5">Review customer requests. Funds post only after approval. Every decision requires a reason.</p>
               </div>
               <button
                 type="button"
@@ -736,14 +741,14 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                 className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-gray-700 text-xs rounded-xs cursor-pointer disabled:opacity-50"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Refresh Deposits</span>
+                <span>Refresh Queue</span>
               </button>
             </div>
 
             {pendingDeposits.length === 0 ? (
               <div className="py-12 text-center border border-gray-200 rounded-xs bg-gray-50">
                 <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-gray-700">No Pending Deposits</p>
+                <p className="text-sm font-semibold text-gray-700">No pending transactions</p>
               </div>
             ) : (
               <div className="overflow-x-auto border border-gray-200 rounded-xs">
@@ -752,6 +757,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                     <tr className="bg-[#F8F9FA] text-gray-600 font-bold border-b border-gray-200 uppercase tracking-wider text-[11px]">
                       <th className="py-3 px-4">Customer</th>
                       <th className="py-3 px-4">Description</th>
+                      <th className="py-3 px-4">Account</th>
                       <th className="py-3 px-4 text-right">Amount</th>
                       <th className="py-3 px-4">Date</th>
                       <th className="py-3 px-4">Status</th>
@@ -765,22 +771,21 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                           <div className="font-semibold text-gray-900">{(deposit as any).user_name || 'Unknown'}</div>
                           <div className="text-[11px] text-gray-500">{(deposit as any).user_email || '—'}</div>
                         </td>
-                        <td className="py-3.5 px-4 text-gray-700">ACH Deposit Confirmed</td>
-                        <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-700">+{formatUSD(deposit.amount)}</td>
+                        <td className="py-3.5 px-4 text-gray-700"><div className="font-medium">{formatTransactionDescription(deposit.description)}</div><div className="mt-1 text-[10px] uppercase text-gray-500">{deposit.type}</div></td>
+                        <td className="py-3.5 px-4 text-gray-600">{(deposit as any).account_name || 'Account'} · •••• {(deposit as any).account_number?.slice(-4) || '—'}</td>
+                        <td className={`py-3.5 px-4 text-right font-mono font-bold ${['deposit', 'transfer_in'].includes(String(deposit.type).toLowerCase()) ? 'text-emerald-700' : 'text-slate-900'}`}>{['deposit', 'transfer_in'].includes(String(deposit.type).toLowerCase()) ? '+' : '−'}{formatUSD(deposit.amount)}</td>
                         <td className="py-3.5 px-4 text-[11px] text-gray-600 whitespace-nowrap">{deposit.date || deposit.created_at}</td>
                         <td className="py-3.5 px-4">
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">{deposit.status}</span>
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleApproveDeposit(deposit.id, deposit.amount, (deposit as any).user_name || 'Customer')}
-                            disabled={approvingDepositId === deposit.id}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-400 text-white text-xs font-bold rounded-xs cursor-pointer"
-                          >
-                            {approvingDepositId === deposit.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                            <span>{approvingDepositId === deposit.id ? 'Processing...' : 'Approve & Credit'}</span>
-                          </button>
+                          <div className="min-w-56 space-y-2">
+                            <textarea rows={2} maxLength={500} required aria-label={`Review reason for transaction ${deposit.id}`} placeholder="Required decision reason" value={transactionReviewReasons[deposit.id] || ''} onChange={(event) => setTransactionReviewReasons((current) => ({ ...current, [deposit.id]: event.target.value }))} className="w-full rounded border border-slate-200 p-2 text-xs" />
+                            <div className="flex justify-end gap-2">
+                              <button type="button" onClick={() => handleReviewTransaction(deposit, 'reject')} disabled={approvingDepositId === deposit.id} className="rounded border border-rose-200 px-2 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-50">Reject</button>
+                              <button type="button" onClick={() => handleReviewTransaction(deposit, 'approve')} disabled={approvingDepositId === deposit.id} className="inline-flex items-center gap-1 rounded bg-emerald-700 px-2 py-1.5 text-xs font-bold text-white disabled:opacity-50">{approvingDepositId === deposit.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}Approve</button>
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     ))}

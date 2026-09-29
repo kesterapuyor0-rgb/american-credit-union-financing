@@ -12,6 +12,128 @@ const router = Router();
 router.use(requireDatabase);
 router.use(requireAdmin);
 
+const reviewPendingTransaction = async (
+  transactionId: string,
+  decision: 'approve' | 'reject',
+  reason: string,
+  req: AuthenticatedRequest,
+): Promise<any> => {
+  const session = await mongoose.startSession();
+  try {
+    let response: any;
+    await session.withTransaction(async () => {
+      const transaction = await Transaction.findOne({ id: transactionId, status: /^pending$/i }).session(session).lean<any>();
+      if (!transaction) throw new Error('Pending transaction not found or already reviewed.');
+
+      const related = transaction.related_transaction_id
+        ? await Transaction.findOne({ id: transaction.related_transaction_id }).session(session).lean<any>()
+        : null;
+      if (transaction.related_transaction_id && (!related || !/^pending$/i.test(related.status))) {
+        throw new Error('The paired transfer is no longer pending.');
+      }
+
+      if (decision === 'approve') {
+        const type = String(transaction.type || '').toLowerCase();
+        if (type === 'transfer_out' || type === 'transfer_in') {
+          if (related) {
+            const outgoing = type === 'transfer_out' ? transaction : related;
+            const incoming = type === 'transfer_in' ? transaction : related;
+            if (String(outgoing.type).toLowerCase() !== 'transfer_out'
+              || String(incoming.type).toLowerCase() !== 'transfer_in'
+              || outgoing.related_transaction_id !== incoming.id
+              || incoming.related_transaction_id !== outgoing.id
+              || Math.abs(outgoing.amount) !== Math.abs(incoming.amount)) {
+              throw new Error('The paired transfer records are invalid.');
+            }
+            const debited = await Account.findOneAndUpdate({
+              id: outgoing.account_id,
+              user_id: outgoing.user_id,
+              status: 'Active',
+              $expr: { $and: [
+                { $gte: [{ $ifNull: ['$balance', 0] }, Math.abs(outgoing.amount)] },
+                { $gte: [{ $ifNull: ['$held_balance', 0] }, Math.abs(outgoing.amount)] },
+              ] },
+            }, { $inc: { balance: -Math.abs(outgoing.amount), held_balance: -Math.abs(outgoing.amount) } }, { new: true, session }).lean<any>();
+            if (!debited) throw new Error('The reserved transfer funds are no longer available.');
+            const credited = await Account.findOneAndUpdate({
+              id: incoming.account_id,
+              user_id: incoming.user_id,
+              status: 'Active',
+            }, { $inc: { balance: Math.abs(incoming.amount) } }, { new: true, session }).lean<any>();
+            if (!credited) throw new Error('Transfer destination is no longer active.');
+          } else if (type === 'transfer_out') {
+            const debited = await Account.findOneAndUpdate({
+              id: transaction.account_id,
+              user_id: transaction.user_id,
+              status: 'Active',
+              $expr: { $and: [
+                { $gte: [{ $ifNull: ['$balance', 0] }, Math.abs(transaction.amount)] },
+                { $gte: [{ $ifNull: ['$held_balance', 0] }, Math.abs(transaction.amount)] },
+              ] },
+            }, { $inc: { balance: -Math.abs(transaction.amount), held_balance: -Math.abs(transaction.amount) } }, { new: true, session }).lean<any>();
+            if (!debited) throw new Error('The reserved transfer funds are no longer available.');
+          } else {
+            throw new Error('An incoming transfer must have its paired outgoing transaction.');
+          }
+        } else if (type === 'deposit') {
+          const credited = await Account.findOneAndUpdate(
+            { id: transaction.account_id, user_id: transaction.user_id, status: 'Active' },
+            { $inc: { balance: Math.abs(transaction.amount) } }, { new: true, session },
+          ).lean<any>();
+          if (!credited) throw new Error('Transaction account is no longer active.');
+        } else if (type === 'withdrawal' || type === 'payment' || type === 'card_debit') {
+          const debited = await Account.findOneAndUpdate({
+            id: transaction.account_id,
+            user_id: transaction.user_id,
+            status: 'Active',
+            $expr: { $gte: [
+              { $subtract: [{ $ifNull: ['$balance', 0] }, { $ifNull: ['$held_balance', 0] }] },
+              Math.abs(transaction.amount),
+            ] },
+          }, { $inc: { balance: -Math.abs(transaction.amount) } }, { new: true, session }).lean<any>();
+          if (!debited) throw new Error('Transaction account has insufficient available balance.');
+        } else {
+          throw new Error(`Approval is not configured for transaction type ${transaction.type}.`);
+        }
+      }
+
+      if (decision === 'reject' && ['transfer_out', 'transfer_in'].includes(String(transaction.type || '').toLowerCase())) {
+        const outgoing = String(transaction.type).toLowerCase() === 'transfer_out' ? transaction : related;
+        if (!outgoing || String(outgoing.type).toLowerCase() !== 'transfer_out') {
+          throw new Error('The paired outgoing transfer could not be found.');
+        }
+        const released = await Account.findOneAndUpdate({
+          id: outgoing.account_id,
+          user_id: outgoing.user_id,
+          held_balance: { $gte: Math.abs(outgoing.amount) },
+        }, { $inc: { held_balance: -Math.abs(outgoing.amount) } }, { new: true, session }).lean<any>();
+        if (!released) throw new Error('The reserved transfer amount could not be released.');
+      }
+
+      const nextStatus = decision === 'approve' ? 'APPROVED' : 'REJECTED';
+      const reviewFields = { status: nextStatus, reviewed_at: new Date(), reviewed_by: req.user!.id, review_reason: reason };
+      await Transaction.updateOne({ id: transaction.id, status: /^pending$/i }, { $set: reviewFields }, { session });
+      if (related) await Transaction.updateOne({ id: related.id, status: /^pending$/i }, { $set: reviewFields }, { session });
+      await AuditLog.create([{
+        id: `log_tx_review_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: `TRANSACTION_${decision.toUpperCase()}`,
+        target_user_id: transaction.user_id,
+        target_account_id: transaction.account_id,
+        amount: Math.abs(transaction.amount),
+        details: `${decision === 'approve' ? 'Approved' : 'Rejected'} ${transaction.type} transaction ${transaction.id}. Reason: ${reason}`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+      response = { transactionId: transaction.id, status: nextStatus, relatedTransactionId: related?.id || null };
+    });
+    return response;
+  } finally {
+    await session.endSession();
+  }
+};
+
 // POST /api/admin/create-admin
 // Creates an administrator using an existing administrator session.
 router.post('/create-admin', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -592,8 +714,7 @@ router.get('/transactions', async (req: AuthenticatedRequest, res: Response): Pr
   }
 });
 
-// GET /api/admin/pending-deposits
-// Fetch all PENDING deposit transactions with customer details
+// GET /api/admin/pending-deposits — compatibility path for the pending transaction review queue.
 router.get('/pending-deposits', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const rows = await Transaction.find({ status: /^pending$/i }).sort({ date: -1 }).lean<any[]>();
@@ -617,91 +738,39 @@ router.get('/pending-deposits', async (req: AuthenticatedRequest, res: Response)
   }
 });
 
-// POST /api/admin/approve-deposit
-// Approves a PENDING deposit transaction and credits the account
-router.post('/approve-deposit', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+// POST /api/admin/transactions/review
+router.post('/transactions/review', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const transactionId = String(req.body?.transactionId || '').trim();
+  const decision = String(req.body?.decision || '').trim().toLowerCase();
+  const reason = String(req.body?.reason || '').trim();
+  if (!transactionId || !['approve', 'reject'].includes(decision) || !reason || reason.length > 500) {
+    res.status(400).json({ error: 'Transaction, approve/reject decision, and a reason of 500 characters or fewer are required.' });
+    return;
+  }
   try {
-    const { transactionId } = req.body;
-
-    if (!transactionId) {
-      res.status(400).json({ error: 'Transaction ID is required.' });
-      return;
-    }
-
-    // Retrieve transaction details
-    const trans = await Transaction.findOne({ id: transactionId }).lean<any>();
-    if (!trans) {
-      res.status(404).json({ error: 'Transaction not found.' });
-      return;
-    }
-
-    if (trans.status === 'APPROVED') {
-      res.status(400).json({ error: 'Transaction is already approved.' });
-      return;
-    }
-
-    if (trans.status !== 'PENDING') {
-      res.status(400).json({ error: 'Only pending transactions can be approved.' });
-      return;
-    }
-
-    // Retrieve account to update balance
-    const account = await Account.findOne({ id: trans.account_id }).lean<any>();
-    if (!account) {
-      res.status(404).json({ error: 'Associated account not found.' });
-      return;
-    }
-
-    // Balances are stored on accounts in this schema. Increment the associated account atomically.
-    const approved = await Transaction.findOneAndUpdate(
-      { id: transactionId, status: 'PENDING' },
-      { $set: { status: 'APPROVED' } },
-      { new: true }
-    ).lean<any>();
-    if (!approved) {
-      res.status(409).json({ error: 'Transaction is already being processed or is no longer pending.' });
-      return;
-    }
-    const updatedAccount = await Account.findOneAndUpdate(
-      { id: trans.account_id }, { $inc: { balance: trans.amount } }, { new: true }
-    ).lean<any>();
-    if (!updatedAccount) {
-      await Transaction.updateOne({ id: transactionId, status: 'APPROVED' }, { $set: { status: 'PENDING' } });
-      res.status(404).json({ error: 'Associated account not found.' });
-      return;
-    }
-    const newBalance = updatedAccount.balance;
-
-    // Record audit log
-    const logId = 'aud_app_' + Date.now();
-    await AuditLog.create({
-      id: logId, admin_id: req.user!.id, admin_email: req.user!.email,
-      action: 'APPROVE_DEPOSIT', target_user_id: trans.user_id,
-      target_account_id: trans.account_id, amount: trans.amount,
-      details: `Approved pending deposit of $${trans.amount.toFixed(2)} to account ${account.account_number}. Transaction: ${trans.description}`,
-      ip_address: req.ip || '127.0.0.1', created_at: new Date().toISOString(),
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Deposit approved and credited.',
-      transaction: {
-        id: transactionId,
-        status: 'APPROVED',
-        amount: trans.amount,
-        description: trans.description,
-      },
-      account: {
-        id: trans.account_id,
-        account_number: account.account_number,
-        nickname: account.nickname,
-        previousBalance: account.balance,
-        newBalance: newBalance,
-      },
-    });
+    const result = await reviewPendingTransaction(transactionId, decision as 'approve' | 'reject', reason, req);
+    res.json({ success: true, ...result, message: `Transaction ${decision === 'approve' ? 'approved' : 'rejected'} and recorded.` });
   } catch (err: any) {
-    console.error('Error approving deposit:', err);
-    res.status(500).json({ error: errorMessage(err, 'Failed to approve deposit.') });
+    const message = errorMessage(err, 'Failed to review transaction.');
+    const conflict = /pending|insufficient|active|paired|already|configured/i.test(message);
+    res.status(conflict ? 409 : 500).json({ error: message });
+  }
+});
+
+// Legacy endpoint retained for compatibility, but it now uses the same audited review flow.
+router.post('/approve-deposit', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const transactionId = String(req.body?.transactionId || '').trim();
+  try {
+    const transaction = await Transaction.findOne({ id: transactionId, status: /^pending$/i }).select('type').lean<any>();
+    if (!transaction || !['deposit'].includes(String(transaction.type).toLowerCase())) {
+      res.status(409).json({ error: 'Only pending deposit records can use this legacy endpoint. Use the transaction review queue.' });
+      return;
+    }
+    const result = await reviewPendingTransaction(transactionId, 'approve', 'Approved from the legacy deposit review control.', req);
+    res.json({ success: true, ...result, message: 'Deposit approved and credited.' });
+  } catch (err: any) {
+    const message = errorMessage(err, 'Failed to approve deposit.');
+    res.status(/pending|insufficient|active|paired/i.test(message) ? 409 : 500).json({ error: message });
   }
 });
 
