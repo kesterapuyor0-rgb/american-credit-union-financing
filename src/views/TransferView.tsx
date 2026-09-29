@@ -752,7 +752,10 @@ export const TransferView: React.FC<TransferViewProps> = ({
               )}
               <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                 <span className="text-gray-500">Status:</span>
-                <span className="font-bold text-amber-700">Pending</span>
+                <span className="inline-flex items-center gap-1.5 font-bold text-amber-700">
+                  <Clock aria-hidden="true" className="h-4 w-4" />
+                  Pending
+                </span>
               </div>
             </div>
 
