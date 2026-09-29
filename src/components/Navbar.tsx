@@ -1,14 +1,12 @@
 import React from 'react';
 import { BrandLogo } from './BrandLogo';
 import { User } from '../types';
-import { Lock, ChevronDown } from 'lucide-react';
 
 interface NavbarProps {
   user: User | null;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   isAdminView?: boolean;
-  onOpenProfileModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -16,15 +14,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
   isAdminView = false,
-  onOpenProfileModal,
 }) => {
   return (
     <div className="sticky top-0 z-50 w-full shrink-0 bg-white">
-      {/* Top Header - Professional Polish: Navy Blue + Red Accent Border */}
-      <header className="flex min-h-20 shrink-0 items-center justify-between gap-2 border-b-4 border-[#C9932E] bg-[#0F766E] px-3 py-3 text-white shadow-lg sm:gap-4 sm:px-8">
-        <div className="flex min-w-0 flex-1 items-center space-x-2 sm:flex-none sm:space-x-4">
-          <div
-            className="min-w-0 cursor-pointer"
+      <header className="flex min-h-[72px] shrink-0 items-center border-b border-amber-500/50 bg-slate-900 px-4 py-3 text-white shadow-md sm:px-8">
+        <div className="mx-auto flex w-full max-w-7xl items-center">
+          <button
+            type="button"
+            aria-label="Go to account overview"
+            className="min-w-0 text-left"
             onClick={() => {
               if (isAdminView) {
                 setActiveTab('overview');
@@ -33,39 +31,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
           >
-            <BrandLogo className="h-10 min-w-0" variant="white" showSubtitle={true} />
-          </div>
-
-          {isAdminView && (
-            <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-amber-500/20 border border-amber-400/40 rounded-sm text-amber-200 text-xs font-bold tracking-wide uppercase">
-              <Lock className="w-3.5 h-3.5 text-amber-300" />
-              <span>Core Ledger Admin</span>
-            </div>
-          )}
+            <BrandLogo className="min-h-10 min-w-0" variant="white" showSubtitle={false} />
+          </button>
         </div>
-
-        {/* Full user name opens account profile details. */}
-        {user ? (
-          <div className="flex min-w-0 shrink items-center">
-            <button
-              id="btn-user-profile-trigger"
-              type="button"
-              onClick={onOpenProfileModal}
-              className="flex max-w-[48vw] items-center gap-1.5 rounded-sm px-1.5 py-2 text-right transition-colors hover:bg-white/10 cursor-pointer group sm:max-w-none sm:gap-2.5 sm:px-2.5 sm:text-left"
-              title="Click to view Account Profile & Identification"
-            >
-              <div className="flex min-w-0 flex-col items-end sm:items-start">
-                <span className="hidden text-[9px] opacity-80 uppercase tracking-widest text-slate-200 sm:block">
-                  {isAdminView ? 'SYSTEM OPERATOR' : 'SECURE ACCOUNT'}
-                </span>
-                <span className="break-words text-sm font-bold leading-tight text-white group-hover:text-blue-100 sm:text-base">
-                  {user.full_name}
-                </span>
-              </div>
-              <ChevronDown aria-hidden="true" className="h-3 w-3 shrink-0 text-white/70 group-hover:text-white" />
-            </button>
-          </div>
-        ) : null}
       </header>
 
       {/* Sub Navigation Bar - Professional Polish: White background, 56px height, crisp bottom border */}
