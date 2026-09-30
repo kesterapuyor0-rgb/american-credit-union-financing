@@ -202,10 +202,10 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                   Deposit Submitted Successfully
                 </h4>
                 <p className="text-sm font-semibold text-amber-700 bg-amber-50 inline-block px-3 py-1 rounded-full">
-                  Status: PENDING ADMIN REVIEW
+                  Status: PENDING
                 </p>
                 <p className="text-xs text-gray-600 max-w-md mx-auto pt-1">
-                  Your deposit request is waiting for bank/admin approval. Funds will not be added to your available balance unless it is approved.
+                  Your deposit request is pending review. Funds will be added to your account balance only if it is approved.
                 </p>
               </div>
 

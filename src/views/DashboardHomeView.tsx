@@ -399,7 +399,7 @@ x                    <p className="text-[10px] font-semibold uppercase tracking-
         </section>
       )}
 
-      <AddFundsModal isOpen={depositOpen} onClose={() => setDepositOpen(false)} accounts={accounts} token={token} onSuccess={() => { onRefresh(); setDepositOpen(false); }} />
+      <AddFundsModal isOpen={depositOpen} onClose={() => setDepositOpen(false)} accounts={accounts} token={token} onSuccess={() => { onRefresh(); }} />
     </div>
   );
 };

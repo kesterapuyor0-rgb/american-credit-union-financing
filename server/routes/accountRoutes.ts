@@ -64,7 +64,7 @@ router.post('/deposit', requireAuth, async (req: AuthenticatedRequest, res: Resp
 
     res.status(200).json({
       success: true,
-      message: 'Deposit submitted! Pending administrative approval.',
+      message: 'Deposit submitted and pending review. Funds will be added only if it is approved.',
       depositedAmount: parsedAmount,
       transaction: {
         id: txId,

@@ -503,7 +503,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
           <div className="bg-gray-50 p-4 border-t border-gray-200 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Prototype portal · no real financial services</span>
+            <span> Secure online banking portal . FDIC insured </span>
           </div>
         </div>
       </main>
