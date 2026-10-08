@@ -9,6 +9,7 @@ import { AdminView } from './views/AdminView';
 import { SecurityView } from './views/SecurityView';
 import { Forbidden403View } from './views/Forbidden403View';
 import { RegisterView } from './views/RegisterView';
+import { LandingView } from './views/LandingView';
 import { ProfileView } from './views/ProfileView';
 import { ProfileModal } from './components/ProfileModal';
 import { RefreshCw } from 'lucide-react';
@@ -203,6 +204,15 @@ export default function App() {
       );
     }
 
+    if (currentPath === '/') {
+      return (
+        <LandingView
+          onSignIn={() => navigateTo('/login')}
+          onEnroll={() => navigateTo('/register')}
+        />
+      );
+    }
+
     if (currentPath === '/register') {
       return (
         <RegisterView
@@ -211,7 +221,7 @@ export default function App() {
           }}
           onNavigateToLogin={(notice) => {
             setRegisterNotice(notice || null);
-            navigateTo('/');
+            navigateTo('/login');
           }}
         />
       );
