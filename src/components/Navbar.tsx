@@ -138,11 +138,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Sub Navigation Bar - Professional Polish: White background, 56px height, crisp bottom border */}
       {user && !isAdminView && (
-        <nav className="hidden sm:flex bg-white border-b border-gray-300 h-[56px] shrink-0 px-4 sm:px-8 shadow-xs">
-          <div className="flex space-x-6 sm:space-x-10 h-full overflow-x-auto no-scrollbar">
+        <nav aria-label="Account navigation" className="hidden sm:flex bg-white border-b border-gray-300 h-[56px] shrink-0 px-4 sm:px-8 shadow-xs">
+          <div className="flex min-w-0 flex-1 space-x-6 sm:space-x-10 h-full overflow-x-auto no-scrollbar">
             <button
               id="tab-accounts"
               onClick={() => setActiveTab('home')}
+              aria-current={activeTab === 'home' ? 'page' : undefined}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'home'
                   ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
@@ -155,6 +156,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="tab-transfers"
               onClick={() => setActiveTab('transfer')}
+              aria-current={activeTab === 'transfer' ? 'page' : undefined}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'transfer'
                   ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
@@ -167,6 +169,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="tab-history"
               onClick={() => setActiveTab('history')}
+              aria-current={activeTab === 'history' ? 'page' : undefined}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'history'
                   ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
@@ -179,6 +182,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="tab-security"
               onClick={() => setActiveTab('security')}
+              aria-current={activeTab === 'security' ? 'page' : undefined}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'security'
                   ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
@@ -191,6 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="tab-profile"
               onClick={() => setActiveTab('profile')}
+              aria-current={activeTab === 'profile' ? 'page' : undefined}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'profile'
                   ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
@@ -198,6 +203,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               Profile & Details
+            </button>
+
+            <button
+              id="tab-cards"
+              onClick={() => setActiveTab('cards')}
+              aria-current={activeTab === 'cards' ? 'page' : undefined}
+              className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
+                activeTab === 'cards'
+                  ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
+                  : 'text-gray-600 hover:text-[#0F766E] font-medium'
+              }`}
+            >
+              Cards
             </button>
           </div>
 
@@ -211,15 +229,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Admin specific sub-nav if viewing admin portal */}
       {user && isAdminView && (
-        <nav className="bg-slate-900 border-b border-slate-700 h-[52px] shrink-0 flex px-4 sm:px-8 shadow-xs text-white">
-          <div className="flex space-x-4 sm:space-x-6 h-full items-center text-xs">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+        <nav aria-label="Admin navigation" className="bg-slate-900 border-b border-slate-700 min-h-[52px] shrink-0 flex px-2 sm:px-8 shadow-xs text-white">
+          <div className="flex min-w-0 flex-1 overflow-x-auto no-scrollbar space-x-2 sm:space-x-6 min-h-[52px] items-center text-xs">
+            <span className="hidden shrink-0 text-xs font-bold uppercase tracking-wider text-slate-400 sm:inline">
               Control Panel:
             </span>
             <button
               id="admin-tab-users"
               onClick={() => setActiveTab('users')}
-              className={`px-3 py-1.5 rounded-sm font-semibold transition-colors cursor-pointer ${
+              className={`min-h-11 shrink-0 px-3 py-2 rounded-sm font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'users'
                   ? 'bg-[#C9932E] text-white shadow-xs'
                   : 'text-slate-300 hover:bg-slate-800'
@@ -230,7 +248,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="admin-tab-audit"
               onClick={() => setActiveTab('audit')}
-              className={`px-3 py-1.5 rounded-sm font-semibold transition-colors cursor-pointer ${
+              className={`min-h-11 shrink-0 px-3 py-2 rounded-sm font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'audit'
                   ? 'bg-[#C9932E] text-white shadow-xs'
                   : 'text-slate-300 hover:bg-slate-800'
@@ -241,7 +259,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="admin-tab-system"
               onClick={() => setActiveTab('transactions')}
-              className={`px-3 py-1.5 rounded-sm font-semibold transition-colors cursor-pointer ${
+              className={`min-h-11 shrink-0 px-3 py-2 rounded-sm font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'transactions'
                   ? 'bg-[#C9932E] text-white shadow-xs'
                   : 'text-slate-300 hover:bg-slate-800'
