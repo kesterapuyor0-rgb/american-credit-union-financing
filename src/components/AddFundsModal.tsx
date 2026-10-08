@@ -161,9 +161,9 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
   return (
     <div
       id="modal-add-funds"
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/60 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xs animate-in fade-in duration-200 sm:p-4"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/60 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xs animate-in fade-in duration-200 sm:items-center sm:p-4"
     >
-      <div className="flex max-h-[calc(100dvh-1rem)] w-full min-w-0 max-w-lg flex-col overflow-hidden rounded-sm border border-gray-300 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
+      <div className="flex max-h-[calc(100dvh-1rem)] min-h-0 w-full min-w-0 max-w-lg flex-col overflow-hidden rounded-sm border border-gray-300 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
         {/* Modal Header */}
         <div className="flex shrink-0 items-center justify-between gap-3 border-b-2 border-[#C9932E] bg-[#0F766E] px-4 py-3 text-white sm:px-6 sm:py-4">
           <div className="flex min-w-0 items-center space-x-2.5">
@@ -190,7 +190,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
         </div>
 
         {/* Modal Content */}
-        <div className="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-6 sm:p-6">
           {successInfo ? (
             /* Success confirmation - PENDING APPROVAL */
             <div className="text-center py-4 space-y-4">
