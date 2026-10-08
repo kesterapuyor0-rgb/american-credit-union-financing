@@ -13,6 +13,10 @@ export type LikenessProfile = {
   userId: string;
   status: 'pending' | 'verified' | 'rejected' | 'revoked';
   expiresAt: string;
-  referenceVideoPath: string;
+  referenceMediaPath?: string;
+  referenceMediaType?: 'image' | 'video';
+  referenceVideoPath?: string;
   forcedLabelState: boolean;
 };
+
+export type VerifiedConsent = { id: string; expiresAt: string };

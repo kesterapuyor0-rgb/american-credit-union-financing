@@ -1,18 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import { AlertTriangle, Camera, CameraOff, Mic, MicOff, PhoneOff, Radio, RefreshCw, WandSparkles } from 'lucide-react';
+import { AlertTriangle, Camera, CameraOff, Mic, MicOff, PhoneOff, Radio, RefreshCw, UserRoundSearch, WandSparkles } from 'lucide-react';
 import { API_URL } from '../api';
+import type { LikenessProfile } from '../types';
+import LikenessUploadModal from './LikenessUploadModal';
 import { TransformBoundary } from './TransformBoundary';
 
 type Props = {
   roomId: string;
   token: string;
-  onTransformStream?: (stream: MediaStream) => Promise<MediaStream>;
-  onConvertVoice?: (stream: MediaStream) => Promise<MediaStream>;
+  onTransformStream?: (stream: MediaStream, likenessProfileId: string) => Promise<MediaStream>;
+  onConvertVoice?: (stream: MediaStream, likenessProfileId: string) => Promise<MediaStream>;
   onLeave: () => void;
 };
 
 const DISCLOSURE = 'AI TRANSFORMED — NOT THE REAL PERSON';
+
+function getSessionToken(explicitToken?: string): string {
+  try {
+    const rawSession = localStorage.getItem('apuyor-session');
+    if (!rawSession) return '';
+    const session: unknown = JSON.parse(rawSession);
+    if (session && typeof session === 'object' && 'token' in session) {
+      const value = (session as { token?: unknown }).token;
+      return typeof value === 'string' ? value : '';
+    }
+  } catch {
+    // A malformed or stale local session should not prevent the call UI from rendering.
+  }
+  return explicitToken?.trim() || '';
+}
 
 function MediaStage({ stream, label }: { stream: MediaStream | null; label: string }) {
   const ref = useRef<HTMLVideoElement>(null);
@@ -28,6 +45,8 @@ export default function VideoCall({ roomId, token, onTransformStream, onConvertV
   const [voiceActive, setVoiceActive] = useState(false);
   const [transformActive, setTransformActive] = useState(false);
   const [fallback, setFallback] = useState(false);
+  const [showLikeness, setShowLikeness] = useState(false);
+  const [activeLikeness, setActiveLikeness] = useState<LikenessProfile | null>(null);
   const [callError, setCallError] = useState('');
   const socketRef = useRef<Socket | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
@@ -41,11 +60,21 @@ export default function VideoCall({ roomId, token, onTransformStream, onConvertV
 
     async function startCall() {
       try {
+        const initialToken = getSessionToken(token);
+        if (!initialToken && !import.meta.env.DEV) {
+          setCallError('Your sign-in session is missing. Sign in again before joining a call.');
+          return;
+        }
         base = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (!alive) { base.getTracks().forEach((track) => track.stop()); return; }
         originalTracksRef.current = base;
         setLocalStream(base);
-        socket = io(API_URL, { auth: { token } });
+        socket = io(API_URL || 'http://localhost:4000', {
+          // Local development may use the server's loopback-only mock-auth bypass.
+          auth: { token: initialToken },
+          withCredentials: true,
+          autoConnect: false,
+        });
         socketRef.current = socket;
         peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
         peerRef.current = peer;
@@ -61,7 +90,10 @@ export default function VideoCall({ roomId, token, onTransformStream, onConvertV
           if (peer && ['failed', 'disconnected', 'closed'].includes(peer.connectionState)) setCallError('Connection interrupted. Check your network and reconnect.');
           else setCallError('');
         };
-        socket.on('connect_error', () => setCallError('Signaling service unavailable. Reconnect to continue.'));
+        socket.on('connect_error', (error) => {
+          console.error('Socket.IO connection failed:', error.message);
+          setCallError('Signaling service unavailable. Check the API URL, allowed client origin, and session authorization.');
+        });
         socket.on('signal:offer', async ({ payload }) => {
           if (!peer || !payload) return;
           await peer.setRemoteDescription(payload);
@@ -78,8 +110,10 @@ export default function VideoCall({ roomId, token, onTransformStream, onConvertV
           socket?.emit('signal:offer', { roomId, payload: offer });
         });
         socket.on('connect', async () => {
+          setCallError('');
           socket?.emit('signal:join', roomId);
         });
+        socket.connect();
       } catch {
         setCallError('Camera or microphone access is unavailable. Check browser permissions and try again.');
       }
@@ -123,8 +157,8 @@ export default function VideoCall({ roomId, token, onTransformStream, onConvertV
       return;
     }
     try {
-      if (!onTransformStream || !originalTracksRef.current) throw new Error('Transformation service unavailable');
-      const transformed = await onTransformStream(originalTracksRef.current);
+      if (!onTransformStream || !originalTracksRef.current || !activeLikeness || activeLikeness.status !== 'verified') throw new Error('Approved likeness and transformation service required');
+      const transformed = await onTransformStream(originalTracksRef.current, activeLikeness._id);
       await replaceOutgoing(transformed);
       setLocalStream(transformed);
       setTransformActive(true);
@@ -147,8 +181,8 @@ export default function VideoCall({ roomId, token, onTransformStream, onConvertV
       return;
     }
     try {
-      if (!onConvertVoice || !originalTracksRef.current) throw new Error('Voice service unavailable');
-      const converted = await onConvertVoice(originalTracksRef.current);
+      if (!onConvertVoice || !originalTracksRef.current || !activeLikeness || activeLikeness.status !== 'verified') throw new Error('Approved likeness and voice service required');
+      const converted = await onConvertVoice(originalTracksRef.current, activeLikeness._id);
       await replaceOutgoing(converted);
       setLocalStream(converted);
       setVoiceActive(true);
@@ -179,14 +213,17 @@ export default function VideoCall({ roomId, token, onTransformStream, onConvertV
         </div>
         <div className="video-tile self-tile"><MediaStage stream={localStream} label="You" /><span className="participant-name">You <span className="you-pill">YOU</span></span>{!cameraOn && <div className="camera-off"><CameraOff size={24} /></div>}</div>
       </div>
+      {activeLikeness && <div className={`active-likeness ${activeLikeness.status !== 'verified' ? 'awaiting' : ''}`}><UserRoundSearch size={14} /><span>Reference attached</span><b>{activeLikeness.status === 'verified' ? 'APPROVED' : 'AWAITING REVIEW'}</b></div>}
       <div className="call-control-wrap"><div className="call-controls">
         <button className={`control-button ${!micOn ? 'is-off' : ''}`} onClick={() => toggleTrack('audio')} aria-label={micOn ? 'Mute microphone' : 'Enable microphone'}>{micOn ? <Mic /> : <MicOff />}<span>{micOn ? 'Mic on' : 'Mic off'}</span></button>
         <button className={`control-button ${!cameraOn ? 'is-off' : ''}`} onClick={() => toggleTrack('video')} aria-label={cameraOn ? 'Turn camera off' : 'Turn camera on'}>{cameraOn ? <Camera /> : <CameraOff />}<span>{cameraOn ? 'Camera on' : 'Camera off'}</span></button>
-        <button className={`control-button ai-control ${transformActive ? 'active' : ''}`} onClick={() => void toggleTransform()}><WandSparkles /><span>{transformActive ? 'AI on' : 'Transform'}</span></button>
-        <button className={`control-button ai-control ${voiceActive ? 'active' : ''}`} onClick={() => void toggleVoice()}><Radio /><span>{voiceActive ? 'AI voice on' : 'AI voice'}</span></button>
+        <button className="control-button" onClick={() => setShowLikeness(true)}><UserRoundSearch /><span>Likeness</span></button>
+        <button className={`control-button ai-control ${transformActive ? 'active' : ''}`} disabled={!activeLikeness || activeLikeness.status !== 'verified'} title="Attach an admin-approved profile first" onClick={() => void toggleTransform()}><WandSparkles /><span>{transformActive ? 'AI on' : 'Transform'}</span></button>
+        <button className={`control-button ai-control ${voiceActive ? 'active' : ''}`} disabled={!activeLikeness || activeLikeness.status !== 'verified'} title="Attach an admin-approved profile first" onClick={() => void toggleVoice()}><Radio /><span>{voiceActive ? 'AI voice on' : 'AI voice'}</span></button>
         <button className="hangup-button" onClick={onLeave} aria-label="Leave call"><PhoneOff size={20} /></button>
       </div></div>
       <p className="call-footnote"><RefreshCw size={13} /> Your camera and microphone stay in your control. Disclosure remains visible for the entire session.</p>
+      {showLikeness && <LikenessUploadModal token={token} activeProfileId={activeLikeness?._id} onAttach={setActiveLikeness} onClose={() => setShowLikeness(false)} />}
     </section>
   );
 }

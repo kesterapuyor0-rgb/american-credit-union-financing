@@ -1,4 +1,4 @@
-import { Schema, model, models, type InferSchemaType } from 'mongoose';
+import mongoose, { Schema, model, type InferSchemaType } from 'mongoose';
 
 const userSchema = new Schema({
   username: { type: String, required: true, trim: true, minlength: 3, maxlength: 32, unique: true, index: true },
@@ -11,4 +11,4 @@ const userSchema = new Schema({
 }, { timestamps: true, strict: 'throw' });
 
 export type UserDocument = InferSchemaType<typeof userSchema>;
-export const User = (models.User as ReturnType<typeof model<UserDocument>>) || model<UserDocument>('User', userSchema);
+export const User = (mongoose.models.User as ReturnType<typeof model<UserDocument>>) || model<UserDocument>('User', userSchema);

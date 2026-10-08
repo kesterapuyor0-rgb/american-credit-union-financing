@@ -1,4 +1,4 @@
-import { Schema, model, models, type InferSchemaType } from 'mongoose';
+import mongoose, { Schema, model, type InferSchemaType } from 'mongoose';
 
 export const likenessStatuses = ['pending', 'verified', 'rejected', 'revoked'] as const;
 const likenessProfileSchema = new Schema({
@@ -6,11 +6,14 @@ const likenessProfileSchema = new Schema({
   confirmationCodeHash: { type: String, required: true, select: false },
   status: { type: String, enum: likenessStatuses, default: 'pending', required: true, index: true },
   expiresAt: { type: Date, required: true, index: true },
-  referenceVideoPath: { type: String, required: true, trim: true, maxlength: 2048 },
+  // referenceVideoPath remains for existing profiles; new uploads use the typed media fields.
+  referenceVideoPath: { type: String, trim: true, maxlength: 2048 },
+  referenceMediaPath: { type: String, trim: true, maxlength: 2048 },
+  referenceMediaType: { type: String, enum: ['image', 'video'] },
   forcedLabelState: { type: Boolean, default: false, required: true },
   verifiedAt: Date,
   revokedAt: Date,
 }, { timestamps: true, strict: 'throw' });
 
 export type LikenessProfileDocument = InferSchemaType<typeof likenessProfileSchema>;
-export const LikenessProfile = (models.LikenessProfile as ReturnType<typeof model<LikenessProfileDocument>>) || model<LikenessProfileDocument>('LikenessProfile', likenessProfileSchema);
+export const LikenessProfile = (mongoose.models.LikenessProfile as ReturnType<typeof model<LikenessProfileDocument>>) || model<LikenessProfileDocument>('LikenessProfile', likenessProfileSchema);

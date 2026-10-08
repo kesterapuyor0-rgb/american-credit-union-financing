@@ -1,4 +1,4 @@
-import { Schema, model, models, type InferSchemaType } from 'mongoose';
+import mongoose, { Schema, model, type InferSchemaType } from 'mongoose';
 
 export const consentStatuses = ['pending', 'verified', 'rejected', 'revoked'] as const;
 const consentRecordSchema = new Schema({
@@ -13,4 +13,4 @@ const consentRecordSchema = new Schema({
 }, { timestamps: true, strict: 'throw' });
 
 export type ConsentRecordDocument = InferSchemaType<typeof consentRecordSchema>;
-export const ConsentRecord = (models.ConsentRecord as ReturnType<typeof model<ConsentRecordDocument>>) || model<ConsentRecordDocument>('ConsentRecord', consentRecordSchema);
+export const ConsentRecord = (mongoose.models.ConsentRecord as ReturnType<typeof model<ConsentRecordDocument>>) || model<ConsentRecordDocument>('ConsentRecord', consentRecordSchema);
