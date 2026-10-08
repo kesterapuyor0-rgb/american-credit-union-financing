@@ -76,16 +76,13 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
               <FileCheck className="w-4 h-4 text-[#0F766E]" />
               <h2 className="font-bold text-sm text-[#0F766E]">Account activity</h2>
             </div>
-            <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-blue-100 text-blue-800 rounded">
-              Simulated
-            </span>
           </div>
 
           <p className="text-xs text-gray-600">
-            This platform displays account balances and ledger entries. It accept deposits or hold funds.
+            Review your account balances and recent transactions from the account dashboard.
           </p>
 
-          <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xs text-xs space-y-1">
+          <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xs text-xs space-y-1">
             <div className="font-bold text-[#0F766E]">Denomination Standard</div>
             <div className="text-gray-600">
               All balances, settlements, wire transfers, and account histories are natively calculated and executed in United States Dollars (USD / $).

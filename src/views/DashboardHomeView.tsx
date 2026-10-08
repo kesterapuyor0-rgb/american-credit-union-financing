@@ -319,7 +319,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         {(cards.length > 0 || legacyCards.length > 0) ? (
           <div className="grid gap-3 sm:grid-cols-2">
             {cards.map((card) => (
-              <article key={card.id} className={`relative isolate min-h-52 overflow-hidden rounded-2xl p-5 text-white shadow-lg ${card.network === 'Mastercard' ? 'bg-gradient-to-br from-zinc-700 via-zinc-900 to-black' : 'bg-gradient-to-br from-sky-700 via-blue-900 to-slate-950'}`}>
+              <article key={card.id} className={`relative isolate min-h-52 overflow-hidden rounded-2xl p-5 text-white shadow-lg ${card.network === 'Mastercard' ? 'bg-gradient-to-br from-zinc-700 via-zinc-900 to-black' : 'bg-gradient-to-br from-emerald-700 via-emerald-900 to-slate-950'}`}>
                 <div aria-hidden="true" className="absolute -right-12 -top-16 -z-10 h-56 w-56 rounded-full border border-white/10" />
                 <div aria-hidden="true" className="absolute -right-4 -top-8 -z-10 h-40 w-40 rounded-full border border-white/10" />
                 <div className="flex items-start justify-between gap-3">

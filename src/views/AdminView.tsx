@@ -934,7 +934,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                               ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
                               : log.action.includes('DEBIT')
                               ? 'bg-red-50 text-red-800 border border-red-300'
-                              : 'bg-blue-50 text-blue-800 border border-blue-300'
+                              : 'bg-emerald-50 text-emerald-800 border border-emerald-300'
                           }`}
                         >
                           {log.action}
@@ -1093,9 +1093,9 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                   <button
                     type="button"
                     onClick={() => setAdjustAction('release')}
-                    className={`py-2.5 px-3 rounded-xs border text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors ${adjustAction === 'release' ? 'bg-sky-50 border-sky-500 text-sky-900' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                    className={`py-2.5 px-3 rounded-xs border text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors ${adjustAction === 'release' ? 'bg-emerald-50 border-emerald-500 text-emerald-900' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                   >
-                    <Lock className="w-4 h-4 text-sky-600" />
+                    <Lock className="w-4 h-4 text-emerald-600" />
                     <span>Release hold</span>
                   </button>
                 </div>
@@ -1142,7 +1142,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                   id="input-adjust-reason"
                   rows={2}
                   required
-                  placeholder="e.g. Approved fee reversal for wire inquiry, customer relationship adjustment"
+                  placeholder="Describe the reason for this adjustment"
                   value={adjustReason}
                   onChange={(e) => setAdjustReason(e.target.value)}
                   className="w-full p-2.5 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E]"
@@ -1249,7 +1249,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                   .find((a) => a.id === creditAccountId);
                 if (!chosenAcc) return null;
                 return (
-                  <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xs text-xs space-y-1">
+                  <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xs text-xs space-y-1">
                     <div className="flex justify-between">
                       <span className="text-gray-500">Account Holder:</span>
                       <span className="font-semibold text-gray-900">{chosenAcc.ownerName}</span>
@@ -1325,7 +1325,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                   id="input-credit-memo"
                   type="text"
                   required
-                  placeholder="e.g. Account opening deposit bonus, Customer courtesy credit"
+                  placeholder="Describe the reason for this credit"
                   value={creditMemo}
                   onChange={(e) => setCreditMemo(e.target.value)}
                   className="w-full p-2.5 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E]"

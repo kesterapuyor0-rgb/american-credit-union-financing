@@ -46,9 +46,9 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
   );
   const defaultTargetId = eligibleAccounts[0]?.id || accounts[0]?.id || '';
 
-  const [institutionName, setInstitutionName] = useState('JPMorgan Chase');
+  const [institutionName, setInstitutionName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
-  const [routingNumber, setRoutingNumber] = useState('021000021');
+  const [routingNumber, setRoutingNumber] = useState('');
   const [amount, setAmount] = useState('');
   const [targetAccountId, setTargetAccountId] = useState(defaultTargetId);
   const [submitting, setSubmitting] = useState(false);
@@ -235,7 +235,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                 </div>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-sm p-3 flex items-start gap-2 text-[11px] text-blue-900">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-sm p-3 flex items-start gap-2 text-[11px] text-emerald-900">
                 <ShieldCheck className="w-4 h-4 text-[#0F766E] shrink-0 mt-0.5" />
                 <span>You can track this request in your transaction activity. An administrator must review it before the account balance changes.</span>
               </div>
@@ -300,7 +300,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                     id="input-external-institution-name"
                     type="text"
                     required
-                    placeholder="e.g. JPMorgan Chase, Wells Fargo, Citibank"
+                    placeholder="Enter financial institution name"
                     value={institutionName}
                     onChange={(e) => setInstitutionName(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 text-xs border border-gray-300 rounded-sm focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-hidden"
@@ -319,7 +319,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                     type="text"
                     required
                     maxLength={9}
-                    placeholder="9-digit ABA Routing"
+                    placeholder="Enter 9-digit ABA routing number"
                     value={routingNumber}
                     onChange={(e) => setRoutingNumber(e.target.value.replace(/\D/g, '').slice(0, 9))}
                     className="w-full p-2 text-xs font-mono font-medium border border-gray-300 rounded-sm focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-hidden"
@@ -335,7 +335,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                     id="input-external-account-number"
                     type="text"
                     required
-                    placeholder="e.g. 1029384756"
+                    placeholder="Enter account number"
                     value={accountNumber}
                     onChange={(e) => setAccountNumber(e.target.value.replace(/\s/g, ''))}
                     className="w-full p-2 text-xs font-mono font-medium border border-gray-300 rounded-sm focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-hidden"
@@ -385,7 +385,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
               </div>
 
               {/* Security & Verification Notice */}
-              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-sm flex items-start gap-2 text-[11px] text-blue-900">
+              <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-sm flex items-start gap-2 text-[11px] text-emerald-900">
                 <ShieldCheck className="w-4 h-4 text-[#0F766E] shrink-0 mt-0.5" />
                 <span>
                   <strong>Instant Availability:</strong> External funds transferred via ACH are verified instantaneously in testing sandbox mode and credited directly to your ledger balance.

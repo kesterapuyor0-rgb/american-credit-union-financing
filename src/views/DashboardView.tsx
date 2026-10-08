@@ -171,7 +171,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {/* 1. Account Number */}
             <div className="bg-white/10 backdrop-blur-xs rounded-xs p-4 border border-white/10 hover:bg-white/15 transition-colors">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-gray-300 uppercase tracking-wider font-semibold mb-1.5">
-                <span>{activeAccount?.nickname || 'Checking Account'} Number</span>
+                <span>{activeAccount?.nickname ? `${activeAccount.nickname} Number` : 'Account Number'}</span>
                 {switchableAccounts.length > 1 && (
                   <select
                     aria-label="Switch active account"
@@ -221,9 +221,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   : `•••• •••• ${activeAccount?.account_number ? activeAccount.account_number.slice(-4) : '9242'}`}
               </div>
               <div className="text-[11px] text-gray-300 mt-1 flex items-center justify-between">
-                <span>{activeAccount?.account_type || 'Checking'}</span>
+                <span>{activeAccount?.account_type || 'Not available'}</span>
                 <span className="font-mono font-bold text-emerald-300">
-                  {activeAccount ? formatUSD(activeAccount.available_balance ?? activeAccount.balance) : '$0.00'} Available
+                  {activeAccount
+                    ? `${formatUSD(activeAccount.available_balance ?? activeAccount.balance)} Available`
+                    : 'Balance not available'}
                 </span>
               </div>
             </div>
@@ -232,24 +234,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="bg-white/10 backdrop-blur-xs rounded-xs p-4 border border-white/10 hover:bg-white/15 transition-colors">
               <div className="flex items-center justify-between text-[11px] text-gray-300 uppercase tracking-wider font-semibold mb-1.5">
                 <span>Routing Number (ABA)</span>
-                <button
-                  id="btn-copy-routing-number"
-                  type="button"
-                  onClick={() => handleCopy(activeAccount?.routing_number || '026009593', 'routing')}
-                  className="text-gray-300 hover:text-white cursor-pointer p-0.5 inline-flex items-center gap-1 text-[10px]"
-                  title="Copy routing number"
-                >
-                  {copiedField === 'routing' ? (
-                    <span className="text-emerald-400 font-bold flex items-center gap-0.5">
-                      <Check className="w-3 h-3" /> Copied
-                    </span>
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </button>
+                {activeAccount?.routing_number && (
+                  <button
+                    id="btn-copy-routing-number"
+                    type="button"
+                    onClick={() => handleCopy(activeAccount.routing_number, 'routing')}
+                    className="text-gray-300 hover:text-white cursor-pointer p-0.5 inline-flex items-center gap-1 text-[10px]"
+                    title="Copy routing number"
+                  >
+                    {copiedField === 'routing' ? (
+                      <span className="text-emerald-400 font-bold flex items-center gap-0.5">
+                        <Check className="w-3 h-3" /> Copied
+                      </span>
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
               </div>
               <div className="font-mono text-lg sm:text-xl font-bold tracking-wider text-white">
-                {activeAccount?.routing_number || '026009593'}
+                {activeAccount?.routing_number || 'Not available'}
               </div>
               <div className="text-[11px] text-gray-300 mt-1">
                 Direct Deposit & Electronic ACH Transfer
@@ -262,13 +266,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 Account Security Status
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                <span className="text-base sm:text-lg font-bold text-emerald-300 font-sans tracking-tight">
-                  Active & 2FA Protected
+                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${activeAccount?.status === 'Active' ? 'bg-emerald-400' : 'bg-gray-400'}`} />
+                <span className={`text-base sm:text-lg font-bold font-sans tracking-tight ${activeAccount?.status === 'Active' ? 'text-emerald-300' : 'text-gray-300'}`}>
+                  {activeAccount?.status || 'Not available'}
                 </span>
-              </div>
-              <div className="text-[11px] text-gray-300 mt-1">
-                Active account
               </div>
             </div>
           </div>
@@ -355,7 +356,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     onClick={() => setSelectedAccountId(account.id)}
                     className={`p-3.5 rounded-sm cursor-pointer transition-all ${
                       isSelected
-                        ? 'bg-blue-50 border-l-4 border-[#0F766E] shadow-2xs'
+                        ? 'bg-emerald-50 border-l-4 border-[#0F766E] shadow-2xs'
                         : 'border border-gray-200 hover:bg-gray-50'
                     }`}
                   >

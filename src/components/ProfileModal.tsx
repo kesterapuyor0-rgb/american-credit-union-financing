@@ -37,13 +37,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   if (!isOpen) return null;
 
   const primaryAccount = accounts.length > 0 ? accounts[0] : null;
-  const accountNumber = primaryAccount?.account_number || '4800921849';
-  const routingNumber = primaryAccount?.routing_number || '026009593';
-  const accountStatus = primaryAccount?.status || 'Active';
+  const accountNumber = primaryAccount?.account_number;
+  const routingNumber = primaryAccount?.routing_number;
+  const accountStatus = primaryAccount?.status;
+  const isAccountActive = accountStatus === 'Active';
 
-  const maskedAccount = accountNumber.length > 4
+  const maskedAccount = accountNumber && accountNumber.length > 4
     ? '•••• •••• ' + accountNumber.slice(-4)
-    : accountNumber;
+    : accountNumber || 'Not available';
 
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -67,7 +68,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               {user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
             </div>
             <div>
-              <div className="text-[10px] uppercase font-bold tracking-widest text-blue-200">
+              <div className="text-[10px] uppercase font-bold tracking-widest text-emerald-200">
                 Online Banking Member
               </div>
               <h3 className="text-base font-bold font-serif text-white tracking-tight">
@@ -89,14 +90,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         {/* Content Body */}
         <div className="p-6 space-y-4 text-xs">
           {/* Account Status Badge */}
-          <div className="flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-200 rounded-sm">
+          <div className={`flex items-center justify-between p-2.5 rounded-sm ${isAccountActive ? 'bg-emerald-50 border border-emerald-200' : 'bg-gray-50 border border-gray-200'}`}>
             <div className="flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-bold text-emerald-900">Current Account Status:</span>
+              <span className={`w-2.5 h-2.5 rounded-full ${isAccountActive ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+              <span className={`font-bold ${isAccountActive ? 'text-emerald-900' : 'text-gray-700'}`}>Current Account Status:</span>
             </div>
-            <div className="flex items-center space-x-1 font-bold text-emerald-700 uppercase tracking-wide text-[11px]">
+            <div className={`flex items-center space-x-1 font-bold uppercase tracking-wide text-[11px] ${isAccountActive ? 'text-emerald-700' : 'text-gray-600'}`}>
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>{accountStatus} / Live account</span>
+              <span>{accountStatus || 'Not available'}</span>
             </div>
           </div>
 
@@ -146,15 +147,17 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 <span className="font-medium">Routing Number (ABA):</span>
               </div>
               <div className="flex items-center space-x-1.5">
-                <span className="font-mono font-bold text-gray-900">{routingNumber}</span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(routingNumber, 'routing')}
-                  className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
-                  title="Copy routing number"
-                >
-                  {copiedField === 'routing' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                </button>
+                <span className="font-mono font-bold text-gray-900">{routingNumber || 'Not available'}</span>
+                {routingNumber && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(routingNumber, 'routing')}
+                    className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
+                    title="Copy routing number"
+                  >
+                    {copiedField === 'routing' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -166,34 +169,38 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               </div>
               <div className="flex items-center space-x-1.5">
                 <span className="font-mono font-bold text-[#0F766E]">
-                  {showFullAccount ? accountNumber : maskedAccount}
+                  {showFullAccount && accountNumber ? accountNumber : maskedAccount}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setShowFullAccount(!showFullAccount)}
-                  className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
-                  title={showFullAccount ? 'Mask account' : 'Reveal full account'}
-                >
-                  {showFullAccount ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(accountNumber, 'account')}
-                  className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
-                  title="Copy account number"
-                >
-                  {copiedField === 'account' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                </button>
+                {accountNumber && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowFullAccount(!showFullAccount)}
+                      className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
+                      title={showFullAccount ? 'Mask account' : 'Reveal full account'}
+                    >
+                      {showFullAccount ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(accountNumber, 'account')}
+                      className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
+                      title="Copy account number"
+                    >
+                      {copiedField === 'account' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
 
           {/* Security Notice */}
-          <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-sm text-[11px] text-gray-600 flex items-start space-x-2">
+          <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-sm text-[11px] text-gray-600 flex items-start space-x-2">
             <Lock className="w-3.5 h-3.5 text-[#0F766E] shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-[#0F766E] block">Prototype account details</span>
-              <span>Balances, transfers, and account numbers in this portal are simulated and do not move real funds.</span>
+              <span className="font-bold text-[#0F766E] block">Protect your account details</span>
+              <span>Keep your account and routing numbers private and share them only when needed for trusted transactions.</span>
             </div>
           </div>
         </div>

@@ -42,7 +42,12 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
   const [successData, setSuccessData] = useState<{
     user: User;
     token: string;
-    accountNumber: string;
+    accountNumber?: string;
+    routingNumber?: string;
+    accountType?: string;
+    status?: string;
+    startingBalance?: number;
+    currency?: string;
   } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -104,7 +109,12 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       setSuccessData({
         user: data.user,
         token: data.token,
-        accountNumber: data.account?.account_number || 'Generated',
+        accountNumber: data.account?.account_number,
+        routingNumber: data.account?.routing_number,
+        accountType: data.account?.account_type,
+        status: data.account?.status,
+        startingBalance: data.account?.balance,
+        currency: data.account?.currency,
       });
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred. Please try again.');
@@ -149,7 +159,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 Create Your Account
               </h1>
               <p className="text-xs text-gray-500 mt-1">
-                Create a profile in the American Credit Union Financing account portal. Account activity is simulated.
+                Enter your details to create your member profile and checking account.
               </p>
             </div>
 
@@ -178,28 +188,46 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 </div>
 
                 <div className="bg-gray-50 border border-gray-200 rounded-sm p-4 text-xs space-y-2 text-left">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Account Number:</span>
-                    <span className="font-mono font-bold text-[#0F766E] text-sm">
-                      {successData.accountNumber}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Routing Number (ABA):</span>
-                    <span className="font-mono font-bold text-gray-900">026009593</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Account Type:</span>
-                    <span className="font-semibold text-gray-900">Advantage Plus Checking</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Starting Balance:</span>
-                    <span className="font-mono font-bold text-emerald-700">$0.00 USD</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Status:</span>
-                    <span className="font-bold text-emerald-700">Prototype account</span>
-                  </div>
+                  {successData.accountNumber && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Account Number:</span>
+                      <span className="font-mono font-bold text-[#0F766E] text-sm">
+                        {successData.accountNumber}
+                      </span>
+                    </div>
+                  )}
+                  {successData.routingNumber && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Routing Number (ABA):</span>
+                      <span className="font-mono font-bold text-gray-900">{successData.routingNumber}</span>
+                    </div>
+                  )}
+                  {successData.accountType && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Account Type:</span>
+                      <span className="font-semibold text-gray-900">{successData.accountType}</span>
+                    </div>
+                  )}
+                  {successData.startingBalance !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Starting Balance:</span>
+                      <span className="font-mono font-bold text-emerald-700">
+                        {new Intl.NumberFormat('en-US', {
+                          style: 'currency',
+                          currency: successData.currency || 'USD',
+                        }).format(successData.startingBalance)}{' '}
+                        {successData.currency || 'USD'}
+                      </span>
+                    </div>
+                  )}
+                  {successData.status && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Status:</span>
+                      <span className={`font-bold ${successData.status === 'Active' ? 'text-emerald-700' : 'text-gray-700'}`}>
+                        {successData.status}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-3 flex flex-col sm:flex-row gap-3">
@@ -238,7 +266,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       id="reg-fullname"
                       type="text"
                       required
-                      placeholder="e.g. Eleanor Vance"
+                      placeholder="Enter your full legal name"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       className="w-full pl-9 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
@@ -260,7 +288,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       id="reg-email"
                       type="email"
                       required
-                      placeholder="name@domain.com"
+                      placeholder="Enter your email address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full pl-9 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
@@ -285,7 +313,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       id="reg-phone"
                       type="tel"
                       required
-                      placeholder="(555) 000-0000"
+                      placeholder="Enter your mobile phone number"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       className="w-full pl-9 pr-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
@@ -360,7 +388,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       maxLength={4}
                       pattern="[0-9]{4}"
                       required
-                      placeholder="4 Digits"
+                      placeholder="Enter your 4-digit PIN"
                       value={securityPin}
                       onChange={(e) => setSecurityPin(e.target.value.replace(/\D/g, ''))}
                       className="w-full pl-9 pr-3 py-2.5 text-sm font-mono tracking-widest border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden"
@@ -411,10 +439,6 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
             )}
           </div>
 
-          <div className="bg-gray-50 p-4 border-t border-gray-200 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Prototype · no real deposits, insurance, or payment processing</span>
-          </div>
         </div>
       </main>
 
