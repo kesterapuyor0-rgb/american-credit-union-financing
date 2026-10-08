@@ -22,6 +22,23 @@ function getLocalGreeting(): { text: string } {
   };
 }
 
+function getCardTheme(card: BankCard): { label: string; className: string } {
+  const productName = card.product_name.toLowerCase();
+  if (productName.includes('platinum')) {
+    return { label: 'PLATINUM', className: 'bg-gradient-to-br from-slate-700 via-slate-900 to-slate-950' };
+  }
+  if (productName.includes('gold')) {
+    return { label: 'GOLD', className: 'bg-gradient-to-br from-amber-800 via-yellow-900 to-stone-950' };
+  }
+  if (productName.includes('rewards')) {
+    return { label: 'REWARDS', className: 'bg-gradient-to-br from-indigo-700 via-violet-900 to-slate-950' };
+  }
+  if (card.card_type === 'Credit') {
+    return { label: 'CREDIT', className: 'bg-gradient-to-br from-blue-800 via-blue-950 to-slate-950' };
+  }
+  return { label: 'DEBIT', className: 'bg-gradient-to-br from-cyan-800 via-sky-950 to-slate-950' };
+}
+
 export interface DashboardHomeViewProps {
   user: User;
   token?: string;
@@ -318,31 +335,34 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         )}
         {(cards.length > 0 || legacyCards.length > 0) ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            {cards.map((card) => (
-              <article key={card.id} className={`relative isolate min-h-52 overflow-hidden rounded-2xl p-5 text-white shadow-lg ${card.network === 'Mastercard' ? 'bg-gradient-to-br from-zinc-700 via-zinc-900 to-black' : 'bg-gradient-to-br from-emerald-700 via-emerald-900 to-slate-950'}`}>
-                <div aria-hidden="true" className="absolute -right-12 -top-16 -z-10 h-56 w-56 rounded-full border border-white/10" />
-                <div aria-hidden="true" className="absolute -right-4 -top-8 -z-10 h-40 w-40 rounded-full border border-white/10" />
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-x                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] tet-white/60"> REWARDS CARD</p>
-                    <p className="mt-1 text-sm font-semibold">{card.product_name}</p>
+            {cards.map((card) => {
+              const theme = getCardTheme(card);
+              return (
+                <article key={card.id} className={`relative isolate min-h-52 overflow-hidden rounded-2xl p-5 text-white shadow-lg ${theme.className}`}>
+                  <div aria-hidden="true" className="absolute -right-12 -top-16 -z-10 h-56 w-56 rounded-full border border-white/10" />
+                  <div aria-hidden="true" className="absolute -right-4 -top-8 -z-10 h-40 w-40 rounded-full border border-white/10" />
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/80">{theme.label} CARD</p>
+                      <p className="mt-1 text-sm font-semibold">{card.product_name}</p>
+                    </div>
+                    <span className="rounded-md border border-white/25 bg-white/10 px-2 py-1 text-xs font-bold tracking-wide">{card.network || 'Visa'}</span>
                   </div>
-                  <span className="rounded-md border border-white/25 bg-white/10 px-2 py-1 text-xs font-bold tracking-wide">{card.network || 'Visa'}</span>
-                </div>
-                <div className="mt-6 flex items-center gap-2">
-                  <div aria-hidden="true" className="grid h-8 w-10 grid-cols-2 gap-px overflow-hidden rounded-md border border-amber-200/40 bg-amber-200/80 p-1">
-                    <span className="rounded-sm border border-amber-900/20" /><span className="rounded-sm border border-amber-900/20" /><span className="rounded-sm border border-amber-900/20" /><span className="rounded-sm border border-amber-900/20" />
+                  <div className="mt-6 flex items-center gap-2">
+                    <div aria-hidden="true" className="grid h-8 w-10 grid-cols-2 gap-px overflow-hidden rounded-md border border-amber-200/40 bg-amber-200/80 p-1">
+                      <span className="rounded-sm border border-amber-900/20" /><span className="rounded-sm border border-amber-900/20" /><span className="rounded-sm border border-amber-900/20" /><span className="rounded-sm border border-amber-900/20" />
+                    </div>
+                    <CreditCard aria-hidden="true" className="h-5 w-5 text-white/80" />
                   </div>
-                  <CreditCard aria-hidden="true" className="h-5 w-5 text-white/60" />
-                </div>
-                <p className="mt-4 font-mono text-base tracking-[0.16em] sm:text-lg">{card.masked_number || `•••• •••• •••• ${card.last4}`}</p>
-                <div className="mt-4 flex flex-col gap-3 border-t border-white/15 pt-3 sm:flex-row sm:items-end sm:justify-between">
-                  <div><p className="text-[9px] uppercase tracking-widest text-white/55">Cardholder</p><p className="mt-0.5 text-xs font-semibold uppercase tracking-wide">{user.full_name}</p></div>
-                  <div className="text-left sm:text-right"><p className="text-[9px] uppercase tracking-widest text-white/55">{card.card_type === 'Credit' ? 'Approved limit' : 'Linked account available'}</p><p className="mt-0.5 text-sm font-bold">{formatMoney(card.card_type === 'Credit' ? card.credit_limit : (card.linked_account_available || 0))}</p></div>
-                </div>
-                <p className="mt-3 text-[10px] font-medium text-white/70">Visual Sercure card view · No payment credentials or purchase capability</p>
-              </article>
-            ))}
+                  <p className="mt-4 font-mono text-base tracking-[0.16em] sm:text-lg">{card.masked_number || `•••• •••• •••• ${card.last4}`}</p>
+                  <div className="mt-4 flex flex-col gap-3 border-t border-white/15 pt-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div><p className="text-[9px] uppercase tracking-widest text-white/80">Cardholder</p><p className="mt-0.5 text-xs font-semibold uppercase tracking-wide">{user.full_name}</p></div>
+                    <div className="text-left sm:text-right"><p className="text-[9px] uppercase tracking-widest text-white/80">{card.card_type === 'Credit' ? 'Approved limit' : 'Linked account available'}</p><p className="mt-0.5 text-sm font-bold">{formatMoney(card.card_type === 'Credit' ? card.credit_limit : (card.linked_account_available || 0))}</p></div>
+                  </div>
+                  <p className="mt-3 text-[10px] font-medium text-white/80">Visual secure card view · No payment credentials or purchase capability</p>
+                </article>
+              );
+            })}
             {legacyCards.map((card) => (
               <article key={card.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
