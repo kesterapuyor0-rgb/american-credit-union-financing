@@ -188,11 +188,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#F3F4F6] flex flex-col justify-between font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-[#f3f7f6] via-white to-emerald-50 flex flex-col justify-between font-sans">
       {/* Professional Polish Header: Navy Blue + Flag Red Accent Border */}
-      <header className="bg-[#0F766E] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#C9932E] shadow-lg">
+      <header className="bg-white text-slate-900 px-4 sm:px-8 py-4 flex justify-between items-center min-h-[80px] shrink-0 border-b-4 border-emerald-600 shadow-sm">
         <div className="flex items-center space-x-4">
-          <BrandLogo variant="white" showSubtitle={true} />
+          <BrandLogo showSubtitle={true} />
         </div>
 
         <div className="flex items-center space-x-3 text-xs">
@@ -201,22 +201,22 @@ export const LoginView: React.FC<LoginViewProps> = ({
               id="btn-header-enroll"
               type="button"
               onClick={onNavigateToRegister}
-              className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-sm uppercase tracking-wider transition-colors cursor-pointer border border-white/20 mr-1"
+              className="bg-teal-800 hover:bg-teal-900 text-white text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors cursor-pointer shadow-sm mr-1"
             >
               Enroll / Register
             </button>
           )}
           <div className="flex flex-col items-end hidden sm:flex">
-            <span className="text-xs opacity-80 uppercase tracking-widest text-slate-200">
+            <span className="text-xs uppercase tracking-widest text-teal-700">
               SECURE ACCESS
             </span>
-            <span className="text-sm font-medium text-white">
+            <span className="text-sm font-medium text-slate-700">
               American Credit Union Financing
             </span>
           </div>
-          <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-sm border border-white/20">
-            <Lock className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-xs font-bold text-white uppercase tracking-wider">
+          <div className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+            <Lock className="w-3.5 h-3.5 text-emerald-700" />
+            <span className="text-xs font-bold text-teal-900 uppercase tracking-wider">
               Protected
             </span>
           </div>
@@ -225,9 +225,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
       {/* Main Login Form Container */}
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8">
-        <div className="w-full max-w-md bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
+        <div className="w-full max-w-md bg-white border border-emerald-100 rounded-2xl shadow-xl shadow-teal-950/10 overflow-hidden">
           {/* Top Flag Red Accent Bar */}
-          <div className="h-1.5 bg-[#C9932E] w-full" />
+          <div className="h-1.5 bg-gradient-to-r from-emerald-500 via-teal-700 to-emerald-500 w-full" />
 
           <div className="p-6 sm:p-8">
             {step === 'credentials' ? (
@@ -249,8 +249,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 )}
 
                 {error && (
-                  <div className="mb-5 p-3 bg-red-50 border-l-4 border-[#C9932E] text-red-800 text-xs flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-[#C9932E] flex-shrink-0 mt-0.5" />
+                  <div className="mb-5 p-3 bg-rose-50 border-l-4 border-rose-500 text-rose-800 text-xs flex items-start gap-2 rounded-r-lg">
+                    <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
                     <span>{error}</span>
                   </div>
                 )}
@@ -270,7 +270,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="customer@bankofamerica.com"
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
+                      className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-700/20 focus:border-teal-700 outline-hidden transition-colors"
                     />
                   </div>
 
@@ -289,7 +289,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         placeholder="••••••••"
-                        className="w-full px-3.5 py-2.5 pr-10 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
+                        className="w-full px-3.5 py-2.5 pr-10 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-700/20 focus:border-teal-700 outline-hidden transition-colors"
                       />
                       <button
                         type="button"
@@ -307,7 +307,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         type="checkbox"
                         checked={rememberId}
                         onChange={(e) => setRememberId(e.target.checked)}
-                        className="rounded-sm text-[#0F766E] focus:ring-[#0F766E]"
+                        className="rounded text-teal-800 focus:ring-teal-700"
                       />
                       <span>Save this Online ID</span>
                     </label>
@@ -320,7 +320,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     id="btn-submit-login"
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 px-4 bg-[#0F766E] hover:bg-[#115E59] text-white font-bold text-sm uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 mt-4 cursor-pointer disabled:opacity-75"
+                    className="w-full py-3 px-4 bg-teal-800 hover:bg-teal-900 text-white font-bold text-sm uppercase tracking-wider rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 mt-4 cursor-pointer disabled:opacity-75"
                   >
                     {loading ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />
@@ -342,7 +342,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       id="btn-goto-register"
                       type="button"
                       onClick={onNavigateToRegister}
-                      className="text-xs font-bold text-[#0F766E] hover:text-[#C9932E] hover:underline cursor-pointer inline-flex items-center gap-1 transition-colors"
+                      className="text-xs font-bold text-teal-800 hover:text-teal-950 hover:underline cursor-pointer inline-flex items-center gap-1 transition-colors"
                     >
                       <span>Create an Account / Enroll Now</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -353,7 +353,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
             ) : (
               /* Two-Step Verification Screen */
               <div>
-                <div className="flex items-center gap-2 text-xs font-bold text-[#C9932E] uppercase tracking-wider mb-1">
+                <div className="flex items-center gap-2 text-xs font-bold text-teal-700 uppercase tracking-wider mb-1">
                   <ShieldCheck className="w-4 h-4" />
                   <span>Two-Step Verification</span>
                 </div>
@@ -365,7 +365,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 </p>
 
                 {/* Delivery Channel Radio / Info */}
-                <div className="p-3 bg-gray-50 border border-gray-200 rounded-sm mb-4 text-xs">
+                <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl mb-4 text-xs">
                   <div className="font-semibold text-gray-700 mb-2">Delivery Method:</div>
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -395,7 +395,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
                 {/* Simulated Notification Banner */}
                 {simulatedOtp && (
-                  <div className="mb-4 p-3 bg-emerald-50 border border-emerald-300 rounded-sm">
+                  <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -411,7 +411,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     </div>
                     <div className="mt-1 flex items-baseline gap-2">
                       <span className="text-xs text-emerald-700">Code:</span>
-                      <span className="text-base font-mono font-bold tracking-widest text-[#0F766E] bg-white px-2.5 py-0.5 rounded-sm border border-emerald-200">
+                      <span className="text-base font-mono font-bold tracking-widest text-teal-900 bg-white px-2.5 py-0.5 rounded-lg border border-emerald-200">
                         {simulatedOtp}
                       </span>
                     </div>
@@ -426,8 +426,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 )}
 
                 {error && (
-                  <div className="mb-4 p-3 bg-red-50 border-l-4 border-[#C9932E] text-red-800 text-xs flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-[#C9932E] flex-shrink-0 mt-0.5" />
+                  <div className="mb-4 p-3 bg-rose-50 border-l-4 border-rose-500 text-rose-800 text-xs flex items-start gap-2 rounded-r-lg">
+                    <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
                     <span>{error}</span>
                   </div>
                 )}
@@ -449,7 +449,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       required
                       placeholder="123456"
                       autoFocus
-                      className="w-full text-center text-xl font-mono tracking-widest px-3.5 py-2.5 border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
+                      className="w-full text-center text-xl font-mono tracking-widest px-3.5 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-700/20 focus:border-teal-700 outline-hidden transition-colors"
                     />
                   </div>
 
@@ -485,7 +485,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     id="btn-submit-otp"
                     type="submit"
                     disabled={loading || otpCode.length !== 6}
-                    className="w-full py-3 px-4 bg-[#C9932E] hover:bg-[#A8761B] text-white font-bold text-sm uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                    className="w-full py-3 px-4 bg-teal-800 hover:bg-teal-900 text-white font-bold text-sm uppercase tracking-wider rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                   >
                     {loading ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />
@@ -501,7 +501,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
             )}
           </div>
 
-          <div className="bg-gray-50 p-4 border-t border-gray-200 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
+          <div className="bg-emerald-50/70 p-4 border-t border-emerald-100 text-center text-xs text-slate-600 flex items-center justify-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
             <span> Secure online banking portal . FDIC insured </span>
           </div>
@@ -509,7 +509,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
       </main>
 
       {/* Corporate Security Footer */}
-      <footer className="h-[40px] bg-white border-t border-gray-200 px-4 sm:px-8 flex items-center justify-between shrink-0 text-[10px] text-gray-500">
+      <footer className="min-h-[40px] bg-white/80 border-t border-emerald-100 px-4 sm:px-8 py-2 flex items-center justify-between shrink-0 text-[10px] text-slate-500">
         <div className="flex items-center space-x-4">
           <span>© {new Date().getFullYear()} American Credit Union Financing</span>
           <span className="hidden sm:inline">|</span>
