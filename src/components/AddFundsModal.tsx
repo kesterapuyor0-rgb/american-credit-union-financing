@@ -279,21 +279,23 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
                   External Institution Name
                 </label>
-                <div className="mb-2 grid grid-cols-2 gap-2">
-                  {POPULAR_INSTITUTIONS.map((inst) => (
-                    <button
-                      key={inst}
-                      type="button"
-                      onClick={() => handleSelectInstitution(inst)}
-                      className={`min-h-11 min-w-0 rounded-xs border px-2 py-2 text-center text-xs leading-tight font-medium transition-colors cursor-pointer ${
-                        institutionName === inst
-                          ? 'bg-[#0F766E] text-white border-[#0F766E]'
-                          : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
-                      }`}
-                    >
-                      {inst}
-                    </button>
-                  ))}
+                <div className="-mx-1 mb-2 min-w-0 overflow-x-auto overscroll-x-contain px-1 pb-2">
+                  <div className="flex w-max min-w-full flex-nowrap gap-2">
+                    {POPULAR_INSTITUTIONS.map((inst) => (
+                      <button
+                        key={inst}
+                        type="button"
+                        onClick={() => handleSelectInstitution(inst)}
+                        className={`min-h-11 shrink-0 whitespace-nowrap rounded-sm border px-3 py-2 text-xs font-medium transition-colors cursor-pointer ${
+                          institutionName === inst
+                            ? 'bg-[#0F766E] text-white border-[#0F766E]'
+                            : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
+                        }`}
+                      >
+                        {inst}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="relative">
                   <Building2 className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -371,13 +373,13 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                 </div>
 
                 {/* Quick amount chips */}
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid w-full min-w-0 grid-cols-3 gap-2">
                   {PRESET_AMOUNTS.map((amt) => (
                     <button
                       key={amt}
                       type="button"
                       onClick={() => setAmount(amt.toString())}
-                      className="min-h-11 min-w-0 rounded-xs border border-gray-200 bg-gray-100 px-1 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-200 cursor-pointer"
+                      className="flex min-h-11 w-full min-w-0 items-center justify-center whitespace-nowrap rounded-sm border border-gray-200 bg-gray-100 px-1 py-2 text-[11px] font-semibold tabular-nums text-gray-700 transition-colors hover:bg-gray-200 cursor-pointer sm:text-xs"
                     >
                       +${amt}
                     </button>
