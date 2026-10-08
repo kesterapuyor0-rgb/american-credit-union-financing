@@ -161,27 +161,28 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
   return (
     <div
       id="modal-add-funds"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/60 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xs animate-in fade-in duration-200 sm:p-4"
     >
-      <div className="bg-white border border-gray-300 rounded-sm shadow-2xl max-w-lg w-full overflow-hidden">
+      <div className="flex max-h-[calc(100dvh-1rem)] w-full min-w-0 max-w-lg flex-col overflow-hidden rounded-sm border border-gray-300 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
         {/* Modal Header */}
-        <div className="bg-[#0F766E] text-white px-6 py-4 flex items-center justify-between border-b-2 border-[#C9932E]">
-          <div className="flex items-center space-x-2.5">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b-2 border-[#C9932E] bg-[#0F766E] px-4 py-3 text-white sm:px-6 sm:py-4">
+          <div className="flex min-w-0 items-center space-x-2.5">
             <div className="p-1.5 bg-white/10 rounded-sm">
               <Landmark className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <h3 className="font-serif font-bold text-lg text-white leading-tight">
+            <div className="min-w-0">
+              <h3 className="font-serif font-bold text-base text-white leading-tight sm:text-lg">
                 Add Funds from External Account
               </h3>
-              <p className="text-[11px] text-gray-200">
+              <p className="text-[10px] text-gray-200 sm:text-[11px]">
               Deposit request   · Secure processing
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={handleResetAndClose}
-            className="text-gray-300 hover:text-white p-1 rounded-sm hover:bg-white/10 transition-colors cursor-pointer"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-sm p-1 text-gray-300 transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
@@ -189,7 +190,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
         </div>
 
         {/* Modal Content */}
-        <div className="p-6">
+        <div className="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6">
           {successInfo ? (
             /* Success confirmation - PENDING APPROVAL */
             <div className="text-center py-4 space-y-4">
@@ -253,7 +254,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
             </div>
           ) : (
             /* Deposit Form */
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="min-w-0 space-y-4">
               {/* Target account */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
@@ -263,7 +264,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                   id="select-deposit-target-account"
                   value={targetAccountId}
                   onChange={(e) => setTargetAccountId(e.target.value)}
-                  className="w-full text-xs font-semibold p-2.5 border border-gray-300 rounded-sm bg-white focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-hidden"
+                  className="min-h-11 w-full min-w-0 truncate border border-gray-300 rounded-sm bg-white p-2.5 text-base font-semibold focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-hidden sm:text-xs"
                 >
                   {accounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
@@ -278,13 +279,13 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
                   External Institution Name
                 </label>
-                <div className="flex flex-wrap gap-1.5 mb-2">
+                <div className="mb-2 grid grid-cols-2 gap-2">
                   {POPULAR_INSTITUTIONS.map((inst) => (
                     <button
                       key={inst}
                       type="button"
                       onClick={() => handleSelectInstitution(inst)}
-                      className={`px-2.5 py-1 text-[11px] rounded-xs font-medium border transition-colors cursor-pointer ${
+                      className={`min-h-11 min-w-0 rounded-xs border px-2 py-2 text-center text-xs leading-tight font-medium transition-colors cursor-pointer ${
                         institutionName === inst
                           ? 'bg-[#0F766E] text-white border-[#0F766E]'
                           : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
@@ -303,14 +304,14 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                     placeholder="Enter financial institution name"
                     value={institutionName}
                     onChange={(e) => setInstitutionName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs border border-gray-300 rounded-sm focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-hidden"
+                    className="min-h-11 w-full min-w-0 border border-gray-300 rounded-sm py-2 pl-9 pr-3 text-base focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-hidden sm:text-xs"
                   />
                 </div>
               </div>
 
               {/* External Routing Number & Account Number */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="min-w-0">
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
                     External Routing Number
                   </label>
@@ -322,12 +323,12 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                     placeholder="Enter 9-digit ABA routing number"
                     value={routingNumber}
                     onChange={(e) => setRoutingNumber(e.target.value.replace(/\D/g, '').slice(0, 9))}
-                    className="w-full p-2 text-xs font-mono font-medium border border-gray-300 rounded-sm focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-hidden"
+                    className="min-h-11 w-full min-w-0 border border-gray-300 rounded-sm p-2 font-mono text-base font-medium focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-hidden sm:text-xs"
                   />
                   <span className="text-[10px] text-gray-500">9-digit ABA code</span>
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
                     External Account Number
                   </label>
@@ -338,7 +339,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                     placeholder="Enter account number"
                     value={accountNumber}
                     onChange={(e) => setAccountNumber(e.target.value.replace(/\s/g, ''))}
-                    className="w-full p-2 text-xs font-mono font-medium border border-gray-300 rounded-sm focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-hidden"
+                    className="min-h-11 w-full min-w-0 border border-gray-300 rounded-sm p-2 font-mono text-base font-medium focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-hidden sm:text-xs"
                   />
                   <span className="text-[10px] text-gray-500">Checking or Savings account</span>
                 </div>
@@ -362,7 +363,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full pl-8 pr-12 py-2 text-base font-bold font-mono border border-gray-300 rounded-sm focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-hidden"
+                    className="min-h-12 w-full min-w-0 border border-gray-300 rounded-sm py-2 pl-8 pr-12 text-base font-bold font-mono focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-hidden"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
                     USD
@@ -370,13 +371,13 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                 </div>
 
                 {/* Quick amount chips */}
-                <div className="flex flex-wrap gap-1.5">
+                <div className="grid grid-cols-3 gap-2">
                   {PRESET_AMOUNTS.map((amt) => (
                     <button
                       key={amt}
                       type="button"
                       onClick={() => setAmount(amt.toString())}
-                      className="px-2 py-0.5 text-[11px] font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xs border border-gray-200 cursor-pointer"
+                      className="min-h-11 min-w-0 rounded-xs border border-gray-200 bg-gray-100 px-1 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-200 cursor-pointer"
                     >
                       +${amt}
                     </button>
@@ -401,11 +402,11 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
               )}
 
               {/* Form Action Buttons */}
-              <div className="pt-3 border-t border-gray-200 flex items-center justify-end gap-3">
+              <div className="flex items-center justify-end gap-2 border-t border-gray-200 pt-3">
                 <button
                   type="button"
                   onClick={handleResetAndClose}
-                  className="px-4 py-2 text-xs text-gray-600 font-semibold hover:text-gray-900 cursor-pointer"
+                  className="min-h-11 px-4 py-2 text-sm text-gray-600 font-semibold hover:text-gray-900 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -413,7 +414,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                   id="btn-submit-external-deposit"
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 bg-[#C9932E] hover:bg-[#A8761B] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-xs transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-60"
+                  className="min-h-11 px-5 py-2.5 bg-[#C9932E] hover:bg-[#A8761B] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                 >
                   {submitting ? (
                     <>
