@@ -205,18 +205,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               Profile & Details
             </button>
 
-            <button
-              id="tab-cards"
-              onClick={() => setActiveTab('cards')}
-              aria-current={activeTab === 'cards' ? 'page' : undefined}
-              className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
-                activeTab === 'cards'
-                  ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
-                  : 'text-gray-600 hover:text-[#0F766E] font-medium'
-              }`}
-            >
-              Cards
-            </button>
           </div>
 
           <div className="ml-auto flex items-center space-x-4">
