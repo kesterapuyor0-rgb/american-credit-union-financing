@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BrandLogo } from '../components/BrandLogo';
 import { User } from '../types';
 import { safeParseResponse } from '../utils/api';
@@ -66,13 +66,35 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successData, setSuccessData] = useState<User | null>(null);
+  const errorBannerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (error) {
+      errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!fullName.trim() || !email.trim() || !phone.trim() || !password) {
-      setError('Please fill out all required registration fields.');
+    if (!fullName.trim()) {
+      setError('Enter your full legal name to continue.');
+      return;
+    }
+
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Enter a valid email address to continue.');
+      return;
+    }
+
+    if (!phone.trim()) {
+      setError('Enter your mobile phone number to continue.');
+      return;
+    }
+
+    if (!password) {
+      setError('Enter a passcode to continue.');
       return;
     }
 
@@ -86,7 +108,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       return;
     }
 
-    if (!securityPin || securityPin.trim().length !== 4) {
+    if (!/^\d{4}$/.test(securityPin)) {
       setError('Please enter a 4-digit Initial Security PIN.');
       return;
     }
@@ -101,8 +123,8 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       return;
     }
 
-    if (!/^ACUF-[A-Z0-9]{4,12}$/.test(verificationNumber.trim().toUpperCase())) {
-      setError('Enter a valid verification reference in the format ACUF-123456. Do not enter a Social Security number.');
+    if (!/^(?:ACUF-)?[A-Z0-9]{4,12}$/.test(verificationNumber.trim().toUpperCase())) {
+      setError('Enter a verification reference with 4–12 letters or numbers, optionally prefixed with ACUF-. Do not enter a Social Security number.');
       return;
     }
     if (!sampleFile) {
@@ -192,14 +214,6 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
               </p>
             </div>
 
-            {/* Error Banner */}
-            {error && (
-              <div className="mb-5 p-3.5 bg-red-50 border-l-4 border-[#D6A832] text-red-800 text-xs flex items-start gap-2.5 rounded-r-sm">
-                <AlertCircle className="w-4 h-4 text-[#D6A832] shrink-0 mt-0.5" />
-                <span className="font-medium leading-relaxed">{error}</span>
-              </div>
-            )}
-
             {/* Success state */}
             {successData ? (
               <div className="space-y-5 py-4 text-center">
@@ -238,7 +252,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
               </div>
             ) : (
               /* Registration Form */
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} noValidate className="space-y-4">
                 <div className="flex items-center gap-3 rounded-sm bg-slate-50 p-3 text-xs">
                   <span className={`flex h-7 w-7 items-center justify-center rounded-full font-bold ${step === 1 ? 'bg-[#173B70] text-white' : 'bg-emerald-700 text-white'}`}>1</span>
                   <span className={step === 1 ? 'font-semibold text-[#173B70]' : 'text-gray-500'}>Profile</span>
@@ -427,9 +441,9 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       type="text"
                       required
                       maxLength={17}
-                      pattern="ACUF-[A-Za-z0-9]{4,12}"
+                      pattern="(ACUF-)?[A-Za-z0-9]{4,12}"
                       autoComplete="off"
-                      placeholder="ACUF-123456"
+                      placeholder="ACUF-123456 or 123456"
                       value={verificationNumber}
                       onChange={(event) => setVerificationNumber(event.target.value.toUpperCase())}
                       className="w-full rounded-sm border border-gray-300 px-3 py-2.5 font-mono text-sm uppercase focus:border-[#173B70] focus:ring-1 focus:ring-[#173B70] outline-hidden"
@@ -472,30 +486,43 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 )}
 
                 {/* Submit Button */}
-                <div className="mt-5 flex gap-3">
-                  {step === 2 && (
-                    <button
-                      type="button"
-                      onClick={() => { setError(null); setStep(1); }}
-                      disabled={loading}
-                      className="min-h-12 rounded-sm border border-gray-300 px-4 text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                <div className="mt-5 space-y-3">
+                  {error && (
+                    <div
+                      ref={errorBannerRef}
+                      role="alert"
+                      aria-live="assertive"
+                      className="flex scroll-mt-4 items-start gap-2.5 rounded-r-sm border-l-4 border-[#D6A832] bg-red-50 p-3.5 text-xs text-red-800"
                     >
-                      Back
-                    </button>
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#D6A832]" />
+                      <span className="font-medium leading-relaxed">{error}</span>
+                    </div>
                   )}
-                  <button
-                    id="btn-submit-register"
-                    type="submit"
-                    disabled={loading}
-                    className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-sm bg-[#173B70] px-4 py-3.5 text-sm font-bold uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-[#245B9E] disabled:opacity-75"
-                  >
-                    {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : (
-                      <>
-                        <span>{step === 1 ? 'Continue to Verification' : 'Open Account & Complete Enrollment'}</span>
-                        {step === 1 ? <ArrowRight className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-                      </>
+                  <div className="flex gap-3">
+                    {step === 2 && (
+                      <button
+                        type="button"
+                        onClick={() => { setError(null); setStep(1); }}
+                        disabled={loading}
+                        className="min-h-12 rounded-sm border border-gray-300 px-4 text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Back
+                      </button>
                     )}
-                  </button>
+                    <button
+                      id="btn-submit-register"
+                      type="submit"
+                      disabled={loading}
+                      className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-sm bg-[#173B70] px-4 py-3.5 text-sm font-bold uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-[#245B9E] disabled:opacity-75"
+                    >
+                      {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : (
+                        <>
+                          <span>{step === 1 ? 'Continue to Verification' : 'Open Account & Complete Enrollment'}</span>
+                          {step === 1 ? <ArrowRight className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </form>
             )}

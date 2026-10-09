@@ -374,8 +374,8 @@ router.post('/register', async (req, res): Promise<void> => {
     const documentContentType = typeof verificationDocument?.contentType === 'string'
       ? verificationDocument.contentType.trim().toLowerCase()
       : '';
-    if (!/^ACUF-[A-Z0-9]{4,12}$/.test(cleanVerificationNumber)) {
-      res.status(400).json({ success: false, error: 'Enter a valid verification reference in the format ACUF-123456. Do not enter a Social Security number.' });
+    if (!/^(?:ACUF-)?[A-Z0-9]{4,12}$/.test(cleanVerificationNumber)) {
+      res.status(400).json({ success: false, error: 'Enter a verification reference with 4–12 letters or numbers, optionally prefixed with ACUF-. Do not enter a Social Security number.' });
       return;
     }
     if (!cleanFileName || !/^image\/(jpeg|png|webp|gif)$/.test(cleanFileType)
