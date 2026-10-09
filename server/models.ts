@@ -14,6 +14,7 @@ const userSchema = new Schema({
   profilePicture: { type: String, default: '' },
   security_pin: { type: String, select: false },
   account_number: { type: String, trim: true },
+  documentUrl: { type: String, default: '' },
   verification_status: { type: String, enum: ['under_review', 'approved', 'rejected'], default: 'under_review', index: true },
   verification_rejection_reason: { type: String, default: '', trim: true, maxlength: 500 },
   verificationDocument: {

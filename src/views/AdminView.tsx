@@ -36,6 +36,7 @@ interface VerificationApplicant {
   verification_status: 'under_review' | 'approved' | 'rejected';
   verification_rejection_reason?: string;
   verificationDocument?: User['verificationDocument'];
+  documentUrl?: string;
   verification_submission?: {
     verificationNumber?: string;
     sampleFileName?: string;
@@ -47,14 +48,24 @@ interface VerificationApplicant {
 
 const CARD_COLOR_OPTIONS = ['emerald', 'navy', 'crimson', 'gold'] as const;
 
-const getVerificationDocumentUrl = (document?: User['verificationDocument']): string | null => {
+const getVerificationDocumentUrl = (
+  document?: User['verificationDocument'],
+  documentUrl?: string,
+  fallbackContentType?: string,
+): string | null => {
   const data = document?.data?.trim();
-  if (!data) return null;
-  if (/^data:image\/(jpeg|png|webp|gif);base64,/i.test(data)) return data;
+  if (data && /^data:image\/(jpeg|png|webp|gif);base64,/i.test(data)) return data;
 
-  const contentType = document?.contentType?.trim().toLowerCase();
-  if (!contentType || !/^image\/(jpeg|png|webp|gif)$/.test(contentType)) return null;
-  return `data:${contentType};base64,${data}`;
+  const contentType = (document?.contentType || fallbackContentType || '').trim().toLowerCase();
+  if (data && /^image\/(jpeg|png|webp|gif)$/.test(contentType)) {
+    return `data:${contentType};base64,${data}`;
+  }
+
+  const path = documentUrl?.trim();
+  if (path && (/^https?:\/\/[^\s]+$/i.test(path) || (path.startsWith('/') && !path.startsWith('//')))) {
+    return path;
+  }
+  return null;
 };
 
 export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) => {
@@ -1013,7 +1024,11 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
             ) : (
               <div className="space-y-4">
                 {verificationApplicants.map((applicant) => {
-                  const documentUrl = getVerificationDocumentUrl(applicant.verificationDocument);
+                  const documentUrl = getVerificationDocumentUrl(
+                    applicant.verificationDocument,
+                    applicant.documentUrl,
+                    applicant.verification_submission?.sampleFileType,
+                  );
                   return (
                   <article key={applicant.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                     <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
@@ -1051,17 +1066,22 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                           <div className="space-y-2">
                             <img
                               src={documentUrl}
-                              alt={`Verification document for ${applicant.full_name}`}
-                              className="max-h-72 max-w-full rounded-md border border-slate-200 object-contain"
+                              alt="Verification ID"
+                              className="mb-2 mt-2 h-auto w-48 rounded border border-slate-200 object-cover"
                             />
                             <a
                               href={documentUrl}
-                              download={(applicant.verification_submission?.sampleFileName || 'verification-document').replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')}
-                              className="inline-flex min-h-10 items-center rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                              download="verification-id.jpg"
+                              className="inline-block rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
                             >
-                              Download / Save Image
+                              Download Document
                             </a>
                           </div>
+                        )}
+                        {!documentUrl && applicant.verification_submission?.sampleFileName && (
+                          <p className="mt-2 text-xs text-amber-800">
+                            This existing record contains document metadata only; no stored image is available to preview or download.
+                          </p>
                         )}
                       </div>
                       <div className="space-y-3">
