@@ -47,6 +47,16 @@ interface VerificationApplicant {
 
 const CARD_COLOR_OPTIONS = ['emerald', 'navy', 'crimson', 'gold'] as const;
 
+const getVerificationDocumentUrl = (document?: User['verificationDocument']): string | null => {
+  const data = document?.data?.trim();
+  if (!data) return null;
+  if (/^data:image\/(jpeg|png|webp|gif);base64,/i.test(data)) return data;
+
+  const contentType = document?.contentType?.trim().toLowerCase();
+  if (!contentType || !/^image\/(jpeg|png|webp|gif)$/.test(contentType)) return null;
+  return `data:${contentType};base64,${data}`;
+};
+
 export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) => {
 const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications' | 'cards' | 'audit' | 'transactions'>('users');
   const [overview, setOverview] = useState<AdminOverviewData | null>(null);
@@ -1002,7 +1012,9 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
               </div>
             ) : (
               <div className="space-y-4">
-                {verificationApplicants.map((applicant) => (
+                {verificationApplicants.map((applicant) => {
+                  const documentUrl = getVerificationDocumentUrl(applicant.verificationDocument);
+                  return (
                   <article key={applicant.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                     <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
                       <div className="space-y-3">
@@ -1035,15 +1047,15 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                             </dd>
                           </div>
                         </dl>
-                        {applicant.verificationDocument?.data && applicant.verificationDocument.contentType && (
+                        {documentUrl && (
                           <div className="space-y-2">
                             <img
-                              src={`data:${applicant.verificationDocument.contentType};base64,${applicant.verificationDocument.data}`}
+                              src={documentUrl}
                               alt={`Verification document for ${applicant.full_name}`}
                               className="max-h-72 max-w-full rounded-md border border-slate-200 object-contain"
                             />
                             <a
-                              href={`data:${applicant.verificationDocument.contentType};base64,${applicant.verificationDocument.data}`}
+                              href={documentUrl}
                               download={(applicant.verification_submission?.sampleFileName || 'verification-document').replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')}
                               className="inline-flex min-h-10 items-center rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                             >
@@ -1108,7 +1120,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                       </div>
                     </div>
                   </article>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>
