@@ -27,6 +27,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [initialTransferSourceId, setInitialTransferSourceId] = useState<string | undefined>();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [restrictionSupportOpen, setRestrictionSupportOpen] = useState(false);
   const [registerNotice, setRegisterNotice] = useState<string | null>(null);
 
   // Role guarding & current route tracking
@@ -344,10 +345,55 @@ export default function App() {
       />
 
       <main id="customer-view" role="tabpanel" tabIndex={-1} aria-label={`${activeTab} view`} className="max-w-7xl mx-auto w-full px-4 sm:px-8 pt-6 pb-6 sm:py-6 flex-1">
+        {user.isRestricted && (
+          <section role="alert" className="mb-6 flex flex-col gap-4 rounded-xl border border-red-300 bg-red-50 p-4 text-red-950 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-red-800">Account restricted</h2>
+              <p className="mt-1 whitespace-pre-wrap text-sm leading-6">{user.restrictionReason || 'Your account is currently restricted.'}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRestrictionSupportOpen(true)}
+              className="min-h-11 shrink-0 rounded-lg bg-red-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
+            >
+              Support
+            </button>
+          </section>
+        )}
         {renderCustomerView()}
       </main>
 
       <BottomNavigation activeTab={activeTab} onNavigate={setActiveTab} />
+
+      {restrictionSupportOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4" onClick={() => setRestrictionSupportOpen(false)}>
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="restriction-support-title"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="restriction-support-title" className="text-lg font-semibold text-slate-900">Contact support</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">For help with this account restriction, email our support team.</p>
+            <a
+              href="mailto:americancreditunion.financing@gmail.com?subject=Account%20restriction%20support"
+              className="mt-4 inline-block break-all font-semibold text-teal-800 underline underline-offset-2"
+            >
+              americancreditunion.financing@gmail.com
+            </a>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setRestrictionSupportOpen(false)}
+                className="min-h-11 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+              >
+                Close
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* Profile Modal / Slide-out */}
       {isProfileModalOpen && user && (

@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { User, Account, Transaction, AuditLog, BankCard, CardApplication } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
-import { requireAdmin, AuthenticatedRequest } from '../auth.js';
+import { requireAdmin, AuthenticatedRequest, isAdminRole } from '../auth.js';
 import { maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
 
 const router = Router();
@@ -225,7 +225,7 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
       filter = { id: { $in: [...new Set([...matchingAccounts.map((a) => a.user_id), ...matchingUsers.map((u) => u.id)])] } };
     }
 
-    const users = await User.find(filter).select('id email full_name role phone created_at').sort({ created_at: -1 }).lean<any[]>();
+    const users = await User.find(filter).select('id email full_name role isAdmin isRestricted restrictionReason phone created_at').sort({ created_at: -1 }).lean<any[]>();
     const allAccounts = await Account.find({ user_id: { $in: users.map((u) => u.id) } }).sort({ account_type: 1 }).lean<any[]>();
     const accountsByUser = new Map<string, any[]>();
     for (const account of allAccounts) accountsByUser.set(account.user_id, [...(accountsByUser.get(account.user_id) || []), account]);
@@ -247,6 +247,68 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
   } catch (err: any) {
     console.error('Error fetching users for admin:', err);
     res.status(500).json({ error: errorMessage(err, 'Failed to retrieve users.') });
+  }
+});
+
+// PATCH /api/admin/users/:userId/restriction
+router.patch('/users/:userId/restriction', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = String(req.params.userId || '').trim();
+  const { isRestricted, restrictionReason } = req.body || {};
+  if (!userId || typeof isRestricted !== 'boolean' || typeof restrictionReason !== 'string') {
+    res.status(400).json({ error: 'A user, restriction status, and reason are required.' });
+    return;
+  }
+
+  const cleanReason = restrictionReason.trim();
+  if (cleanReason.length > 500) {
+    res.status(400).json({ error: 'Restriction reason must be 500 characters or fewer.' });
+    return;
+  }
+  if (isRestricted && !cleanReason) {
+    res.status(400).json({ error: 'Enter a reason before restricting this account.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let updatedUser: any = null;
+    await session.withTransaction(async () => {
+      const targetUser = await User.findOne({ id: userId }).select('id role isAdmin').session(session).lean<any>();
+      if (!targetUser) throw new Error('USER_NOT_FOUND');
+      if (isAdminRole(targetUser.role, targetUser.isAdmin)) throw new Error('ADMIN_RESTRICTION_NOT_ALLOWED');
+
+      updatedUser = await User.findOneAndUpdate(
+        { id: userId },
+        { $set: { isRestricted, restrictionReason: cleanReason } },
+        { new: true, runValidators: true, session },
+      ).select('id isRestricted restrictionReason').lean<any>();
+
+      await AuditLog.create([{
+        id: `log_restriction_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: isRestricted ? 'USER_RESTRICTED' : 'USER_UNRESTRICTED',
+        target_user_id: userId,
+        details: `${isRestricted ? 'Restricted' : 'Unrestricted'} customer account. Reason: ${cleanReason || '(cleared)'}`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+    });
+
+    res.json({ success: true, user: updatedUser });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'USER_NOT_FOUND') {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+    if (error instanceof Error && error.message === 'ADMIN_RESTRICTION_NOT_ALLOWED') {
+      res.status(400).json({ error: 'Administrator accounts cannot be restricted here.' });
+      return;
+    }
+    console.error('Unable to update user restriction:', error);
+    res.status(500).json({ error: errorMessage(error, 'Unable to update account restriction.') });
+  } finally {
+    await session.endSession();
   }
 });
 

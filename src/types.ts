@@ -4,6 +4,8 @@ export interface User {
   full_name: string;
   role: 'user' | 'admin';
   phone: string;
+  isRestricted?: boolean;
+  restrictionReason?: string;
   address?: string;
   profilePicture?: string;
   created_at?: string;

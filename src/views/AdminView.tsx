@@ -43,6 +43,9 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
   const [reviewingCardId, setReviewingCardId] = useState<string | null>(null);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [restrictionEdits, setRestrictionEdits] = useState<Record<string, { isRestricted: boolean; restrictionReason: string }>>({});
+  const [savingRestrictionId, setSavingRestrictionId] = useState<string | null>(null);
+  const [restrictionError, setRestrictionError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -95,11 +98,65 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
       });
       if (!res.ok) throw new Error('Failed to load user accounts');
       const data = await res.json();
-      setUsers(data.users || []);
+      const loadedUsers: UserWithAccounts[] = data.users || [];
+      setUsers(loadedUsers);
+      setRestrictionEdits(Object.fromEntries(loadedUsers.map((loadedUser) => [
+        loadedUser.id,
+        {
+          isRestricted: loadedUser.isRestricted === true,
+          restrictionReason: loadedUser.restrictionReason || '',
+        },
+      ])));
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveUserRestriction = async (targetUser: UserWithAccounts) => {
+    const edit = restrictionEdits[targetUser.id] || {
+      isRestricted: targetUser.isRestricted === true,
+      restrictionReason: targetUser.restrictionReason || '',
+    };
+    if (edit.isRestricted && !edit.restrictionReason.trim()) {
+      setRestrictionError('Enter a restriction reason before saving.');
+      return;
+    }
+
+    setSavingRestrictionId(targetUser.id);
+    setRestrictionError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(targetUser.id)}/restriction`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify(edit),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to update account restriction.');
+
+      setUsers((currentUsers) => currentUsers.map((currentUser) =>
+        currentUser.id === targetUser.id
+          ? { ...currentUser, ...data.user }
+          : currentUser
+      ));
+      setRestrictionEdits((current) => ({
+        ...current,
+        [targetUser.id]: {
+          isRestricted: data.user.isRestricted === true,
+          restrictionReason: data.user.restrictionReason || '',
+        },
+      }));
+      setSuccessMsg(`Account restriction updated for ${targetUser.full_name}.`);
+    } catch (err) {
+      setRestrictionError(err instanceof Error ? err.message : 'Unable to update account restriction.');
+    } finally {
+      setSavingRestrictionId(null);
     }
   };
 
@@ -650,6 +707,73 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                 </button>
               )}
             </form>
+
+            <section aria-labelledby="account-restrictions-heading" className="mb-6 rounded-sm border border-gray-200 bg-gray-50 p-4">
+              <div className="mb-3">
+                <h4 id="account-restrictions-heading" className="text-sm font-bold text-gray-900">Account restrictions</h4>
+                <p className="mt-1 text-xs text-gray-600">Set a customer restriction and the message shown on their dashboard.</p>
+              </div>
+              {restrictionError && <p role="alert" className="mb-3 rounded-sm border border-red-200 bg-red-50 p-3 text-xs text-red-800">{restrictionError}</p>}
+              <div className="space-y-3">
+                {users.map((customer) => {
+                  const edit = restrictionEdits[customer.id] || {
+                    isRestricted: customer.isRestricted === true,
+                    restrictionReason: customer.restrictionReason || '',
+                  };
+                  const isAdminAccount = customer.role.toLowerCase() === 'admin';
+                  return (
+                    <div key={customer.id} className="grid gap-3 rounded-sm border border-gray-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-center">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-gray-900">{customer.full_name}</p>
+                        <p className="truncate text-xs text-gray-500">{customer.email}</p>
+                        <p className={`mt-1 text-[10px] font-bold uppercase ${edit.isRestricted ? 'text-red-700' : 'text-emerald-700'}`}>
+                          {isAdminAccount ? 'Administrator account' : edit.isRestricted ? 'Restricted' : 'Active'}
+                        </p>
+                      </div>
+                      <label className="min-w-0 space-y-1 text-xs font-medium text-gray-700">
+                        <span>Restriction reason shown to customer</span>
+                        <textarea
+                          value={edit.restrictionReason}
+                          maxLength={500}
+                          disabled={isAdminAccount}
+                          onChange={(event) => setRestrictionEdits((current) => ({
+                            ...current,
+                            [customer.id]: { ...edit, restrictionReason: event.target.value },
+                          }))}
+                          rows={2}
+                          className="w-full resize-y rounded-sm border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
+                          placeholder="Explain why this account is restricted"
+                        />
+                      </label>
+                      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                        <label className="flex min-h-11 items-center gap-2 text-xs font-semibold text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={edit.isRestricted}
+                            disabled={isAdminAccount}
+                            onChange={(event) => setRestrictionEdits((current) => ({
+                              ...current,
+                              [customer.id]: { ...edit, isRestricted: event.target.checked },
+                            }))}
+                            className="h-4 w-4 accent-red-700 disabled:opacity-50"
+                          />
+                          Restrict
+                        </label>
+                        <button
+                          type="button"
+                          disabled={isAdminAccount || savingRestrictionId === customer.id}
+                          onClick={() => void saveUserRestriction(customer)}
+                          className="min-h-11 rounded-sm bg-[#0F766E] px-3 py-2 text-xs font-bold text-white hover:bg-[#115E59] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {savingRestrictionId === customer.id ? 'Saving…' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {users.length === 0 && <p className="py-3 text-center text-xs text-gray-500">No users match this search.</p>}
+              </div>
+            </section>
 
             {/* Users / Accounts Table */}
             <div className="overflow-x-auto border border-gray-200 rounded-xs">
