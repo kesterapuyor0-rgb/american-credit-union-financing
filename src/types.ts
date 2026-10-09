@@ -54,6 +54,7 @@ export interface BankCard {
   account_id: string;
   card_type: 'Debit' | 'Credit';
   network: 'Visa' | 'Mastercard';
+  cardColor?: 'emerald' | 'navy' | 'crimson' | 'gold';
   product_name: string;
   last4: string;
   masked_number?: string;

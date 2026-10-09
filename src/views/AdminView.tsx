@@ -27,6 +27,8 @@ interface AdminViewProps {
   onSignOut: () => void;
 }
 
+const CARD_COLOR_OPTIONS = ['emerald', 'navy', 'crimson', 'gold'] as const;
+
 export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) => {
 const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audit' | 'transactions'>('users');
   const [overview, setOverview] = useState<AdminOverviewData | null>(null);
@@ -35,6 +37,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
   const [pendingDeposits, setPendingDeposits] = useState<Transaction[]>([]);
   const [cardApplications, setCardApplications] = useState<CardApplication[]>([]);
   const [issuedCards, setIssuedCards] = useState<BankCard[]>([]);
+  const [savingCardColorId, setSavingCardColorId] = useState<string | null>(null);
+  const [cardColorError, setCardColorError] = useState<string | null>(null);
   const [cardToDebit, setCardToDebit] = useState<BankCard | null>(null);
   const [cardDebitAmount, setCardDebitAmount] = useState('');
   const [cardDebitReason, setCardDebitReason] = useState('');
@@ -201,6 +205,33 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
       setIssuedCards(Array.isArray(data.cards) ? data.cards : []);
     } catch (err: any) {
       setError(err.message || 'Failed to load issued cards.');
+    }
+  };
+
+  const updateCardColor = async (card: BankCard, cardColor: NonNullable<BankCard['cardColor']>) => {
+    setSavingCardColorId(card.id);
+    setCardColorError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await fetch(`/api/admin/cards/${encodeURIComponent(card.id)}/color`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ cardColor }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to update card color.');
+      setIssuedCards((currentCards) => currentCards.map((currentCard) =>
+        currentCard.id === card.id ? { ...currentCard, cardColor: data.card.cardColor } : currentCard
+      ));
+      setSuccessMsg(`Updated ${card.product_name} color to ${cardColor}.`);
+    } catch (err) {
+      setCardColorError(err instanceof Error ? err.message : 'Unable to update card color.');
+    } finally {
+      setSavingCardColorId(null);
     }
   };
 
@@ -995,13 +1026,14 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                 </div>
                 <button type="button" onClick={fetchIssuedCards} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Refresh cards</button>
               </div>
+              {cardColorError && <p role="alert" className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{cardColorError}</p>}
               {issuedCards.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">No issued cards found.</div>
               ) : (
                 <div className="w-full overflow-x-auto rounded-xl border border-slate-200">
                   <table className="w-full min-w-[760px] text-left text-xs">
                     <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-600">
-                      <tr><th className="px-4 py-3">Cardholder</th><th className="px-4 py-3">Card</th><th className="px-4 py-3">Linked account</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th></tr>
+                      <tr><th className="px-4 py-3">Cardholder</th><th className="px-4 py-3">Card</th><th className="px-4 py-3">Color theme</th><th className="px-4 py-3">Linked account</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th></tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {issuedCards.map((card) => {
@@ -1009,6 +1041,24 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                         return <tr key={card.id}>
                           <td className="px-4 py-3"><div className="font-semibold text-slate-900">{card.customer_name}</div><div className="mt-1 text-slate-500">{card.customer_email}</div></td>
                           <td className="px-4 py-3"><div className="font-semibold text-slate-900">{card.product_name}</div><div className="mt-1 font-mono text-slate-500">{card.network || 'Visa'} · {card.masked_number || `•••• •••• •••• ${card.last4}`}</div>{card.card_type === 'Credit' && <div className="mt-1 text-slate-600">Limit: {formatUSD(card.credit_limit || 0)}</div>}</td>
+                          <td className="px-4 py-3">
+                            <label className="sr-only" htmlFor={`card-color-${card.id}`}>Color theme for {card.product_name}</label>
+                            <select
+                              id={`card-color-${card.id}`}
+                              value={card.cardColor || 'emerald'}
+                              disabled={savingCardColorId === card.id}
+                              onChange={(event) => {
+                                const selectedColor = CARD_COLOR_OPTIONS.find((color) => color === event.target.value);
+                                if (selectedColor) updateCardColor(card, selectedColor);
+                              }}
+                              className="min-h-10 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 disabled:opacity-60"
+                            >
+                              {CARD_COLOR_OPTIONS.map((color) => (
+                                <option key={color} value={color}>{color[0].toUpperCase() + color.slice(1)}</option>
+                              ))}
+                            </select>
+                            {savingCardColorId === card.id && <span className="ml-2 text-[10px] text-slate-500">Saving…</span>}
+                          </td>
                           <td className="px-4 py-3"><div>{card.account_nickname || 'Checking'}</div><div className="mt-1 text-slate-500">•••• {card.account_number?.slice(-4) || '—'} · {formatUSD(Math.max(0, (card.account_balance || 0) - (card.held_balance || 0)))} available</div></td>
                           <td className="px-4 py-3">{card.status}</td>
                           <td className="px-4 py-3"><button type="button" disabled={!canDebit} onClick={() => { setCardToDebit(card); setCardDebitAmount(''); setCardDebitReason(''); setError(null); }} className="rounded-lg bg-rose-700 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-40">Debit linked account</button></td>

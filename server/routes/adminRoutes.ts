@@ -568,6 +568,7 @@ router.get('/cards', async (_req: AuthenticatedRequest, res: Response): Promise<
         ...card,
         last4: numericCardLastFour(card.last4),
         network: card.network || 'Visa',
+        cardColor: card.cardColor || 'emerald',
         masked_number: maskedCardNumber(card.network || 'Visa', card.last4),
         customer_name: owner?.full_name || 'Unknown customer',
         customer_email: owner?.email || '',
@@ -581,6 +582,48 @@ router.get('/cards', async (_req: AuthenticatedRequest, res: Response): Promise<
     }) });
   } catch (err) {
     res.status(500).json({ error: errorMessage(err, 'Failed to load issued cards.') });
+  }
+});
+
+// PATCH /api/admin/cards/:cardId/color — updates the displayed color theme for an issued card.
+router.patch('/cards/:cardId/color', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const cardId = String(req.params.cardId || '').trim();
+  const cardColor = String(req.body?.cardColor || '');
+  const allowedColors = ['emerald', 'navy', 'crimson', 'gold'];
+  if (!cardId || !allowedColors.includes(cardColor)) {
+    res.status(400).json({ error: 'Choose a valid card color theme.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let updatedCard: any;
+    await session.withTransaction(async () => {
+      updatedCard = await BankCard.findOneAndUpdate(
+        { id: cardId, status: 'Active' },
+        { $set: { cardColor } },
+        { new: true, runValidators: true, session },
+      ).lean<any>();
+      if (!updatedCard) throw new Error('An active card could not be found.');
+
+      await AuditLog.create([{
+        id: `log_card_color_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: 'CARD_COLOR_UPDATED',
+        target_user_id: updatedCard.user_id,
+        target_account_id: updatedCard.account_id,
+        details: `Updated ${updatedCard.product_name} card ${updatedCard.id} color theme to ${cardColor}.`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+    });
+    res.json({ success: true, card: updatedCard });
+  } catch (err) {
+    const message = errorMessage(err, 'Unable to update card color.');
+    res.status(message.includes('active card could not be found') ? 404 : 500).json({ error: message });
+  } finally {
+    await session.endSession();
   }
 });
 

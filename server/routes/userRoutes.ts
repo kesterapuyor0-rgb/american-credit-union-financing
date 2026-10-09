@@ -108,7 +108,7 @@ router.get('/summary', requireAuth, async (req: AuthenticatedRequest, res: Respo
 router.get('/cards', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const issuedCards = await BankCard.find({ user_id: req.user!.id, status: 'Active' }).sort({ created_at: -1 })
-      .select('id user_id account_id card_type network product_name last4 masked_number status credit_limit created_at').lean<any[]>();
+      .select('id user_id account_id card_type network cardColor product_name last4 masked_number status credit_limit created_at').lean<any[]>();
     const accounts = await Account.find({ id: { $in: issuedCards.map((card) => card.account_id) }, user_id: req.user!.id })
       .select('id nickname account_number balance held_balance currency').lean<any[]>();
     const accountById = new Map(accounts.map((account) => [account.id, account]));
@@ -118,6 +118,7 @@ router.get('/cards', requireAuth, async (req: AuthenticatedRequest, res: Respons
         ...card,
         last4: numericCardLastFour(card.last4),
         network: card.network || 'Visa',
+        cardColor: card.cardColor || 'emerald',
         masked_number: maskedCardNumber(card.network || 'Visa', card.last4),
         linked_account_name: account?.nickname || '',
         linked_account_number: account?.account_number || '',

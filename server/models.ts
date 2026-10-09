@@ -38,6 +38,7 @@ const cardApplicationSchema = new Schema({
   account_id: { type: String, required: true, index: true },
   card_type: { type: String, required: true, enum: ['Debit', 'Credit'] },
   network: { type: String, enum: ['Visa', 'Mastercard'], default: 'Visa' },
+  cardColor: { type: String, enum: ['emerald', 'navy', 'crimson', 'gold'], default: 'emerald' },
   product_name: { type: String, required: true },
   requested_limit: { type: Number, default: 0 },
   status: { type: String, required: true, default: 'Pending', index: true },
