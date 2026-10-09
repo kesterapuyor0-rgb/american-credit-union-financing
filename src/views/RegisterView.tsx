@@ -21,6 +21,29 @@ import {
   Clock3
 } from 'lucide-react';
 
+const readVerificationDocument = (file: File): Promise<{ data: string; contentType: string }> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (typeof reader.result !== 'string') {
+      reject(new Error('Unable to read the selected image.'));
+      return;
+    }
+
+    const dataUrlPrefix = `data:${file.type};base64,`;
+    if (!reader.result.startsWith(dataUrlPrefix)) {
+      reject(new Error('Unable to convert the selected image.'));
+      return;
+    }
+
+    resolve({
+      data: reader.result.slice(dataUrlPrefix.length),
+      contentType: file.type,
+    });
+  };
+  reader.onerror = () => reject(reader.error || new Error('Unable to read the selected image.'));
+  reader.readAsDataURL(file);
+});
+
 interface RegisterViewProps {
   onNavigateToLogin: (registeredNotice?: string) => void;
 }
@@ -90,6 +113,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     setLoading(true);
 
     try {
+      const verificationDocument = await readVerificationDocument(sampleFile);
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
@@ -108,6 +132,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
             type: sampleFile.type,
             size: sampleFile.size,
           },
+          verificationDocument,
         }),
       });
 
@@ -190,7 +215,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                   </p>
                 </div>
                 <div className="rounded-sm border border-amber-200 bg-amber-50 p-3 text-left text-xs leading-relaxed text-amber-900">
-                  For your security, do not enter a Social Security number or upload an actual identity document. Selected file contents are not uploaded; only the filename, type, and size are recorded.
+                  For your security, do not enter a Social Security number. The uploaded image is stored with your enrollment and is visible to authorized administrators reviewing your application.
                 </div>
                 <div className="rounded-sm border border-blue-200 bg-blue-50 p-4 text-left text-sm leading-6 text-blue-950">
                   To complete your registration, contact customer support at{' '}
@@ -418,7 +443,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     <label htmlFor="reg-sample-file" className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center hover:border-[#173B70]">
                       <Upload className="h-5 w-5 text-[#173B70]" />
                       <span className="text-xs font-semibold text-gray-700">{sampleFile ? sampleFile.name : 'Choose an image file'}</span>
-                      <span className="text-[11px] text-gray-500">JPEG, PNG, WebP, or GIF · up to 5 MB · file contents are not uploaded</span>
+                      <span className="text-[11px] text-gray-500">JPEG, PNG, WebP, or GIF · up to 5 MB · stored for enrollment review</span>
                     </label>
                     <input
                       id="reg-sample-file"
@@ -441,7 +466,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         setSampleFile(file);
                       }}
                     />
-                    {sampleFile && <p className="mt-1 text-[11px] text-gray-500">Selected file: {Math.ceil(sampleFile.size / 1024)} KB. The image itself is never uploaded.</p>}
+                    {sampleFile && <p className="mt-1 text-[11px] text-gray-500">Selected file: {Math.ceil(sampleFile.size / 1024)} KB. The image will be stored for administrator review.</p>}
                   </div>
                 </div>
                 )}

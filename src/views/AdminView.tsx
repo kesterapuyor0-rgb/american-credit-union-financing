@@ -35,6 +35,7 @@ interface VerificationApplicant {
   created_at: string;
   verification_status: 'under_review' | 'approved' | 'rejected';
   verification_rejection_reason?: string;
+  verificationDocument?: User['verificationDocument'];
   verification_submission?: {
     verificationNumber?: string;
     sampleFileName?: string;
@@ -986,7 +987,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
               <div>
                 <h3 className="text-base font-bold text-[#173B70]">Customer enrollment status</h3>
                 <p className="mt-1 max-w-2xl text-xs leading-relaxed text-gray-600">
-                  Review customer registration details and set each enrollment to under review, approved, or rejected. Supporting document file contents are not uploaded or stored.
+                  Review customer registration details and uploaded supporting images, then set each enrollment to under review, approved, or rejected.
                 </p>
               </div>
               <button type="button" onClick={fetchVerificationApplicants} className="inline-flex items-center justify-center gap-2 rounded-sm border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
@@ -1026,7 +1027,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                             </dd>
                           </div>
                           <div className="sm:col-span-2">
-                            <dt className="text-slate-500">Selected document details (file not uploaded)</dt>
+                            <dt className="text-slate-500">Supporting document</dt>
                             <dd className="mt-1 break-all text-slate-900">
                               {applicant.verification_submission?.sampleFileName || 'No document selected'}
                               {applicant.verification_submission?.sampleFileType ? ` · ${applicant.verification_submission.sampleFileType}` : ''}
@@ -1034,6 +1035,22 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                             </dd>
                           </div>
                         </dl>
+                        {applicant.verificationDocument?.data && applicant.verificationDocument.contentType && (
+                          <div className="space-y-2">
+                            <img
+                              src={`data:${applicant.verificationDocument.contentType};base64,${applicant.verificationDocument.data}`}
+                              alt={`Verification document for ${applicant.full_name}`}
+                              className="max-h-72 max-w-full rounded-md border border-slate-200 object-contain"
+                            />
+                            <a
+                              href={`data:${applicant.verificationDocument.contentType};base64,${applicant.verificationDocument.data}`}
+                              download={(applicant.verification_submission?.sampleFileName || 'verification-document').replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')}
+                              className="inline-flex min-h-10 items-center rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            >
+                              Download / Save Image
+                            </a>
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-3">
                         <label htmlFor={`verification-status-${applicant.id}`} className="block text-xs font-semibold text-slate-700">

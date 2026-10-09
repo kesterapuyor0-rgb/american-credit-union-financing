@@ -16,6 +16,10 @@ const userSchema = new Schema({
   account_number: { type: String, trim: true },
   verification_status: { type: String, enum: ['under_review', 'approved', 'rejected'], default: 'under_review', index: true },
   verification_rejection_reason: { type: String, default: '', trim: true, maxlength: 500 },
+  verificationDocument: {
+    data: { type: String },
+    contentType: { type: String },
+  },
   verification_submission: {
     verificationNumber: { type: String, default: '', trim: true, maxlength: 20 },
     sampleFileName: { type: String, default: '', maxlength: 120 },

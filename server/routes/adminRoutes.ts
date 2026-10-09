@@ -252,11 +252,11 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
   }
 });
 
-// GET /api/admin/verifications — customer enrollment profiles and submission metadata.
+// GET /api/admin/verifications — customer enrollment profiles and submitted documents.
 router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const applicants = await User.find({ role: { $ne: 'admin' }, isAdmin: { $ne: true } })
-      .select('id email full_name phone created_at verification_status verification_rejection_reason verification_submission')
+      .select('id email full_name phone created_at verification_status verification_rejection_reason verification_submission verificationDocument')
       .sort({ created_at: -1 })
       .lean<any[]>();
     res.json({

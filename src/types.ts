@@ -8,6 +8,10 @@ export interface User {
   restrictionReason?: string;
   verification_status?: 'under_review' | 'approved' | 'rejected';
   verification_rejection_reason?: string;
+  verificationDocument?: {
+    data: string;
+    contentType: string;
+  };
   address?: string;
   profilePicture?: string;
   created_at?: string;
