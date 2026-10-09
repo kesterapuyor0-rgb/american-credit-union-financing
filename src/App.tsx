@@ -346,15 +346,15 @@ export default function App() {
 
       <main id="customer-view" role="tabpanel" tabIndex={-1} aria-label={`${activeTab} view`} className="max-w-7xl mx-auto w-full px-4 sm:px-8 pt-6 pb-6 sm:py-6 flex-1">
         {user.isRestricted && (
-          <section role="alert" className="mb-6 flex flex-col gap-4 rounded-xl border border-red-300 bg-red-50 p-4 text-red-950 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <section role="alert" className="mb-3 flex flex-col gap-2 rounded-lg border border-red-300 bg-red-50 p-2 text-red-950 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-2.5">
             <div className="min-w-0">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-red-800">Account restricted</h2>
-              <p className="mt-1 whitespace-pre-wrap text-sm leading-6">{user.restrictionReason || 'Your account is currently restricted.'}</p>
+              <h2 className="text-xs font-bold uppercase tracking-wide text-red-800">Account restricted</h2>
+              <p className="mt-0.5 whitespace-pre-wrap text-xs leading-4">{user.restrictionReason || 'Your account is currently restricted.'}</p>
             </div>
             <button
               type="button"
               onClick={() => setRestrictionSupportOpen(true)}
-              className="min-h-11 shrink-0 rounded-lg bg-red-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
+              className="min-h-8 shrink-0 rounded-md bg-red-700 px-3 py-1 text-xs font-semibold text-white transition hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
             >
               Support
             </button>
