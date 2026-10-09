@@ -15,11 +15,9 @@ import {
   Plus,
 } from 'lucide-react';
 
-function getLocalGreeting(): { text: string } {
+function getLocalGreeting(): string {
   const hour = new Date().getHours();
-  return {
-    text: hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening',
-  };
+  return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 }
 
 export interface DashboardHomeViewProps {
@@ -74,7 +72,11 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     const refreshGreeting = () => setGreeting(getLocalGreeting());
     refreshGreeting();
     const timer = window.setInterval(refreshGreeting, 60_000);
-    return () => window.clearInterval(timer);
+    document.addEventListener('visibilitychange', refreshGreeting);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshGreeting);
+    };
   }, []);
 
   useEffect(() => {
@@ -205,7 +207,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             </label>
           </div>
           <div className="min-w-0">
-            <p className="text-sm text-slate-500">{greeting.text} 👋</p>
+            <p className="text-sm text-slate-500">{greeting} 👋</p>
             <h1 className="truncate text-lg font-semibold text-slate-900">{user.full_name}</h1>
             {pictureMessage && <p role="status" className="truncate text-xs text-slate-500">{uploadingPicture ? 'Uploading photo…' : pictureMessage}</p>}
           </div>
