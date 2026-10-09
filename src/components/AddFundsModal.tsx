@@ -162,7 +162,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
   return createPortal(
     <div
       id="modal-add-funds"
-      className="fixed inset-0 z-50 overflow-x-hidden overflow-y-auto bg-black/60 px-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xs [touch-action:pan-y] animate-in fade-in duration-200 sm:px-4 sm:py-4"
+      className="fixed inset-0 z-50 h-[100dvh] overflow-x-hidden overflow-y-scroll bg-black/60 px-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xs [overscroll-behavior-y:contain] [-webkit-overflow-scrolling:touch] [touch-action:pan-y] animate-in fade-in duration-200 sm:px-4 sm:py-4"
     >
       <div className="my-2 w-full min-w-0 max-w-lg mx-auto rounded-sm border border-gray-300 bg-white shadow-2xl sm:my-4">
         {/* Modal Header */}

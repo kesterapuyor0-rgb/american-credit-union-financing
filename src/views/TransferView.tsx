@@ -47,7 +47,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
   );
   const [recipientName, setRecipientName] = useState('');
   const [recipientAccount, setRecipientAccount] = useState('');
-  const [recipientRouting, setRecipientRouting] = useState('026009593');
+  const [recipientRouting, setRecipientRouting] = useState('');
   const [amount, setAmount] = useState<string>('');
   const [memo, setMemo] = useState<string>('');
   const [channel, setChannel] = useState<'sms' | 'email'>('sms');
@@ -56,7 +56,6 @@ export const TransferView: React.FC<TransferViewProps> = ({
   const [verificationId, setVerificationId] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [maskedContact, setMaskedContact] = useState('');
-  const [simulatedOtp, setSimulatedOtp] = useState('');
   const [completedTxId, setCompletedTxId] = useState('');
   const [newSourceBalance, setNewSourceBalance] = useState<number | null>(null);
   const [transferFee, setTransferFee] = useState(0);
@@ -148,7 +147,6 @@ export const TransferView: React.FC<TransferViewProps> = ({
       setTransferFee(Number(data.transferFee) || 0);
       setTransferTax(Number(data.transferTax) || 0);
       setMaskedContact(data.maskedContact);
-      setSimulatedOtp(data.simulatedOtp);
       setStep('2fa');
     } catch (err: any) {
       setError(err.message);
@@ -197,11 +195,6 @@ export const TransferView: React.FC<TransferViewProps> = ({
     } finally {
       setLoading(false);
     }
-  };
-
-  const fillQuickRecipient = (name: string, targetAccount: string) => {
-    setRecipientName(name);
-    setRecipientAccount(targetAccount);
   };
 
   return (
@@ -274,7 +267,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   onClick={() => setTransferType('internal')}
                   className={`flex min-h-12 items-center gap-3 p-3 border rounded-sm font-semibold text-left transition-colors cursor-pointer sm:min-h-0 sm:flex-col sm:gap-0 sm:text-center ${
                     transferType === 'internal'
-                      ? 'border-[#0F766E] bg-blue-50/60 text-[#0F766E]'
+                      ? 'border-[#0F766E] bg-emerald-50/60 text-[#0F766E]'
                       : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                   }`}
                 >
@@ -287,7 +280,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   onClick={() => setTransferType('zelle')}
                   className={`flex min-h-12 items-center gap-3 p-3 border rounded-xs font-semibold text-left transition-colors cursor-pointer sm:min-h-0 sm:flex-col sm:gap-0 sm:text-center ${
                     transferType === 'zelle'
-                      ? 'border-[#0F766E] bg-blue-50/60 text-[#0F766E]'
+                      ? 'border-[#0F766E] bg-emerald-50/60 text-[#0F766E]'
                       : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                   }`}
                 >
@@ -300,7 +293,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   onClick={() => setTransferType('external')}
                   className={`flex min-h-12 items-center gap-3 p-3 border rounded-xs font-semibold text-left transition-colors cursor-pointer sm:min-h-0 sm:flex-col sm:gap-0 sm:text-center ${
                     transferType === 'external'
-                      ? 'border-[#0F766E] bg-blue-50/60 text-[#0F766E]'
+                      ? 'border-[#0F766E] bg-emerald-50/60 text-[#0F766E]'
                       : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                   }`}
                 >
@@ -313,7 +306,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   onClick={() => setTransferType('wire')}
                   className={`flex min-h-12 items-center gap-3 p-3 border rounded-xs font-semibold text-left transition-colors cursor-pointer sm:min-h-0 sm:flex-col sm:gap-0 sm:text-center ${
                     transferType === 'wire'
-                      ? 'border-[#0F766E] bg-blue-50/60 text-[#0F766E]'
+                      ? 'border-[#0F766E] bg-emerald-50/60 text-[#0F766E]'
                       : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                   }`}
                 >
@@ -371,25 +364,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
               </div>
             ) : (
               <div className="space-y-3 p-3.5 bg-gray-50 border border-gray-200 rounded-xs text-xs">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="font-bold text-gray-700">Recipient Information</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => fillQuickRecipient('Sarah Jenkins', 's.jenkins@email.com')}
-                      className="min-h-9 text-[10px] bg-white border border-gray-300 px-2 py-1 rounded text-[#0F766E] hover:bg-gray-100"
-                    >
-                      + Sarah J. (saved recipient)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => fillQuickRecipient('Austin Real Estate Escrow', '9840291048')}
-                      className="min-h-9 text-[10px] bg-white border border-gray-300 px-2 py-1 rounded text-[#0F766E] hover:bg-gray-100"
-                    >
-                      + Escrow (Wire)
-                    </button>
-                  </div>
-                </div>
+                <div className="font-bold text-gray-700">Recipient Information</div>
 
                 <div>
                   <label className="block font-medium text-gray-600 mb-1">
@@ -398,7 +373,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Sarah Jenkins"
+                    placeholder="Enter recipient's full name"
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
                     className="min-h-11 w-full min-w-0 p-3 text-base bg-white border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E]"
@@ -415,7 +390,9 @@ export const TransferView: React.FC<TransferViewProps> = ({
                     type="text"
                     required
                     placeholder={
-                      transferType === 'zelle' ? 'name@domain.com or (555) 000-0000' : '9-12 digit account number'
+                      transferType === 'zelle'
+                        ? 'Enter recipient email or mobile number'
+                        : 'Enter recipient account number'
                     }
                     value={recipientAccount}
                     onChange={(e) => setRecipientAccount(e.target.value)}
@@ -497,7 +474,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                 id="input-transfer-memo"
                 type="text"
                 maxLength={60}
-                placeholder="e.g. Monthly rent or savings goal"
+                placeholder="Optional transfer memo"
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
                 className="min-h-11 w-full min-w-0 p-3 text-base border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E] outline-hidden"
@@ -505,7 +482,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
             </div>
 
             {/* Delivery Channel for Security Code */}
-            <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xs text-xs">
+            <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xs text-xs">
               <span className="font-bold text-[#0F766E] block mb-1">
                 Security Verification Preference:
               </span>
@@ -571,7 +548,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
           <div className="p-4 sm:p-6">
             <div className="flex items-center gap-2 text-xs font-bold text-[#C9932E] uppercase tracking-wider mb-1">
               <ShieldCheck className="w-4 h-4" />
-              <span>Prototype confirmation step</span>
+              <span>Secure transfer verification</span>
             </div>
             <h2 className="text-xl font-bold text-[#0F766E] font-serif mb-1">
               Confirm & Submit Transfer
@@ -620,31 +597,6 @@ export const TransferView: React.FC<TransferViewProps> = ({
               </div>
             </div>
 
-            {/* Simulated Notification Box for testing in sandbox */}
-            {simulatedOtp && (
-              <div className="mb-5 p-3.5 bg-emerald-50 border border-emerald-300 rounded-xs text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-emerald-800 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    Security Code Sent ({channel.toUpperCase()}):
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setOtpCode(simulatedOtp)}
-                    className="text-[11px] font-bold text-emerald-700 underline hover:text-emerald-900 cursor-pointer"
-                  >
-                    Auto-fill Code
-                  </button>
-                </div>
-                <div className="mt-1.5 flex items-baseline gap-2">
-                  <span className="text-emerald-700">One-Time Code:</span>
-                  <span className="text-base font-mono font-bold tracking-widest text-[#0F766E] bg-white px-2.5 py-0.5 rounded border border-emerald-200">
-                    {simulatedOtp}
-                  </span>
-                </div>
-              </div>
-            )}
-
             <form onSubmit={handleConfirmTransfer} className="space-y-4">
               <div>
                 <label
@@ -660,7 +612,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                   required
-                  placeholder="123456"
+                  placeholder="Enter your 6-digit code"
                   autoFocus
                   className="w-full text-center text-xl font-mono tracking-widest px-3.5 py-2.5 border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#C9932E] focus:border-[#C9932E] outline-hidden transition-colors"
                 />
