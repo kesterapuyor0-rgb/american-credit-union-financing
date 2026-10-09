@@ -228,9 +228,6 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     Thank you, {successData.full_name}. Your enrollment is being reviewed. Dashboard access will be available after approval.
                   </p>
                 </div>
-                <div className="rounded-sm border border-amber-200 bg-amber-50 p-3 text-left text-xs leading-relaxed text-amber-900">
-                  For your security, do not enter a Social Security number. The uploaded image is stored with your enrollment and is visible to authorized administrators reviewing your application.
-                </div>
                 <div className="rounded-sm border border-blue-200 bg-blue-50 p-4 text-left text-sm leading-6 text-blue-950">
                   To complete your registration, contact customer support at{' '}
                   <a
