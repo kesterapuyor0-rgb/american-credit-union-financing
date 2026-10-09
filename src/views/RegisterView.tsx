@@ -393,10 +393,6 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 </>
                 ) : (
                 <div className="space-y-4">
-                  <div className="rounded-sm border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-950">
-                    <strong>For your security:</strong> Do not enter a Social Security number or upload an actual identity document. Enter the verification reference provided by customer support. Selected file contents stay on this device; only the filename, type, and size are submitted.
-                  </div>
-
                   <div>
                     <label htmlFor="reg-verification-number" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-700">
                       Identity Verification Reference
@@ -413,7 +409,6 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       onChange={(event) => setVerificationNumber(event.target.value.toUpperCase())}
                       className="w-full rounded-sm border border-gray-300 px-3 py-2.5 font-mono text-sm uppercase focus:border-[#173B70] focus:ring-1 focus:ring-[#173B70] outline-hidden"
                     />
-                    <span className="mt-1 block text-[11px] text-gray-500">Enter the reference provided by customer support. Social Security numbers are not accepted.</span>
                   </div>
 
                   <div>
