@@ -1,14 +1,14 @@
 import { Router, Response } from 'express';
 import { Account, Transaction } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
-import { requireAuth, AuthenticatedRequest } from '../auth.js';
+import { requireApprovedUser, AuthenticatedRequest } from '../auth.js';
 
 const router = Router();
 router.use(requireDatabase);
 
 // POST /api/accounts/deposit
 // Creates a PENDING deposit transaction awaiting admin approval
-router.post('/deposit', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/deposit', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const { institutionName, accountNumber, amount, targetAccountId } = req.body || {};

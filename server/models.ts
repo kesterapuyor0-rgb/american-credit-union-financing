@@ -14,6 +14,17 @@ const userSchema = new Schema({
   profilePicture: { type: String, default: '' },
   security_pin: { type: String, select: false },
   account_number: { type: String, trim: true },
+  verification_status: { type: String, enum: ['under_review', 'approved', 'rejected'], default: 'under_review', index: true },
+  verification_rejection_reason: { type: String, default: '', trim: true, maxlength: 500 },
+  verification_submission: {
+    demoOnly: { type: Boolean, default: false },
+    verificationNumber: { type: String, default: '', trim: true, maxlength: 20 },
+    sampleFileName: { type: String, default: '', maxlength: 120 },
+    sampleFileType: { type: String, default: '', maxlength: 50 },
+    sampleFileSize: { type: Number, default: 0, max: 5242880 },
+    submittedAt: { type: Date },
+  },
+  verification_reviewed_at: { type: Date },
   created_at: { type: Schema.Types.Mixed, required: true },
 }, { versionKey: false, bufferCommands: false });
 

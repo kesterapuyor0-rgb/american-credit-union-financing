@@ -27,15 +27,36 @@ interface AdminViewProps {
   onSignOut: () => void;
 }
 
+interface VerificationApplicant {
+  id: string;
+  email: string;
+  full_name: string;
+  phone: string;
+  created_at: string;
+  verification_status: 'under_review' | 'approved' | 'rejected';
+  verification_rejection_reason?: string;
+  verification_submission?: {
+    demoOnly?: boolean;
+    verificationNumber?: string;
+    sampleFileName?: string;
+    sampleFileType?: string;
+    sampleFileSize?: number;
+    submittedAt?: string;
+  };
+}
+
 const CARD_COLOR_OPTIONS = ['emerald', 'navy', 'crimson', 'gold'] as const;
 
 export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) => {
-const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audit' | 'transactions'>('users');
+const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications' | 'cards' | 'audit' | 'transactions'>('users');
   const [overview, setOverview] = useState<AdminOverviewData | null>(null);
   const [users, setUsers] = useState<UserWithAccounts[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [pendingDeposits, setPendingDeposits] = useState<Transaction[]>([]);
   const [cardApplications, setCardApplications] = useState<CardApplication[]>([]);
+  const [verificationApplicants, setVerificationApplicants] = useState<VerificationApplicant[]>([]);
+  const [verificationStatusEdits, setVerificationStatusEdits] = useState<Record<string, { status: VerificationApplicant['verification_status']; reason: string }>>({});
+  const [savingVerificationId, setSavingVerificationId] = useState<string | null>(null);
   const [issuedCards, setIssuedCards] = useState<BankCard[]>([]);
   const [savingCardColorId, setSavingCardColorId] = useState<string | null>(null);
   const [cardColorError, setCardColorError] = useState<string | null>(null);
@@ -194,6 +215,74 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
     }
   };
 
+  const fetchVerificationApplicants = async () => {
+    try {
+      const res = await fetch('/api/admin/verifications', {
+        headers: activeToken ? { Authorization: 'Bearer ' + activeToken } : {},
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load demo verification submissions.');
+      const applicants: VerificationApplicant[] = Array.isArray(data.applicants) ? data.applicants : [];
+      setVerificationApplicants(applicants);
+      setVerificationStatusEdits(Object.fromEntries(applicants.map((applicant) => [
+        applicant.id,
+        {
+          status: applicant.verification_status,
+          reason: applicant.verification_rejection_reason || '',
+        },
+      ])));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load demo verification submissions.');
+    }
+  };
+
+  const saveVerificationStatus = async (applicant: VerificationApplicant) => {
+    const edit = verificationStatusEdits[applicant.id] || {
+      status: applicant.verification_status,
+      reason: applicant.verification_rejection_reason || '',
+    };
+    const reason = edit.reason.trim();
+    if (edit.status === 'rejected' && !reason) {
+      setError('Enter a reason before rejecting an enrollment.');
+      return;
+    }
+    setSavingVerificationId(applicant.id);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(applicant.id)}/verification-status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: 'Bearer ' + activeToken } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ verificationStatus: edit.status, reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to update enrollment status.');
+      setVerificationApplicants((current) => current.map((currentApplicant) =>
+        currentApplicant.id === applicant.id
+          ? { ...currentApplicant, ...data.user }
+          : currentApplicant
+      ));
+      setVerificationStatusEdits((current) => ({
+        ...current,
+        [applicant.id]: {
+          status: data.user.verification_status,
+          reason: data.user.verification_rejection_reason || '',
+        },
+      }));
+      setSuccessMsg(`${data.user.full_name} enrollment status set to ${data.user.verification_status.replace('_', ' ')}.`);
+      await Promise.all([fetchUsers(), fetchOverview(), fetchAuditLogs()]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update enrollment status.');
+    } finally {
+      setSavingVerificationId(null);
+    }
+  };
+
   const fetchIssuedCards = async () => {
     try {
       const res = await fetch('/api/admin/cards', {
@@ -270,6 +359,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
     fetchTransactions();
     fetchPendingDeposits();
     fetchCardApplications();
+    fetchVerificationApplicants();
     fetchIssuedCards();
   }, []);
 
@@ -644,6 +734,19 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
               >
                 Pending Transactions ({pendingDeposits.length})
               </button>
+              <button
+                onClick={() => {
+                  setActiveTab('verifications');
+                  fetchVerificationApplicants();
+                }}
+                className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
+                  activeTab === 'verifications'
+                    ? 'bg-[#173B70] text-white'
+                    : 'text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Enrollment review ({verificationApplicants.filter((applicant) => applicant.verification_status === 'under_review').length} pending)
+              </button>
             <button
               onClick={() => {
                 setActiveTab('cards');
@@ -876,6 +979,121 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
               </table>
             </div>
           </div>
+        )}
+
+        {activeTab === 'verifications' && (
+          <section className="p-4 sm:p-5">
+            <div className="mb-5 flex flex-col gap-2 border-b border-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#173B70]">Customer enrollment status</h3>
+                <p className="mt-1 max-w-2xl text-xs leading-relaxed text-gray-600">
+                  Review customer registration details and set each enrollment to under review, approved, or rejected. Demo image contents are never uploaded or stored.
+                </p>
+              </div>
+              <button type="button" onClick={fetchVerificationApplicants} className="inline-flex items-center justify-center gap-2 rounded-sm border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                <RefreshCw className="h-3.5 w-3.5" />
+                Refresh customers
+              </button>
+            </div>
+
+            {verificationApplicants.length === 0 ? (
+              <div className="rounded-sm border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
+                No customer profiles are available.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {verificationApplicants.map((applicant) => (
+                  <article key={applicant.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                    <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+                      <div className="space-y-3">
+                        <div>
+                          <h4 className="font-semibold text-slate-900">{applicant.full_name}</h4>
+                          <p className="text-xs text-slate-600">{applicant.email} · {applicant.phone}</p>
+                          <p className="mt-1 text-xs text-slate-500">Current status: <span className="font-semibold text-slate-800">{applicant.verification_status.replace('_', ' ')}</span></p>
+                        </div>
+                        <dl className="grid gap-2 rounded-md bg-slate-50 p-3 text-xs sm:grid-cols-2">
+                          <div>
+                            <dt className="text-slate-500">Synthetic verification number</dt>
+                            <dd className="mt-1 font-mono font-bold text-slate-900">{applicant.verification_submission?.verificationNumber || 'Not supplied'}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">Submitted</dt>
+                            <dd className="mt-1 text-slate-900">
+                              {applicant.verification_submission?.submittedAt
+                                ? new Date(applicant.verification_submission.submittedAt).toLocaleString()
+                                : new Date(applicant.created_at).toLocaleString()}
+                            </dd>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <dt className="text-slate-500">Sample upload metadata (no image stored)</dt>
+                            <dd className="mt-1 break-all text-slate-900">
+                              {applicant.verification_submission?.sampleFileName || 'No sample selected'}
+                              {applicant.verification_submission?.sampleFileType ? ` · ${applicant.verification_submission.sampleFileType}` : ''}
+                              {applicant.verification_submission?.sampleFileSize ? ` · ${Math.ceil(applicant.verification_submission.sampleFileSize / 1024)} KB` : ''}
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
+                      <div className="space-y-3">
+                        <label htmlFor={`verification-status-${applicant.id}`} className="block text-xs font-semibold text-slate-700">
+                          Enrollment status
+                          <select
+                            id={`verification-status-${applicant.id}`}
+                            value={verificationStatusEdits[applicant.id]?.status || applicant.verification_status}
+                            onChange={(event) => setVerificationStatusEdits((current) => ({
+                              ...current,
+                              [applicant.id]: {
+                                status: event.target.value as VerificationApplicant['verification_status'],
+                                reason: current[applicant.id]?.reason || applicant.verification_rejection_reason || '',
+                              },
+                            }))}
+                            className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#173B70]"
+                          >
+                            <option value="under_review">Under review</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                          </select>
+                        </label>
+                        {(verificationStatusEdits[applicant.id]?.status || applicant.verification_status) === 'rejected' && (
+                          <label htmlFor={`verification-reason-${applicant.id}`} className="block text-xs font-semibold text-slate-700">
+                            Rejection reason (required)
+                            <textarea
+                              id={`verification-reason-${applicant.id}`}
+                              rows={3}
+                              maxLength={500}
+                              placeholder="Explain why this enrollment is rejected"
+                              value={verificationStatusEdits[applicant.id]?.reason || ''}
+                              onChange={(event) => setVerificationStatusEdits((current) => ({
+                                ...current,
+                                [applicant.id]: {
+                                  status: current[applicant.id]?.status || applicant.verification_status,
+                                  reason: event.target.value,
+                                },
+                              }))}
+                              className="mt-1 w-full rounded-md border border-slate-200 p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#173B70]"
+                            />
+                          </label>
+                        )}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={savingVerificationId === applicant.id}
+                            onClick={() => void saveVerificationStatus(applicant)}
+                            className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-[#173B70] px-3 py-2 text-xs font-semibold text-white hover:bg-[#245B9E] disabled:opacity-50"
+                          >
+                            {savingVerificationId === applicant.id ? 'Saving…' : 'Save status'}
+                          </button>
+                          {applicant.verification_status === 'under_review' && (
+                            <span className="text-[11px] text-amber-800">Dashboard access is locked until approval.</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
         )}
 
         {/* TAB 2: PENDING DEPOSITS */}

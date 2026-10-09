@@ -6,6 +6,8 @@ export interface User {
   phone: string;
   isRestricted?: boolean;
   restrictionReason?: string;
+  verification_status?: 'under_review' | 'approved' | 'rejected';
+  verification_rejection_reason?: string;
   address?: string;
   profilePicture?: string;
   created_at?: string;

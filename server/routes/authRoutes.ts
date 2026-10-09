@@ -109,6 +109,7 @@ router.post('/login', async (req, res): Promise<void> => {
         role: getLocalDevRole(),
         phone: process.env.LOCAL_DEV_PHONE?.trim() || 'Not provided',
         profilePicture: '',
+        verification_status: 'approved',
       };
       const token = signAuthToken(localUser);
       res.cookie('boa_token', token, {
@@ -140,6 +141,14 @@ router.post('/login', async (req, res): Promise<void> => {
     }
 
     const normalizedRole = isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user';
+    if (normalizedRole !== 'admin' && user.verification_status === 'rejected') {
+      res.status(403).json({
+        error: 'Your enrollment was not approved.',
+        verificationStatus: 'rejected',
+        rejectionReason: user.verification_rejection_reason || '',
+      });
+      return;
+    }
 
     // Generate 2FA code
     const otpCode = generateOTP();
@@ -205,13 +214,21 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
     // Mark verified
     await VerificationCode.updateOne({ id: record.id }, { $set: { verified: true } });
 
-    const user = await User.findOne({ id: payload.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture').lean<any>();
+    const user = await User.findOne({ id: payload.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture verification_status verification_rejection_reason').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User profile not found.' });
       return;
     }
 
     const normalizedRole = isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user';
+    if (normalizedRole !== 'admin' && user.verification_status === 'rejected') {
+      res.status(403).json({
+        error: 'Your enrollment was not approved.',
+        verificationStatus: 'rejected',
+        rejectionReason: user.verification_rejection_reason || '',
+      });
+      return;
+    }
     const authToken = signAuthToken({
       id: user.id,
       email: user.email,
@@ -240,6 +257,8 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
         profilePicture: user.profilePicture || '',
         isRestricted: user.isRestricted === true,
         restrictionReason: user.restrictionReason || '',
+        verification_status: user.verification_status || 'approved',
+        verification_rejection_reason: user.verification_rejection_reason || '',
       },
     });
   } catch (err: any) {
@@ -303,15 +322,23 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
       res.json({ user: {
         ...req.user,
         profilePicture: '',
+        verification_status: 'approved',
       } });
       return;
     }
-    const user = await User.findOne({ id: req.user.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture').lean<any>();
+    const user = await User.findOne({ id: req.user.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture verification_status verification_rejection_reason').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
     }
-    res.json({ user: { ...user, profilePicture: user.profilePicture || '', role: isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user' } });
+    res.json({
+      user: {
+        ...user,
+        profilePicture: user.profilePicture || '',
+        role: isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user',
+        verification_status: user.verification_status || 'approved',
+      },
+    });
   } catch (err: any) {
     res.status(500).json({ error: errorMessage(err, 'Failed to retrieve user profile.') });
   }
@@ -328,7 +355,7 @@ router.post('/register', async (req, res): Promise<void> => {
   res.setHeader('Content-Type', 'application/json');
 
   try {
-    const { name, fullName, email, phone, password, passcode, securityPin } = req.body || {};
+    const { name, fullName, email, phone, password, passcode, securityPin, verificationNumber, sampleFile } = req.body || {};
     const chosenName = String(name || fullName || '').trim();
     const chosenPassword = password || passcode;
 
@@ -337,6 +364,19 @@ router.post('/register', async (req, res): Promise<void> => {
         success: false,
         error: 'Please provide all required fields: name, email, phone, and password.'
       });
+      return;
+    }
+    const cleanVerificationNumber = String(verificationNumber || '').trim().toUpperCase();
+    const cleanFileName = typeof sampleFile?.name === 'string' ? sampleFile.name.trim().slice(0, 120) : '';
+    const cleanFileType = typeof sampleFile?.type === 'string' ? sampleFile.type.trim().toLowerCase() : '';
+    const sampleFileSize = Number(sampleFile?.size);
+    if (!/^DEMO-[A-Z0-9]{4,12}$/.test(cleanVerificationNumber)) {
+      res.status(400).json({ success: false, error: 'Enter a synthetic demo number in the format DEMO-123456. Do not enter a real SSN.' });
+      return;
+    }
+    if (!cleanFileName || !/^image\/(jpeg|png|webp|gif)$/.test(cleanFileType)
+      || !Number.isInteger(sampleFileSize) || sampleFileSize <= 0 || sampleFileSize > 5 * 1024 * 1024) {
+      res.status(400).json({ success: false, error: 'Choose a sample image file (JPEG, PNG, WebP, or GIF) up to 5 MB.' });
       return;
     }
 
@@ -383,7 +423,18 @@ router.post('/register', async (req, res): Promise<void> => {
       await User.create({
         id: userId, email: cleanEmail, password_hash: passwordHash,
         full_name: cleanName, role: 'user', phone: cleanPhone,
-        security_pin: pinHash, created_at: createdAt,
+        security_pin: pinHash,
+        verification_status: 'under_review',
+        verification_rejection_reason: '',
+        verification_submission: {
+          demoOnly: true,
+          verificationNumber: cleanVerificationNumber,
+          sampleFileName: cleanFileName,
+          sampleFileType: cleanFileType,
+          sampleFileSize,
+          submittedAt: new Date(),
+        },
+        created_at: createdAt,
       });
     } catch (dbInsertErr: any) {
       console.error('MongoDB user insertion failed:', dbInsertErr);
@@ -442,32 +493,10 @@ router.post('/register', async (req, res): Promise<void> => {
       console.warn('Non-fatal audit log error during registration:', auditErr);
     }
 
-    // 6. Generate authenticated JWT for instant login or redirect
-    let authToken = '';
-    try {
-      authToken = signAuthToken({
-        id: userId,
-        email: cleanEmail,
-        role: 'user',
-        full_name: cleanName,
-        phone: cleanPhone,
-      });
-
-      res.cookie('boa_token', authToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 8 * 3600 * 1000,
-      });
-    } catch (tokenErr) {
-      console.warn('Auth token generation warning:', tokenErr);
-    }
-
-    // 7. Structured HTTP 201 JSON Response
+    // New enrollments remain locked out until an administrator approves the demo submission.
     res.status(201).json({
       success: true,
-      message: 'Your American Credit Union Financing enrollment is complete!',
-      token: authToken,
+      message: 'Your demo enrollment has been submitted for administrator review.',
       user: {
         id: userId,
         email: cleanEmail,
@@ -475,6 +504,7 @@ router.post('/register', async (req, res): Promise<void> => {
         full_name: cleanName,
         role: 'user',
         phone: cleanPhone,
+        verification_status: 'under_review',
       },
       account: {
         id: accountId,

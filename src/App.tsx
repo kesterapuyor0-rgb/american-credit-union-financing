@@ -9,6 +9,7 @@ import { AdminView } from './views/AdminView';
 import { SecurityView } from './views/SecurityView';
 import { Forbidden403View } from './views/Forbidden403View';
 import { RegisterView } from './views/RegisterView';
+import { EnrollmentStatusView } from './views/EnrollmentStatusView';
 import { LandingView } from './views/LandingView';
 import { ProfileView } from './views/ProfileView';
 import { ProfileModal } from './components/ProfileModal';
@@ -86,7 +87,7 @@ export default function App() {
 
   // Fetch accounts and transactions for standard user
   const fetchUserData = async () => {
-    if (!user || user.role === 'admin') return;
+    if (!user || user.role === 'admin' || user.verification_status === 'under_review' || user.verification_status === 'rejected') return;
 
     try {
       const storedToken = getStoredAuthToken();
@@ -122,6 +123,37 @@ export default function App() {
       fetchUserData();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!user || user.role !== 'user' || user.verification_status !== 'under_review') return;
+
+    let stopped = false;
+    const refreshEnrollmentStatus = async () => {
+      try {
+        const storedToken = getStoredAuthToken();
+        const res = await fetch('/api/auth/me', {
+          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+          credentials: 'include',
+        });
+        if (!res.ok) throw new Error('Unable to refresh enrollment status.');
+        const data = await res.json();
+        if (stopped || !data.user) return;
+        setUser(data.user);
+        if (data.user.verification_status === 'approved') {
+          setActiveTab('home');
+          if (window.location.pathname !== '/dashboard') navigateTo('/dashboard');
+        }
+      } catch (err) {
+        console.error('Enrollment status refresh failed:', err);
+      }
+    };
+
+    const intervalId = window.setInterval(() => { void refreshEnrollmentStatus(); }, 30000);
+    return () => {
+      stopped = true;
+      window.clearInterval(intervalId);
+    };
+  }, [user?.id, user?.role, user?.verification_status]);
 
   // Handle route guarding for the isolated admin portal.
   useEffect(() => {
@@ -217,9 +249,6 @@ export default function App() {
     if (currentPath === '/register') {
       return (
         <RegisterView
-          onRegisterSuccess={(newUser, authToken) => {
-            handleLoginSuccess(newUser, authToken);
-          }}
           onNavigateToLogin={(notice) => {
             setRegisterNotice(notice || null);
             navigateTo('/login');
@@ -277,6 +306,10 @@ export default function App() {
         <Footer />
       </div>
     );
+  }
+
+  if (user.verification_status === 'under_review' || user.verification_status === 'rejected') {
+    return <EnrollmentStatusView user={user} onSignOut={handleSignOut} />;
   }
 
   const renderCustomerView = () => {

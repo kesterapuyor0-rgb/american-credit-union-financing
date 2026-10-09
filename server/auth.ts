@@ -111,6 +111,44 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
   next();
 }
 
+export function requireApprovedUser(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  requireAuth(req, res, () => {
+    void User.findOne({ id: req.user!.id })
+      .select('role isAdmin verification_status verification_rejection_reason')
+      .lean<any>()
+      .then((user) => {
+        if (!user) {
+          res.status(401).json({ error: 'User profile not found. Please sign in again.' });
+          return;
+        }
+        if (isAdminRole(user.role, user.isAdmin)) {
+          next();
+          return;
+        }
+        if (user.verification_status === 'under_review') {
+          res.status(403).json({
+            error: 'Your enrollment is pending administrator review.',
+            verificationStatus: 'under_review',
+          });
+          return;
+        }
+        if (user.verification_status === 'rejected') {
+          res.status(403).json({
+            error: 'Your enrollment was not approved.',
+            verificationStatus: 'rejected',
+            rejectionReason: user.verification_rejection_reason || '',
+          });
+          return;
+        }
+        next();
+      })
+      .catch((error: unknown) => {
+        console.error('Unable to verify enrollment status:', error);
+        res.status(503).json({ error: 'Unable to verify enrollment status right now.' });
+      });
+  });
+}
+
 export function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   requireAuth(req, res, () => {
     if (!req.user || !isAdminRole(req.user.role)) {

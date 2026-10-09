@@ -47,6 +47,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<'under_review' | 'rejected' | null>(null);
+  const [verificationReason, setVerificationReason] = useState('');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
 
@@ -61,6 +63,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setVerificationStatus(null);
+    setVerificationReason('');
     setLoading(true);
 
     try {
@@ -76,6 +80,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
       const result = await safeParseResponse(res);
       if (!result.ok) {
+        if (result.data?.verificationStatus === 'under_review' || result.data?.verificationStatus === 'rejected') {
+          setVerificationStatus(result.data.verificationStatus);
+          setVerificationReason(typeof result.data.rejectionReason === 'string' ? result.data.rejectionReason : '');
+          return;
+        }
         throw new Error(result.error || 'Authentication failed. Please verify your credentials.');
       }
 
@@ -225,6 +234,22 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   <div className="mb-5 p-3 bg-red-50 border-l-4 border-[#D6A832] text-red-800 text-xs flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 text-[#D6A832] flex-shrink-0 mt-0.5" />
                     <span>{error}</span>
+                  </div>
+                )}
+
+                {verificationStatus && (
+                  <div className={`mb-5 rounded-sm border p-3.5 text-xs leading-relaxed ${verificationStatus === 'under_review' ? 'border-amber-200 bg-amber-50 text-amber-950' : 'border-rose-200 bg-rose-50 text-rose-900'}`}>
+                    <div className="font-bold">
+                      {verificationStatus === 'under_review' ? 'Enrollment under review' : 'Enrollment not approved'}
+                    </div>
+                    <p className="mt-1">
+                      {verificationStatus === 'under_review'
+                        ? 'Administrator review is still pending. Dashboard access will be available after approval.'
+                        : 'Your demo enrollment was rejected.'}
+                    </p>
+                    {verificationStatus === 'rejected' && verificationReason && (
+                      <p className="mt-2"><span className="font-semibold">Reason:</span> {verificationReason}</p>
+                    )}
                   </div>
                 )}
 

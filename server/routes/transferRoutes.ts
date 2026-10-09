@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import mongoose from 'mongoose';
 import { Account, Transaction, VerificationCode } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
-import { requireAuth, AuthenticatedRequest, generateOTP } from '../auth.js';
+import { requireApprovedUser, AuthenticatedRequest, generateOTP } from '../auth.js';
 
 const router = Router();
 router.use(requireDatabase);
@@ -11,7 +11,7 @@ const WIRE_TRANSFER_FEE = 2.01;
 const WIRE_TRANSFER_TAX = 1.03;
 
 // POST /api/transfers/initiate
-router.post('/initiate', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/initiate', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const {
@@ -130,7 +130,7 @@ router.post('/initiate', requireAuth, async (req: AuthenticatedRequest, res: Res
 });
 
 // POST /api/transfers/confirm
-router.post('/confirm', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/confirm', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const { verificationId, code } = req.body;
@@ -252,7 +252,7 @@ router.post('/confirm', requireAuth, async (req: AuthenticatedRequest, res: Resp
 });
 
 // GET /api/transfers/recent-recipients
-router.get('/recent-recipients', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/recent-recipients', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const recipients = await Transaction.aggregate([

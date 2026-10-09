@@ -2,14 +2,14 @@ import { Router, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { User, Account, Transaction, BankCard, CardApplication } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
-import { requireAuth, AuthenticatedRequest } from '../auth.js';
+import { requireApprovedUser, AuthenticatedRequest } from '../auth.js';
 import { maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
 
 const router = Router();
 router.use(requireDatabase);
 
 // GET /api/user/accounts
-router.get('/accounts', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/accounts', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const accounts = await Account.find({ user_id: userId }).sort({ created_at: 1 }).lean<any[]>();
@@ -35,7 +35,7 @@ router.get('/accounts', requireAuth, async (req: AuthenticatedRequest, res: Resp
 });
 
 // GET /api/user/transactions
-router.get('/transactions', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/transactions', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const { accountId, search, status, limit = 50 } = req.query;
@@ -71,7 +71,7 @@ router.get('/transactions', requireAuth, async (req: AuthenticatedRequest, res: 
 });
 
 // GET /api/user/summary
-router.get('/summary', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/summary', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const accounts = await Account.find({ user_id: userId }).lean<any[]>();
@@ -105,7 +105,7 @@ router.get('/summary', requireAuth, async (req: AuthenticatedRequest, res: Respo
 });
 
 // GET /api/user/cards
-router.get('/cards', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/cards', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const issuedCards = await BankCard.find({ user_id: req.user!.id, status: 'Active' }).sort({ created_at: -1 })
       .select('id user_id account_id card_type network cardColor product_name last4 masked_number status credit_limit created_at').lean<any[]>();
@@ -133,7 +133,7 @@ router.get('/cards', requireAuth, async (req: AuthenticatedRequest, res: Respons
 });
 
 // GET /api/user/card-applications
-router.get('/card-applications', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/card-applications', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const applications = await CardApplication.find({ user_id: req.user!.id }).sort({ created_at: -1 }).lean<any[]>();
     res.json({ applications });
@@ -143,7 +143,7 @@ router.get('/card-applications', requireAuth, async (req: AuthenticatedRequest, 
 });
 
 // POST /api/user/card-applications
-router.post('/card-applications', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/card-applications', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const cardType = String(req.body?.cardType || '');
     const network = String(req.body?.network || '');
@@ -186,7 +186,7 @@ router.post('/card-applications', requireAuth, async (req: AuthenticatedRequest,
 });
 
 // GET /api/user/profile
-router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/profile', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const user = await User.findOne({ id: req.user!.id }).select('id email full_name role phone address profilePicture created_at').lean<any>();
     if (!user) {
@@ -213,7 +213,7 @@ router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
 });
 
 // PUT /api/user/profile — users may update contact details, but not their name, email, or role.
-router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.put('/profile', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const phone = typeof req.body?.phone === 'string' ? req.body.phone.trim() : '';
   const address = typeof req.body?.address === 'string' ? req.body.address.trim() : '';
   if (!phone || phone.length > 32) {
@@ -242,7 +242,7 @@ router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
 });
 
 // POST /api/user/profile-picture
-router.post('/profile-picture', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/profile-picture', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const profilePicture = req.body?.profilePicture;
     if (typeof profilePicture !== 'string' || !/^data:image\/(?:png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(profilePicture)) {
@@ -274,7 +274,7 @@ router.post('/profile-picture', requireAuth, async (req: AuthenticatedRequest, r
 });
 
 // POST /api/user/deposit or /api/user/accounts/deposit
-router.post(['/deposit', '/accounts/deposit'], requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post(['/deposit', '/accounts/deposit'], requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const { institutionName, accountNumber, routingNumber, amount, targetAccountId } = req.body || {};

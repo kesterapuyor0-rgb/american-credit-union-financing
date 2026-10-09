@@ -225,7 +225,7 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
       filter = { id: { $in: [...new Set([...matchingAccounts.map((a) => a.user_id), ...matchingUsers.map((u) => u.id)])] } };
     }
 
-    const users = await User.find(filter).select('id email full_name role isAdmin isRestricted restrictionReason phone created_at').sort({ created_at: -1 }).lean<any[]>();
+    const users = await User.find(filter).select('id email full_name role isAdmin isRestricted restrictionReason phone verification_status verification_rejection_reason created_at').sort({ created_at: -1 }).lean<any[]>();
     const allAccounts = await Account.find({ user_id: { $in: users.map((u) => u.id) } }).sort({ account_type: 1 }).lean<any[]>();
     const accountsByUser = new Map<string, any[]>();
     for (const account of allAccounts) accountsByUser.set(account.user_id, [...(accountsByUser.get(account.user_id) || []), account]);
@@ -237,6 +237,8 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
 
       return {
         ...u,
+        verification_status: u.verification_status || 'approved',
+        verification_rejection_reason: u.verification_rejection_reason || '',
         accounts,
         totalBalanceUSD,
         availableBalanceUSD: totalBalanceUSD,
@@ -247,6 +249,137 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
   } catch (err: any) {
     console.error('Error fetching users for admin:', err);
     res.status(500).json({ error: errorMessage(err, 'Failed to retrieve users.') });
+  }
+});
+
+// GET /api/admin/verifications — enrollment profiles and demo-only submission metadata.
+router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const applicants = await User.find({ role: { $ne: 'admin' }, isAdmin: { $ne: true } })
+      .select('id email full_name phone created_at verification_status verification_rejection_reason verification_submission')
+      .sort({ created_at: -1 })
+      .lean<any[]>();
+    res.json({
+      applicants: applicants.map((applicant) => ({
+        ...applicant,
+        verification_status: applicant.verification_status || 'approved',
+        verification_rejection_reason: applicant.verification_rejection_reason || '',
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: errorMessage(err, 'Failed to load demo verification queue.') });
+  }
+});
+
+// PATCH /api/admin/users/:userId/verification-status
+router.patch('/users/:userId/verification-status', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = String(req.params.userId || '').trim();
+  const status = String(req.body?.verificationStatus || '').trim();
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (!userId || !['under_review', 'approved', 'rejected'].includes(status)) {
+    res.status(400).json({ error: 'Choose a valid enrollment status.' });
+    return;
+  }
+  if (status === 'rejected' && !reason) {
+    res.status(400).json({ error: 'A rejection reason is required.' });
+    return;
+  }
+  if (reason.length > 500) {
+    res.status(400).json({ error: 'Decision reason must be 500 characters or fewer.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let updatedUser: any;
+    await session.withTransaction(async () => {
+      const set: Record<string, unknown> = {
+        verification_status: status,
+        verification_rejection_reason: status === 'rejected' ? reason : '',
+      };
+      if (status !== 'under_review') set.verification_reviewed_at = new Date();
+      updatedUser = await User.findOneAndUpdate(
+        { id: userId, role: { $ne: 'admin' }, isAdmin: { $ne: true } },
+        {
+          $set: set,
+          ...(status === 'under_review' ? { $unset: { verification_reviewed_at: 1 } } : {}),
+        },
+        { new: true, session, runValidators: true },
+      ).select('id email full_name verification_status verification_rejection_reason').lean<any>();
+      if (!updatedUser) throw new Error('Customer profile not found.');
+
+      await AuditLog.create([{
+        id: `log_enrollment_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: `ENROLLMENT_STATUS_${status.toUpperCase()}`,
+        target_user_id: userId,
+        details: `Set enrollment status to ${status} for ${updatedUser.email}.${status === 'rejected' ? ` Reason: ${reason}` : ''}`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+    });
+    res.json({ success: true, user: updatedUser });
+  } catch (err) {
+    const message = errorMessage(err, 'Unable to update enrollment status.');
+    res.status(message === 'Customer profile not found.' ? 404 : 500).json({ error: message });
+  } finally {
+    await session.endSession();
+  }
+});
+
+// POST /api/admin/verifications/:userId/decision
+router.post('/verifications/:userId/decision', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = String(req.params.userId || '').trim();
+  const decision = String(req.body?.decision || '').trim().toLowerCase();
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (!userId || !['approve', 'reject'].includes(decision)) {
+    res.status(400).json({ error: 'Choose an applicant and a valid approve or reject decision.' });
+    return;
+  }
+  if (decision === 'reject' && !reason) {
+    res.status(400).json({ error: 'A rejection reason is required.' });
+    return;
+  }
+  if (reason.length > 500) {
+    res.status(400).json({ error: 'Decision reason must be 500 characters or fewer.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let reviewedUser: any;
+    await session.withTransaction(async () => {
+      reviewedUser = await User.findOneAndUpdate(
+        { id: userId, verification_status: 'under_review' },
+        {
+          $set: {
+            verification_status: decision === 'approve' ? 'approved' : 'rejected',
+            verification_rejection_reason: decision === 'reject' ? reason : '',
+            verification_reviewed_at: new Date(),
+          },
+        },
+        { new: true, session, runValidators: true },
+      ).select('id email full_name verification_status verification_rejection_reason').lean<any>();
+      if (!reviewedUser) throw new Error('Applicant not found or already reviewed.');
+
+      await AuditLog.create([{
+        id: `log_verification_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: decision === 'approve' ? 'DEMO_VERIFICATION_APPROVED' : 'DEMO_VERIFICATION_REJECTED',
+        target_user_id: userId,
+        details: `${decision === 'approve' ? 'Approved' : 'Rejected'} demo verification submission for ${reviewedUser.email}.${decision === 'reject' ? ` Reason: ${reason}` : ''}`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+    });
+    res.json({ success: true, user: reviewedUser });
+  } catch (err) {
+    const message = errorMessage(err, 'Unable to record the verification decision.');
+    res.status(message.includes('not found or already reviewed') ? 409 : 500).json({ error: message });
+  } finally {
+    await session.endSession();
   }
 });
 

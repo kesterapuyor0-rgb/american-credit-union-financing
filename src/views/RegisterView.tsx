@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BrandLogo } from '../components/BrandLogo';
 import { User } from '../types';
-import { safeParseResponse, setStoredAuthToken } from '../utils/api';
+import { safeParseResponse } from '../utils/api';
 import {
   ShieldCheck,
   Lock,
@@ -16,16 +16,16 @@ import {
   CheckCircle2,
   AlertCircle,
   Building2,
-  Check
+  Check,
+  Upload,
+  Clock3
 } from 'lucide-react';
 
 interface RegisterViewProps {
-  onRegisterSuccess: (user: User, token: string) => void;
   onNavigateToLogin: (registeredNotice?: string) => void;
 }
 
 export const RegisterView: React.FC<RegisterViewProps> = ({
-  onRegisterSuccess,
   onNavigateToLogin,
 }) => {
   const [fullName, setFullName] = useState('');
@@ -34,21 +34,15 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [securityPin, setSecurityPin] = useState('');
+  const [verificationNumber, setVerificationNumber] = useState('');
+  const [sampleFile, setSampleFile] = useState<File | null>(null);
+  const [step, setStep] = useState<1 | 2>(1);
   const [showPassword, setShowPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successData, setSuccessData] = useState<{
-    user: User;
-    token: string;
-    accountNumber?: string;
-    routingNumber?: string;
-    accountType?: string;
-    status?: string;
-    startingBalance?: number;
-    currency?: string;
-  } | null>(null);
+  const [successData, setSuccessData] = useState<User | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +73,20 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       return;
     }
 
+    if (step === 1) {
+      setStep(2);
+      return;
+    }
+
+    if (!/^DEMO-[A-Z0-9]{4,12}$/.test(verificationNumber.trim().toUpperCase())) {
+      setError('Enter a synthetic demo number in the format DEMO-123456. Do not enter a real SSN.');
+      return;
+    }
+    if (!sampleFile) {
+      setError('Choose a sample image file to continue.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -94,6 +102,12 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
           phone: phone.trim(),
           password,
           securityPin: securityPin.trim(),
+          verificationNumber: verificationNumber.trim().toUpperCase(),
+          sampleFile: {
+            name: sampleFile.name,
+            type: sampleFile.type,
+            size: sampleFile.size,
+          },
         }),
       });
 
@@ -103,19 +117,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       }
 
       const data = result.data;
-      if (data.token) {
-        setStoredAuthToken(data.token);
-      }
-      setSuccessData({
-        user: data.user,
-        token: data.token,
-        accountNumber: data.account?.account_number,
-        routingNumber: data.account?.routing_number,
-        accountType: data.account?.account_type,
-        status: data.account?.status,
-        startingBalance: data.account?.balance,
-        currency: data.account?.currency,
-      });
+      setSuccessData(data.user);
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred. Please try again.');
     } finally {
@@ -161,7 +163,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 Create Your Account
               </h1>
               <p className="text-xs text-gray-500 mt-1">
-                Enter your details to create your member profile and checking account.
+                Create your member profile and submit a demo-only enrollment for review.
               </p>
             </div>
 
@@ -175,85 +177,53 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
             {/* Success state */}
             {successData ? (
-              <div className="text-center py-4 space-y-4">
-                <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-600">
-                  <CheckCircle2 className="w-8 h-8" />
+              <div className="space-y-5 py-4 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                  <Clock3 className="h-8 w-8" />
                 </div>
-
                 <div>
-                  <h3 className="text-xl font-bold text-[#173B70] font-serif">
-                    Welcome, {successData.user.full_name}!
+                  <h3 className="font-serif text-xl font-bold text-[#173B70]">
+                    Enrollment under review
                   </h3>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Your checking account is ready.
+                  <p className="mt-2 text-sm text-gray-700">
+                    Thank you, {successData.full_name}. An administrator must approve this demo submission before dashboard access is enabled.
                   </p>
                 </div>
-
-                <div className="bg-gray-50 border border-gray-200 rounded-sm p-4 text-xs space-y-2 text-left">
-                  {successData.accountNumber && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Account Number:</span>
-                      <span className="font-mono font-bold text-[#173B70] text-sm">
-                        {successData.accountNumber}
-                      </span>
-                    </div>
-                  )}
-                  {successData.routingNumber && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Routing Number (ABA):</span>
-                      <span className="font-mono font-bold text-gray-900">{successData.routingNumber}</span>
-                    </div>
-                  )}
-                  {successData.accountType && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Account Type:</span>
-                      <span className="font-semibold text-gray-900">{successData.accountType}</span>
-                    </div>
-                  )}
-                  {successData.startingBalance !== undefined && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Starting Balance:</span>
-                      <span className="font-mono font-bold text-emerald-700">
-                        {new Intl.NumberFormat('en-US', {
-                          style: 'currency',
-                          currency: successData.currency || 'USD',
-                        }).format(successData.startingBalance)}{' '}
-                        {successData.currency || 'USD'}
-                      </span>
-                    </div>
-                  )}
-                  {successData.status && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Status:</span>
-                      <span className={`font-bold ${successData.status === 'Active' ? 'text-emerald-700' : 'text-gray-700'}`}>
-                        {successData.status}
-                      </span>
-                    </div>
-                  )}
+                <div className="rounded-sm border border-amber-200 bg-amber-50 p-3 text-left text-xs leading-relaxed text-amber-900">
+                  This portfolio demo uses synthetic verification values only. Uploaded file contents were not sent or stored.
                 </div>
-
-                <div className="pt-3 flex flex-col sm:flex-row gap-3">
-                  <button
-                    type="button"
-                    onClick={() => onRegisterSuccess(successData.user, successData.token)}
-                    className="flex-1 py-3 px-4 bg-[#173B70] hover:bg-[#245B9E] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                <div className="rounded-sm border border-blue-200 bg-blue-50 p-4 text-left text-sm leading-6 text-blue-950">
+                  To complete your registration, contact customer support at{' '}
+                  <a
+                    href="mailto:americancreditunion.financing@gmail.com"
+                    className="break-all font-semibold underline underline-offset-2"
                   >
-                    <span>Proceed to Dashboard</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onNavigateToLogin('Registration completed successfully. You may now sign in with your Online ID.')}
-                    className="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-xs rounded-sm transition-colors cursor-pointer"
-                  >
-                    Go to Sign In
-                  </button>
+                    americancreditunion.financing@gmail.com
+                  </a>
+                  .
                 </div>
+                <button
+                  type="button"
+                  onClick={() => onNavigateToLogin('Your demo enrollment is awaiting administrator review.')}
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-sm bg-[#173B70] px-4 py-3 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#245B9E]"
+                >
+                  Return to Sign In
+                  <ArrowRight className="h-4 w-4" />
+                </button>
               </div>
             ) : (
               /* Registration Form */
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="flex items-center gap-3 rounded-sm bg-slate-50 p-3 text-xs">
+                  <span className={`flex h-7 w-7 items-center justify-center rounded-full font-bold ${step === 1 ? 'bg-[#173B70] text-white' : 'bg-emerald-700 text-white'}`}>1</span>
+                  <span className={step === 1 ? 'font-semibold text-[#173B70]' : 'text-gray-500'}>Profile</span>
+                  <span className="h-px flex-1 bg-gray-300" />
+                  <span className={`flex h-7 w-7 items-center justify-center rounded-full font-bold ${step === 2 ? 'bg-[#173B70] text-white' : 'bg-gray-200 text-gray-500'}`}>2</span>
+                  <span className={step === 2 ? 'font-semibold text-[#173B70]' : 'text-gray-500'}>Demo verification</span>
+                </div>
+
+                {step === 1 ? (
+                <>
                 {/* Full Name */}
                 <div>
                   <label
@@ -420,23 +390,93 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     </span>
                   </label>
                 </div>
+                </>
+                ) : (
+                <div className="space-y-4">
+                  <div className="rounded-sm border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-950">
+                    <strong>Demo only:</strong> Do not enter a real Social Security number or upload an actual ID. Use a synthetic value beginning with <code className="font-mono font-bold">DEMO-</code> and a sample image only. The image stays on this device; only its filename, type, and size are submitted.
+                  </div>
+
+                  <div>
+                    <label htmlFor="reg-verification-number" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-700">
+                      Verification Number / SSN
+                    </label>
+                    <input
+                      id="reg-verification-number"
+                      type="text"
+                      required
+                      maxLength={17}
+                      pattern="DEMO-[A-Za-z0-9]{4,12}"
+                      autoComplete="off"
+                      placeholder="DEMO-123456"
+                      value={verificationNumber}
+                      onChange={(event) => setVerificationNumber(event.target.value.toUpperCase())}
+                      className="w-full rounded-sm border border-gray-300 px-3 py-2.5 font-mono text-sm uppercase focus:border-[#173B70] focus:ring-1 focus:ring-[#173B70] outline-hidden"
+                    />
+                    <span className="mt-1 block text-[11px] text-gray-500">Synthetic demo identifiers only; real SSNs are rejected.</span>
+                  </div>
+
+                  <div>
+                    <label htmlFor="reg-sample-file" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-700">
+                      Sample ID Image
+                    </label>
+                    <label htmlFor="reg-sample-file" className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center hover:border-[#173B70]">
+                      <Upload className="h-5 w-5 text-[#173B70]" />
+                      <span className="text-xs font-semibold text-gray-700">{sampleFile ? sampleFile.name : 'Choose a sample image file'}</span>
+                      <span className="text-[11px] text-gray-500">JPEG, PNG, WebP, or GIF · up to 5 MB · demo file only</span>
+                    </label>
+                    <input
+                      id="reg-sample-file"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="sr-only"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] || null;
+                        if (!file) {
+                          setSampleFile(null);
+                          return;
+                        }
+                        if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) || file.size <= 0 || file.size > 5 * 1024 * 1024) {
+                          setSampleFile(null);
+                          event.target.value = '';
+                          setError('Choose a sample JPEG, PNG, WebP, or GIF image up to 5 MB.');
+                          return;
+                        }
+                        setError(null);
+                        setSampleFile(file);
+                      }}
+                    />
+                    {sampleFile && <p className="mt-1 text-[11px] text-gray-500">Selected sample: {Math.ceil(sampleFile.size / 1024)} KB. The image itself is never uploaded.</p>}
+                  </div>
+                </div>
+                )}
 
                 {/* Submit Button */}
-                <button
-                  id="btn-submit-register"
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3.5 px-4 bg-[#173B70] hover:bg-[#245B9E] text-white font-bold text-sm uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 mt-5 cursor-pointer disabled:opacity-75"
-                >
-                  {loading ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <>
-                      <span>Open Account & Complete Enrollment</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
+                <div className="mt-5 flex gap-3">
+                  {step === 2 && (
+                    <button
+                      type="button"
+                      onClick={() => { setError(null); setStep(1); }}
+                      disabled={loading}
+                      className="min-h-12 rounded-sm border border-gray-300 px-4 text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Back
+                    </button>
                   )}
-                </button>
+                  <button
+                    id="btn-submit-register"
+                    type="submit"
+                    disabled={loading}
+                    className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-sm bg-[#173B70] px-4 py-3.5 text-sm font-bold uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-[#245B9E] disabled:opacity-75"
+                  >
+                    {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : (
+                      <>
+                        <span>{step === 1 ? 'Continue to Demo Verification' : 'Open Account & Complete Enrollment'}</span>
+                        {step === 1 ? <ArrowRight className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                      </>
+                    )}
+                  </button>
+                </div>
               </form>
             )}
           </div>
