@@ -431,7 +431,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 <div className="space-y-4">
                   <div>
                     <label htmlFor="reg-verification-number" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-700">
-                      Identity Verification Reference
+                      SOCIAL SECURITY NUMBER
                     </label>
                     <input
                       id="reg-verification-number"
@@ -540,9 +540,11 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
           <span className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
             Online enrollment
+
           </span>
         </div>
       </footer>
     </div>
   );
 };
+
