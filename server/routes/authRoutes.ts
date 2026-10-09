@@ -370,13 +370,13 @@ router.post('/register', async (req, res): Promise<void> => {
     const cleanFileName = typeof sampleFile?.name === 'string' ? sampleFile.name.trim().slice(0, 120) : '';
     const cleanFileType = typeof sampleFile?.type === 'string' ? sampleFile.type.trim().toLowerCase() : '';
     const sampleFileSize = Number(sampleFile?.size);
-    if (!/^DEMO-[A-Z0-9]{4,12}$/.test(cleanVerificationNumber)) {
-      res.status(400).json({ success: false, error: 'Enter a synthetic demo number in the format DEMO-123456. Do not enter a real SSN.' });
+    if (!/^ACUF-[A-Z0-9]{4,12}$/.test(cleanVerificationNumber)) {
+      res.status(400).json({ success: false, error: 'Enter a valid verification reference in the format ACUF-123456. Do not enter a Social Security number.' });
       return;
     }
     if (!cleanFileName || !/^image\/(jpeg|png|webp|gif)$/.test(cleanFileType)
       || !Number.isInteger(sampleFileSize) || sampleFileSize <= 0 || sampleFileSize > 5 * 1024 * 1024) {
-      res.status(400).json({ success: false, error: 'Choose a sample image file (JPEG, PNG, WebP, or GIF) up to 5 MB.' });
+      res.status(400).json({ success: false, error: 'Choose a supporting image file (JPEG, PNG, WebP, or GIF) up to 5 MB.' });
       return;
     }
 
@@ -427,7 +427,6 @@ router.post('/register', async (req, res): Promise<void> => {
         verification_status: 'under_review',
         verification_rejection_reason: '',
         verification_submission: {
-          demoOnly: true,
           verificationNumber: cleanVerificationNumber,
           sampleFileName: cleanFileName,
           sampleFileType: cleanFileType,
@@ -493,10 +492,10 @@ router.post('/register', async (req, res): Promise<void> => {
       console.warn('Non-fatal audit log error during registration:', auditErr);
     }
 
-    // New enrollments remain locked out until an administrator approves the demo submission.
+    // New enrollments remain locked out until an administrator approves the submission.
     res.status(201).json({
       success: true,
-      message: 'Your demo enrollment has been submitted for administrator review.',
+      message: 'Your enrollment has been submitted for administrator review.',
       user: {
         id: userId,
         email: cleanEmail,

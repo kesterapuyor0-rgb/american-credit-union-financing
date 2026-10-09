@@ -29,8 +29,8 @@ Vercel serves the Vite build from `dist` and sends `/api/*` requests to the serv
 
 The previous local `bank.sqlite` file is no longer read or modified, and its records are not imported automatically. Export and migrate any data you need before relying on the Atlas database.
 
-## Demo enrollment review
+## Customer enrollment review
 
-The two-step enrollment review is for portfolio demonstrations only. Step 2 accepts a synthetic verification value in the `DEMO-…` format and an image file selection, but the browser does not upload the image bytes. MongoDB stores only the synthetic value and sample-file metadata (filename, MIME type, and size). Do not enter a real SSN or select an actual identity document.
+The two-step enrollment process collects a customer profile, a verification reference, and supporting document file details. The browser does not upload document contents; MongoDB stores the verification reference and selected-file metadata (filename, MIME type, and size). Customers should not enter a Social Security number or select an actual identity document, and should contact customer support to complete registration.
 
 New enrollments are saved in MongoDB with an `under_review` status. After submitting, customers are instructed to contact `americancreditunion.financing@gmail.com` to complete registration. Customers can sign in to see the account-under-review screen, but banking APIs and the dashboard remain unavailable until an administrator approves the account. The status screen refreshes periodically so an approval grants access without requiring another sign-in. Administrators can set customer enrollment statuses to `under_review`, `approved`, or `rejected` (a reason is required for rejection) under **Enrollment review**; changes are added to the audit log. Existing accounts without a verification status remain usable for backward compatibility.

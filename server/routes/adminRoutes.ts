@@ -252,7 +252,7 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
   }
 });
 
-// GET /api/admin/verifications — enrollment profiles and demo-only submission metadata.
+// GET /api/admin/verifications — customer enrollment profiles and submission metadata.
 router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const applicants = await User.find({ role: { $ne: 'admin' }, isAdmin: { $ne: true } })
@@ -267,7 +267,7 @@ router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): 
       })),
     });
   } catch (err) {
-    res.status(500).json({ error: errorMessage(err, 'Failed to load demo verification queue.') });
+    res.status(500).json({ error: errorMessage(err, 'Failed to load enrollment records.') });
   }
 });
 
@@ -367,9 +367,9 @@ router.post('/verifications/:userId/decision', async (req: AuthenticatedRequest,
         id: `log_verification_${randomUUID()}`,
         admin_id: req.user!.id,
         admin_email: req.user!.email,
-        action: decision === 'approve' ? 'DEMO_VERIFICATION_APPROVED' : 'DEMO_VERIFICATION_REJECTED',
+        action: decision === 'approve' ? 'ENROLLMENT_VERIFICATION_APPROVED' : 'ENROLLMENT_VERIFICATION_REJECTED',
         target_user_id: userId,
-        details: `${decision === 'approve' ? 'Approved' : 'Rejected'} demo verification submission for ${reviewedUser.email}.${decision === 'reject' ? ` Reason: ${reason}` : ''}`,
+        details: `${decision === 'approve' ? 'Approved' : 'Rejected'} enrollment verification for ${reviewedUser.email}.${decision === 'reject' ? ` Reason: ${reason}` : ''}`,
         ip_address: req.ip || '127.0.0.1',
         created_at: new Date().toISOString(),
       }], { session });

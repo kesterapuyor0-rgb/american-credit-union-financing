@@ -17,7 +17,6 @@ const userSchema = new Schema({
   verification_status: { type: String, enum: ['under_review', 'approved', 'rejected'], default: 'under_review', index: true },
   verification_rejection_reason: { type: String, default: '', trim: true, maxlength: 500 },
   verification_submission: {
-    demoOnly: { type: Boolean, default: false },
     verificationNumber: { type: String, default: '', trim: true, maxlength: 20 },
     sampleFileName: { type: String, default: '', maxlength: 120 },
     sampleFileType: { type: String, default: '', maxlength: 50 },

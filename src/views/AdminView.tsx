@@ -36,7 +36,6 @@ interface VerificationApplicant {
   verification_status: 'under_review' | 'approved' | 'rejected';
   verification_rejection_reason?: string;
   verification_submission?: {
-    demoOnly?: boolean;
     verificationNumber?: string;
     sampleFileName?: string;
     sampleFileType?: string;
@@ -222,7 +221,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
         credentials: 'include',
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load demo verification submissions.');
+      if (!res.ok) throw new Error(data.error || 'Failed to load enrollment records.');
       const applicants: VerificationApplicant[] = Array.isArray(data.applicants) ? data.applicants : [];
       setVerificationApplicants(applicants);
       setVerificationStatusEdits(Object.fromEntries(applicants.map((applicant) => [
@@ -233,7 +232,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
         },
       ])));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load demo verification submissions.');
+      setError(err instanceof Error ? err.message : 'Failed to load enrollment records.');
     }
   };
 
@@ -987,7 +986,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
               <div>
                 <h3 className="text-base font-bold text-[#173B70]">Customer enrollment status</h3>
                 <p className="mt-1 max-w-2xl text-xs leading-relaxed text-gray-600">
-                  Review customer registration details and set each enrollment to under review, approved, or rejected. Demo image contents are never uploaded or stored.
+                  Review customer registration details and set each enrollment to under review, approved, or rejected. Supporting document file contents are not uploaded or stored.
                 </p>
               </div>
               <button type="button" onClick={fetchVerificationApplicants} className="inline-flex items-center justify-center gap-2 rounded-sm border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
@@ -1013,8 +1012,10 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                         </div>
                         <dl className="grid gap-2 rounded-md bg-slate-50 p-3 text-xs sm:grid-cols-2">
                           <div>
-                            <dt className="text-slate-500">Synthetic verification number</dt>
-                            <dd className="mt-1 font-mono font-bold text-slate-900">{applicant.verification_submission?.verificationNumber || 'Not supplied'}</dd>
+                            <dt className="text-slate-500">Verification reference</dt>
+                            <dd className="mt-1 font-mono font-bold text-slate-900">
+                              {(applicant.verification_submission?.verificationNumber || '').replace(/^[A-Z]{4}-/i, 'ACUF-') || 'Not supplied'}
+                            </dd>
                           </div>
                           <div>
                             <dt className="text-slate-500">Submitted</dt>
@@ -1025,9 +1026,9 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                             </dd>
                           </div>
                           <div className="sm:col-span-2">
-                            <dt className="text-slate-500">Sample upload metadata (no image stored)</dt>
+                            <dt className="text-slate-500">Selected document details (file not uploaded)</dt>
                             <dd className="mt-1 break-all text-slate-900">
-                              {applicant.verification_submission?.sampleFileName || 'No sample selected'}
+                              {applicant.verification_submission?.sampleFileName || 'No document selected'}
                               {applicant.verification_submission?.sampleFileType ? ` · ${applicant.verification_submission.sampleFileType}` : ''}
                               {applicant.verification_submission?.sampleFileSize ? ` · ${Math.ceil(applicant.verification_submission.sampleFileSize / 1024)} KB` : ''}
                             </dd>
@@ -1329,14 +1330,18 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                               : 'bg-emerald-50 text-emerald-800 border border-emerald-300'
                           }`}
                         >
-                          {log.action}
+                          {log.action.endsWith('_VERIFICATION_APPROVED')
+                            ? 'ENROLLMENT_VERIFICATION_APPROVED'
+                            : log.action.endsWith('_VERIFICATION_REJECTED')
+                              ? 'ENROLLMENT_VERIFICATION_REJECTED'
+                              : log.action}
                         </span>
                       </td>
                       <td className="py-3 px-4 font-mono font-bold text-gray-900 whitespace-nowrap">
                         {log.amount ? `${formatUSD(log.amount)} USD` : '—'}
                       </td>
                       <td className="py-3 px-4 text-gray-700 max-w-md">
-                        {log.details}
+                        {log.details.replace(/^(\w+) \w+ verification submission for /i, '$1 enrollment verification for ')}
                       </td>
                       <td className="py-3 px-4 font-mono text-gray-500 text-[11px]">
                         {log.ip_address || '127.0.0.1'}

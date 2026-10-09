@@ -245,7 +245,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     <p className="mt-1">
                       {verificationStatus === 'under_review'
                         ? 'Administrator review is still pending. Dashboard access will be available after approval.'
-                        : 'Your demo enrollment was rejected.'}
+                        : 'Your enrollment was not approved.'}
                     </p>
                     {verificationStatus === 'rejected' && verificationReason && (
                       <p className="mt-2"><span className="font-semibold">Reason:</span> {verificationReason}</p>

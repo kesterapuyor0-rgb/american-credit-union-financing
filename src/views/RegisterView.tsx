@@ -78,8 +78,8 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       return;
     }
 
-    if (!/^DEMO-[A-Z0-9]{4,12}$/.test(verificationNumber.trim().toUpperCase())) {
-      setError('Enter a synthetic demo number in the format DEMO-123456. Do not enter a real SSN.');
+    if (!/^ACUF-[A-Z0-9]{4,12}$/.test(verificationNumber.trim().toUpperCase())) {
+      setError('Enter a valid verification reference in the format ACUF-123456. Do not enter a Social Security number.');
       return;
     }
     if (!sampleFile) {
@@ -163,7 +163,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 Create Your Account
               </h1>
               <p className="text-xs text-gray-500 mt-1">
-                Create your member profile and submit a demo-only enrollment for review.
+                Submit your member profile and verification details for review.
               </p>
             </div>
 
@@ -186,11 +186,11 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     Enrollment under review
                   </h3>
                   <p className="mt-2 text-sm text-gray-700">
-                    Thank you, {successData.full_name}. An administrator must approve this demo submission before dashboard access is enabled.
+                    Thank you, {successData.full_name}. Your enrollment is being reviewed. Dashboard access will be available after approval.
                   </p>
                 </div>
                 <div className="rounded-sm border border-amber-200 bg-amber-50 p-3 text-left text-xs leading-relaxed text-amber-900">
-                  This portfolio demo uses synthetic verification values only. Uploaded file contents were not sent or stored.
+                  For your security, do not enter a Social Security number or upload an actual identity document. Selected file contents are not uploaded; only the filename, type, and size are recorded.
                 </div>
                 <div className="rounded-sm border border-blue-200 bg-blue-50 p-4 text-left text-sm leading-6 text-blue-950">
                   To complete your registration, contact customer support at{' '}
@@ -204,7 +204,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 </div>
                 <button
                   type="button"
-                  onClick={() => onNavigateToLogin('Your demo enrollment is awaiting administrator review.')}
+                  onClick={() => onNavigateToLogin('Your enrollment is awaiting administrator review.')}
                   className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-sm bg-[#173B70] px-4 py-3 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#245B9E]"
                 >
                   Return to Sign In
@@ -219,7 +219,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                   <span className={step === 1 ? 'font-semibold text-[#173B70]' : 'text-gray-500'}>Profile</span>
                   <span className="h-px flex-1 bg-gray-300" />
                   <span className={`flex h-7 w-7 items-center justify-center rounded-full font-bold ${step === 2 ? 'bg-[#173B70] text-white' : 'bg-gray-200 text-gray-500'}`}>2</span>
-                  <span className={step === 2 ? 'font-semibold text-[#173B70]' : 'text-gray-500'}>Demo verification</span>
+                  <span className={step === 2 ? 'font-semibold text-[#173B70]' : 'text-gray-500'}>Identity Verification</span>
                 </div>
 
                 {step === 1 ? (
@@ -394,36 +394,36 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 ) : (
                 <div className="space-y-4">
                   <div className="rounded-sm border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-950">
-                    <strong>Demo only:</strong> Do not enter a real Social Security number or upload an actual ID. Use a synthetic value beginning with <code className="font-mono font-bold">DEMO-</code> and a sample image only. The image stays on this device; only its filename, type, and size are submitted.
+                    <strong>For your security:</strong> Do not enter a Social Security number or upload an actual identity document. Enter the verification reference provided by customer support. Selected file contents stay on this device; only the filename, type, and size are submitted.
                   </div>
 
                   <div>
                     <label htmlFor="reg-verification-number" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-700">
-                      Verification Number / SSN
+                      Identity Verification Reference
                     </label>
                     <input
                       id="reg-verification-number"
                       type="text"
                       required
                       maxLength={17}
-                      pattern="DEMO-[A-Za-z0-9]{4,12}"
+                      pattern="ACUF-[A-Za-z0-9]{4,12}"
                       autoComplete="off"
-                      placeholder="DEMO-123456"
+                      placeholder="ACUF-123456"
                       value={verificationNumber}
                       onChange={(event) => setVerificationNumber(event.target.value.toUpperCase())}
                       className="w-full rounded-sm border border-gray-300 px-3 py-2.5 font-mono text-sm uppercase focus:border-[#173B70] focus:ring-1 focus:ring-[#173B70] outline-hidden"
                     />
-                    <span className="mt-1 block text-[11px] text-gray-500">Synthetic demo identifiers only; real SSNs are rejected.</span>
+                    <span className="mt-1 block text-[11px] text-gray-500">Enter the reference provided by customer support. Social Security numbers are not accepted.</span>
                   </div>
 
                   <div>
                     <label htmlFor="reg-sample-file" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-700">
-                      Sample ID Image
+                      Supporting Document Image
                     </label>
                     <label htmlFor="reg-sample-file" className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center hover:border-[#173B70]">
                       <Upload className="h-5 w-5 text-[#173B70]" />
-                      <span className="text-xs font-semibold text-gray-700">{sampleFile ? sampleFile.name : 'Choose a sample image file'}</span>
-                      <span className="text-[11px] text-gray-500">JPEG, PNG, WebP, or GIF · up to 5 MB · demo file only</span>
+                      <span className="text-xs font-semibold text-gray-700">{sampleFile ? sampleFile.name : 'Choose an image file'}</span>
+                      <span className="text-[11px] text-gray-500">JPEG, PNG, WebP, or GIF · up to 5 MB · file contents are not uploaded</span>
                     </label>
                     <input
                       id="reg-sample-file"
@@ -439,14 +439,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) || file.size <= 0 || file.size > 5 * 1024 * 1024) {
                           setSampleFile(null);
                           event.target.value = '';
-                          setError('Choose a sample JPEG, PNG, WebP, or GIF image up to 5 MB.');
+                          setError('Choose a JPEG, PNG, WebP, or GIF image up to 5 MB.');
                           return;
                         }
                         setError(null);
                         setSampleFile(file);
                       }}
                     />
-                    {sampleFile && <p className="mt-1 text-[11px] text-gray-500">Selected sample: {Math.ceil(sampleFile.size / 1024)} KB. The image itself is never uploaded.</p>}
+                    {sampleFile && <p className="mt-1 text-[11px] text-gray-500">Selected file: {Math.ceil(sampleFile.size / 1024)} KB. The image itself is never uploaded.</p>}
                   </div>
                 </div>
                 )}
@@ -471,7 +471,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                   >
                     {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : (
                       <>
-                        <span>{step === 1 ? 'Continue to Demo Verification' : 'Open Account & Complete Enrollment'}</span>
+                        <span>{step === 1 ? 'Continue to Verification' : 'Open Account & Complete Enrollment'}</span>
                         {step === 1 ? <ArrowRight className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                       </>
                     )}
