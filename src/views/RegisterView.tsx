@@ -75,7 +75,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     }
 
     if (!agreeTerms) {
-      setError('Please accept the account portal terms of service.');
+      setError('Please accept the terms of service.');
       return;
     }
 
@@ -128,7 +128,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       {/* Corporate Header */}
       <header className="bg-[#173B70] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#D6A832] shadow-lg">
         <div className="cursor-pointer" onClick={() => onNavigateToLogin()}>
-          <BrandLogo variant="white" showSubtitle={true} />
+          <BrandLogo variant="white" />
         </div>
 
         <div className="flex items-center space-x-3 text-xs">

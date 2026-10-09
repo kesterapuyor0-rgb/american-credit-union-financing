@@ -74,7 +74,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
           >
-            <BrandLogo className="min-h-10 min-w-0" variant="white" showSubtitle={false} />
+            <BrandLogo className="min-h-10 min-w-0" variant="white" />
           </button>
           {user && !isAdminView && (
             <div className="flex shrink-0 items-center gap-2">

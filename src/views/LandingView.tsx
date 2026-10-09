@@ -15,7 +15,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onSignIn, onEnroll }) 
 
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
-        <BrandLogo className="min-w-0" showSubtitle />
+        <BrandLogo className="min-w-0" />
         <nav aria-label="Main navigation" className="flex shrink-0 items-center gap-2 sm:gap-3">
           <a href="#member-services" className="hidden text-sm font-semibold text-blue-900 hover:text-blue-700 sm:inline">
             Member services

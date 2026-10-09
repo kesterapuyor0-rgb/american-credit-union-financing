@@ -192,7 +192,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
       {/* Professional Polish Header: Navy Blue + Flag Red Accent Border */}
       <header className="bg-[#173B70] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#D6A832] shadow-lg">
         <div className="flex items-center space-x-4">
-          <BrandLogo variant="white" showSubtitle={true} />
+          <BrandLogo variant="white" />
         </div>
 
         <div className="flex items-center space-x-3 text-xs">
