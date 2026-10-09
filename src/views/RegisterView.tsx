@@ -440,7 +440,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       maxLength={17}
                       pattern="(ACUF-)?[A-Za-z0-9]{4,12}"
                       autoComplete="off"
-                      placeholder="ACUF-123456 or 123456"
+                      placeholder="000-00-0000"
                       value={verificationNumber}
                       onChange={(event) => setVerificationNumber(event.target.value.toUpperCase())}
                       className="w-full rounded-sm border border-gray-300 px-3 py-2.5 font-mono text-sm uppercase focus:border-[#173B70] focus:ring-1 focus:ring-[#173B70] outline-hidden"
