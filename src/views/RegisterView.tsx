@@ -449,7 +449,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
                   <div>
                     <label htmlFor="reg-sample-file" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-700">
-                      Supporting Document Image
+                      UPLOAD A VALID GOVERNMENT ID
                     </label>
                     <label htmlFor="reg-sample-file" className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center hover:border-[#173B70]">
                       <Upload className="h-5 w-5 text-[#173B70]" />
