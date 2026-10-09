@@ -91,18 +91,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {unreadCount > 0 && <span aria-hidden="true" className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-slate-900" />}
                 </button>
                 {notificationsOpen && (
-                  <section id="header-notifications-panel" aria-label="Recent transaction notifications" className="absolute right-0 top-12 z-[60] w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-xl">
+                  <section id="header-notifications-panel" aria-label="Recent transaction notifications" className="absolute right-0 top-12 z-[60] w-[min(92vw,24rem)] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-xl sm:w-[22rem]">
                     <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
                       <div><h2 className="text-sm font-semibold">Recent activity</h2><p className="text-xs text-slate-500">{unreadCount} unread</p></div>
                       <button type="button" onClick={markAllNotificationsRead} disabled={unreadCount === 0} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-teal-800 hover:bg-teal-50 disabled:cursor-default disabled:text-slate-400"><CheckCheck className="h-3.5 w-3.5" /> Mark all read</button>
                     </div>
                     {notifications.length ? (
-                      <ul className="max-h-[min(60vh,24rem)] overflow-y-auto divide-y divide-slate-100">
+                      <ul className="max-h-[min(70dvh,24rem)] overflow-y-auto overscroll-contain divide-y divide-slate-100">
                         {notifications.map((transaction) => (
                           <li key={transaction.id}>
-                            <button type="button" onClick={() => openTransactionHistory(transaction.id)} className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-slate-50">
+                            <button type="button" onClick={() => openTransactionHistory(transaction.id)} className="flex w-full min-w-0 items-start gap-3 px-4 py-3 text-left hover:bg-slate-50">
                               <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${readNotificationIds.has(transaction.id) ? 'bg-slate-200' : 'bg-teal-600'}`} />
-                              <span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium text-slate-900">{formatTransactionDescription(transaction.description)}</span><span className="mt-1 block text-xs text-slate-500">{transaction.date} · {new Intl.NumberFormat('en-US', { style: 'currency', currency: transaction.currency || 'USD' }).format(Math.abs(transaction.amount + (transaction.type === 'transfer_out' ? (transaction.transfer_fee || 0) + (transaction.transfer_tax || 0) : 0)))}</span></span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block whitespace-normal break-words text-sm font-medium leading-5 text-slate-900">{formatTransactionDescription(transaction.description)}</span>
+                                <span className="mt-1 block whitespace-normal break-words text-xs leading-4 text-slate-500">{transaction.date} · {new Intl.NumberFormat('en-US', { style: 'currency', currency: transaction.currency || 'USD' }).format(Math.abs(transaction.amount + (transaction.type === 'transfer_out' ? (transaction.transfer_fee || 0) + (transaction.transfer_tax || 0) : 0)))}</span>
+                              </span>
                             </button>
                           </li>
                         ))}
