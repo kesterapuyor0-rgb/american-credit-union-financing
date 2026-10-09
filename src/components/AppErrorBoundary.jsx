@@ -17,7 +17,7 @@ export default class AppErrorBoundary extends React.Component {
     if (this.state.recovering) return null;
     if (this.state.error) {
       return (
-        <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6 text-center">
+        <main className="flex min-h-[100dvh] items-center justify-center bg-slate-50 p-6 text-center">
           <div>
             <h1 className="text-lg font-semibold text-slate-900">This page could not be loaded.</h1>
             <p className="mt-2 text-sm text-slate-600">Please refresh the page and try again.</p>

@@ -1,5 +1,30 @@
 @import "tailwindcss";
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+html,
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
 @theme {
   --color-teal-50: #eff6ff;
   --color-teal-100: #dbeafe;

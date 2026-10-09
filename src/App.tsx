@@ -185,7 +185,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F4F6F8] flex flex-col items-center justify-center">
+      <div className="min-h-[100dvh] bg-[#F4F6F8] flex flex-col items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <RefreshCw className="w-8 h-8 text-[#173B70] animate-spin" />
           <div className="text-sm font-bold text-[#173B70] font-serif tracking-wide">
@@ -243,7 +243,7 @@ export default function App() {
   // If unauthorized user attempted to access /admin:
   if (forbiddenAccess && user.role !== 'admin') {
     return (
-      <div className="min-h-screen bg-[#F3F4F6] flex flex-col justify-between font-sans">
+      <div className="min-h-[100dvh] bg-[#F3F4F6] flex flex-col justify-between font-sans">
         <Navbar
           user={user}
           activeTab={activeTab}
@@ -264,7 +264,7 @@ export default function App() {
   // Admin view (strictly isolated for admin role)
   if (user.role === 'admin') {
     return (
-      <div className="min-h-screen bg-[#F3F4F6] flex flex-col justify-between font-sans">
+      <div className="min-h-[100dvh] bg-[#F3F4F6] flex flex-col justify-between font-sans">
         <Navbar
           user={user}
           activeTab={activeTab}
@@ -334,7 +334,7 @@ export default function App() {
   // Note: Hidden Admin Interfaces constraint:
   // "Ensure zero links, buttons, or visual references to the admin portal exist on the standard user interface."
   return (
-    <div className="min-h-screen bg-[#F3F4F6] flex flex-col justify-between font-sans pb-[calc(5.5rem_+_env(safe-area-inset-bottom))] sm:pb-0">
+    <div className="min-h-[100dvh] bg-[#F3F4F6] flex flex-col justify-between font-sans pb-[calc(5.5rem_+_env(safe-area-inset-bottom))] sm:pb-0">
       <Navbar
         key={user.id}
         user={user}

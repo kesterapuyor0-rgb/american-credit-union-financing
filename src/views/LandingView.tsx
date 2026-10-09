@@ -8,7 +8,7 @@ interface LandingViewProps {
 }
 
 export const LandingView: React.FC<LandingViewProps> = ({ onSignIn, onEnroll }) => (
-  <div className="min-h-screen overflow-x-hidden bg-white font-sans text-slate-800">
+  <div className="min-h-[100dvh] overflow-x-hidden bg-white font-sans text-slate-800">
     <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs leading-5 text-amber-950 sm:text-sm">
       Protect your account: never share your password or one-time verification codes.
     </div>

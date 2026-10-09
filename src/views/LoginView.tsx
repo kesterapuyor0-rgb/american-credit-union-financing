@@ -188,7 +188,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#F3F4F6] flex flex-col justify-between font-sans">
+    <div className="min-h-[100dvh] bg-[#F3F4F6] flex flex-col justify-between font-sans">
       {/* Professional Polish Header: Navy Blue + Flag Red Accent Border */}
       <header className="flex min-h-[72px] shrink-0 items-center border-b-4 border-[#D6A832] bg-[#173B70] px-4 py-3 text-white shadow-lg sm:px-8">
         <div className="mx-auto flex w-full max-w-7xl items-center">
