@@ -326,30 +326,29 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           </form>
         )}
         {(cards.length > 0 || legacyCards.length > 0) ? (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid justify-items-center gap-4 sm:grid-cols-2">
             {cards.map((card) => (
-              <article key={card.id} className={`relative isolate min-h-52 overflow-hidden rounded-2xl p-5 text-white shadow-lg ${CARD_COLOR_CLASSES[card.cardColor || 'emerald']}`}>
+              <article key={card.id} className={`relative isolate flex aspect-[1.586/1] w-full max-w-md flex-col justify-between gap-2 overflow-hidden rounded-2xl p-3.5 text-white shadow-lg sm:p-4 ${CARD_COLOR_CLASSES[card.cardColor || 'emerald']}`}>
                 <div aria-hidden="true" className="absolute -right-12 -top-16 -z-10 h-56 w-56 rounded-full border border-white/10" />
                 <div aria-hidden="true" className="absolute -right-4 -top-8 -z-10 h-40 w-40 rounded-full border border-white/10" />
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-x                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60">REWARDS CARD</p>
-                    <p className="mt-1 text-sm font-semibold">{card.product_name}</p>
+                <div className="relative flex min-w-0 items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/70">{card.card_type} CARD</p>
+                    <p className="mt-0.5 truncate text-xs font-semibold sm:text-sm">{card.product_name}</p>
                   </div>
-                  <span className="rounded-md border border-white/25 bg-white/10 px-2 py-1 text-xs font-bold tracking-wide">{card.network || 'Visa'}</span>
+                  <span className="shrink-0 rounded-md border border-white/25 bg-white/10 px-2 py-1 text-[10px] font-bold tracking-wide sm:text-xs">{card.network || 'Visa'}</span>
                 </div>
-                <div className="mt-6 flex items-center gap-2">
+                <div className="relative flex items-center gap-2">
                   <div aria-hidden="true" className="grid h-8 w-10 grid-cols-2 gap-px overflow-hidden rounded-md border border-amber-200/40 bg-amber-200/80 p-1">
                     <span className="rounded-sm border border-amber-900/20" /><span className="rounded-sm border border-amber-900/20" /><span className="rounded-sm border border-amber-900/20" /><span className="rounded-sm border border-amber-900/20" />
                   </div>
                   <CreditCard aria-hidden="true" className="h-5 w-5 text-white/60" />
                 </div>
-                <p className="mt-4 font-mono text-base tracking-[0.16em] sm:text-lg">{card.masked_number || `•••• •••• •••• ${card.last4}`}</p>
-                <div className="mt-4 flex flex-col gap-3 border-t border-white/15 pt-3 sm:flex-row sm:items-end sm:justify-between">
-                  <div><p className="text-[9px] uppercase tracking-widest text-white/55">Cardholder</p><p className="mt-0.5 text-xs font-semibold uppercase tracking-wide">{user.full_name}</p></div>
-                  <div className="text-left sm:text-right"><p className="text-[9px] uppercase tracking-widest text-white/55">{card.card_type === 'Credit' ? 'Approved limit' : 'Linked account available'}</p><p className="mt-0.5 text-sm font-bold">{formatMoney(card.card_type === 'Credit' ? card.credit_limit : (card.linked_account_available || 0))}</p></div>
+                <p className="relative truncate font-mono text-sm tracking-[0.12em] sm:text-base sm:tracking-[0.16em]">{card.masked_number || `•••• •••• •••• ${card.last4}`}</p>
+                <div className="relative grid grid-cols-2 gap-2 border-t border-white/20 pt-2">
+                  <div className="min-w-0"><p className="text-[8px] uppercase tracking-wider text-white/65">Cardholder</p><p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">{user.full_name}</p></div>
+                  <div className="min-w-0 text-right"><p className="truncate text-[8px] uppercase tracking-wider text-white/65">{card.card_type === 'Credit' ? 'Approved limit' : 'Linked account available'}</p><p className="mt-0.5 text-xs font-bold sm:text-sm">{formatMoney(card.card_type === 'Credit' ? card.credit_limit : (card.linked_account_available || 0))}</p></div>
                 </div>
-                <p className="mt-3 text-[10px] font-medium text-white/70">Visual Sercure card view · No payment credentials or purchase capability</p>
               </article>
             ))}
             {legacyCards.map((card) => (
