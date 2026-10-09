@@ -126,20 +126,22 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
   return (
     <div className="min-h-screen bg-[#F3F4F6] flex flex-col justify-between font-sans">
       {/* Corporate Header */}
-      <header className="bg-[#173B70] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#D6A832] shadow-lg">
-        <div className="cursor-pointer" onClick={() => onNavigateToLogin()}>
-          <BrandLogo variant="white" />
-        </div>
-
-        <div className="flex items-center space-x-3 text-xs">
-          <span className="hidden sm:inline text-slate-300">Already registered?</span>
-          <button
-            type="button"
-            onClick={() => onNavigateToLogin()}
-            className="bg-white text-[#173B70] px-3.5 py-1.5 rounded-sm font-bold hover:bg-gray-100 uppercase transition-colors shadow-xs cursor-pointer"
-          >
-            Sign In
+      <header className="flex min-h-[72px] shrink-0 items-center border-b-4 border-[#D6A832] bg-[#173B70] px-4 py-3 text-white shadow-lg sm:px-8">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3">
+          <button type="button" className="min-w-0 cursor-pointer text-left" onClick={() => onNavigateToLogin()} aria-label="American Credit Union Financing home">
+            <BrandLogo className="min-w-0" variant="white" />
           </button>
+
+          <div className="flex shrink-0 items-center gap-2 text-xs sm:gap-3">
+            <span className="hidden text-slate-300 sm:inline">Already registered?</span>
+            <button
+              type="button"
+              onClick={() => onNavigateToLogin()}
+              className="min-h-10 rounded-sm bg-white px-3 py-2 font-bold uppercase text-[#173B70] shadow-xs transition-colors hover:bg-gray-100"
+            >
+              Sign In
+            </button>
+          </div>
         </div>
       </header>
 

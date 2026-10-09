@@ -190,36 +190,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
   return (
     <div className="min-h-screen bg-[#F3F4F6] flex flex-col justify-between font-sans">
       {/* Professional Polish Header: Navy Blue + Flag Red Accent Border */}
-      <header className="bg-[#173B70] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#D6A832] shadow-lg">
-        <div className="flex items-center space-x-4">
-          <BrandLogo variant="white" />
-        </div>
-
-        <div className="flex items-center space-x-3 text-xs">
-          {onNavigateToRegister && (
-            <button
-              id="btn-header-enroll"
-              type="button"
-              onClick={onNavigateToRegister}
-              className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-sm uppercase tracking-wider transition-colors cursor-pointer border border-white/20 mr-1"
-            >
-              Enroll / Register
-            </button>
-          )}
-          <div className="flex flex-col items-end hidden sm:flex">
-            <span className="text-xs opacity-80 uppercase tracking-widest text-slate-200">
-              SECURE ACCESS
-            </span>
-            <span className="text-sm font-medium text-white">
-              American Credit Union Financing
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-sm border border-white/20">
-            <Lock className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-xs font-bold text-white uppercase tracking-wider">
-              Protected
-            </span>
-          </div>
+      <header className="flex min-h-[72px] shrink-0 items-center border-b-4 border-[#D6A832] bg-[#173B70] px-4 py-3 text-white shadow-lg sm:px-8">
+        <div className="mx-auto flex w-full max-w-7xl items-center">
+          <BrandLogo className="min-w-0" variant="white" />
         </div>
       </header>
 

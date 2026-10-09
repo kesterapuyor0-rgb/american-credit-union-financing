@@ -23,7 +23,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
 
       <span
         style={{ color: textColor }}
-        className="min-w-0 max-w-[175px] text-[10px] font-bold leading-tight tracking-tight font-serif sm:max-w-none sm:text-base md:text-lg"
+        className="min-w-0 max-w-[min(16rem,calc(100vw-5rem))] text-xs font-bold leading-[1.15] tracking-tight font-serif sm:max-w-none sm:text-lg md:text-xl"
       >
         American Credit Union Financing
       </span>
