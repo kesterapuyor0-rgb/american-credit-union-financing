@@ -26,18 +26,18 @@ export const Forbidden403View: React.FC<Forbidden403ViewProps> = ({ onRedirectTo
   return (
     <div className="min-h-[70vh] flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white border border-gray-300 rounded-xs shadow-lg overflow-hidden text-center">
-        <div className="h-1.5 bg-[#C9932E]" />
+        <div className="h-1.5 bg-[#D6A832]" />
 
         <div className="p-8">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-[#C9932E]">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-[#D6A832]">
             <ShieldAlert className="w-9 h-9" />
           </div>
 
-          <div className="text-xs font-bold text-[#C9932E] uppercase tracking-wider mb-1">
+          <div className="text-xs font-bold text-[#D6A832] uppercase tracking-wider mb-1">
             HTTP 403 Forbidden Access
           </div>
 
-          <h1 className="text-2xl font-bold text-[#0F766E] font-serif mb-2">
+          <h1 className="text-2xl font-bold text-[#173B70] font-serif mb-2">
             Administrator Authorization Required
           </h1>
 
@@ -50,13 +50,13 @@ export const Forbidden403View: React.FC<Forbidden403ViewProps> = ({ onRedirectTo
           </div>
 
           <div className="text-xs text-gray-500 mb-4">
-            Redirecting to your personal account dashboard in <strong className="text-[#0F766E]">{countdown}s</strong>...
+            Redirecting to your personal account dashboard in <strong className="text-[#173B70]">{countdown}s</strong>...
           </div>
 
           <button
             id="btn-return-dashboard"
             onClick={onRedirectToDashboard}
-            className="w-full py-2.5 px-4 bg-[#0F766E] hover:bg-[#115E59] text-white font-bold text-xs uppercase tracking-wider rounded-xs shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-2.5 px-4 bg-[#173B70] hover:bg-[#245B9E] text-white font-bold text-xs uppercase tracking-wider rounded-xs shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Return to Account Dashboard</span>

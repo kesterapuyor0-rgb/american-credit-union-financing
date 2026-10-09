@@ -19,10 +19,10 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
             <ShieldCheck className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-xs font-bold text-[#C9932E] uppercase tracking-wider">
+            <div className="text-xs font-bold text-[#D6A832] uppercase tracking-wider">
               Account Security
             </div>
-            <h1 className="text-2xl font-bold text-[#0F766E] font-serif">
+            <h1 className="text-2xl font-bold text-[#173B70] font-serif">
               Sign-in and Account Details
             </h1>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -38,8 +38,8 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
         <div className="bg-white border border-gray-200 rounded-xs p-5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <div className="flex items-center gap-2">
-              <KeyRound className="w-4 h-4 text-[#0F766E]" />
-              <h2 className="font-bold text-sm text-[#0F766E]">Profile contact details</h2>
+              <KeyRound className="w-4 h-4 text-[#173B70]" />
+              <h2 className="font-bold text-sm text-[#173B70]">Profile contact details</h2>
             </div>
             <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 rounded">
               On file
@@ -73,8 +73,8 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
         <div className="bg-white border border-gray-200 rounded-xs p-5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <div className="flex items-center gap-2">
-              <FileCheck className="w-4 h-4 text-[#0F766E]" />
-              <h2 className="font-bold text-sm text-[#0F766E]">Account activity</h2>
+              <FileCheck className="w-4 h-4 text-[#173B70]" />
+              <h2 className="font-bold text-sm text-[#173B70]">Account activity</h2>
             </div>
           </div>
 
@@ -83,7 +83,7 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
           </p>
 
           <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xs text-xs space-y-1">
-            <div className="font-bold text-[#0F766E]">Denomination Standard</div>
+            <div className="font-bold text-[#173B70]">Denomination Standard</div>
             <div className="text-gray-600">
               All balances, settlements, wire transfers, and account histories are natively calculated and executed in United States Dollars (USD / $).
             </div>

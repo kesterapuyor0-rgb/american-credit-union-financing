@@ -196,7 +196,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
       <header className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex min-w-0 items-center gap-3">
           <div className="relative h-12 w-12 shrink-0">
-            <div className="h-12 w-12 overflow-hidden rounded-full bg-emerald-50 text-teal-800 ring-2 ring-[#D6A84F] flex items-center justify-center text-lg font-semibold">
+            <div className="h-12 w-12 overflow-hidden rounded-full bg-emerald-50 text-teal-800 ring-2 ring-[#E5B841] flex items-center justify-center text-lg font-semibold">
               {user.profilePicture ? (
                 <img src={user.profilePicture} alt={`${user.full_name} profile`} className="h-full w-full object-cover" />
               ) : (user.full_name?.charAt(0).toUpperCase() || 'U')}

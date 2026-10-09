@@ -115,10 +115,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Top Welcome & Quick Navigation Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-200">
         <div>
-          <span className="text-xs font-bold text-[#C9932E] uppercase tracking-wider">
+          <span className="text-xs font-bold text-[#D6A832] uppercase tracking-wider">
             Personal Banking Portal
           </span>
-          <h1 className="text-xl sm:text-2xl font-bold text-[#0F766E] font-serif tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#173B70] font-serif tracking-tight">
             Account Dashboard
           </h1>
         </div>
@@ -128,7 +128,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Prominent Dynamic Welcome Header Hero Section */}
       <div
         id="dashboard-welcome-hero"
-        className="bg-gradient-to-r from-[#0F766E] via-[#115E59] to-[#134E4A] text-white rounded-sm shadow-md overflow-hidden border-t-4 border-[#C9932E]"
+        className="bg-gradient-to-r from-[#173B70] via-[#245B9E] to-[#153861] text-white rounded-sm shadow-md overflow-hidden border-t-4 border-[#D6A832]"
       >
         <div className="p-5 sm:p-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -149,7 +149,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <button
                 id="hero-btn-add-funds"
                 onClick={() => setIsDepositModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#C9932E] hover:bg-[#A8761B] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-sm transition-colors cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#D6A832] hover:bg-[#AD841B] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-sm transition-colors cursor-pointer"
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>Deposit / Add Funds</span>
@@ -180,7 +180,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       setActiveAccountId(event.target.value);
                       setShowAccountNumber(false);
                     }}
-                    className="w-full sm:w-auto max-w-full rounded-sm border border-white/20 bg-[#0F766E] px-2 py-1 text-[11px] font-semibold normal-case text-white focus:outline-none focus:ring-2 focus:ring-white/60"
+                    className="w-full sm:w-auto max-w-full rounded-sm border border-white/20 bg-[#173B70] px-2 py-1 text-[11px] font-semibold normal-case text-white focus:outline-none focus:ring-2 focus:ring-white/60"
                   >
                     {switchableAccounts.map((account) => (
                       <option key={account.id} value={account.id}>
@@ -284,14 +284,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           disabled={loading}
           className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-xs border border-gray-300 rounded-sm shadow-2xs transition-colors cursor-pointer"
         >
-          <RefreshCw className={`w-3.5 h-3.5 text-[#0F766E] ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-3.5 h-3.5 text-[#173B70] ${loading ? 'animate-spin' : ''}`} />
           <span>Refresh Balances</span>
         </button>
 
         <button
           id="btn-nav-deposit"
           onClick={() => setIsDepositModalOpen(true)}
-          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#C9932E] hover:bg-[#A8761B] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-xs transition-colors cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#D6A832] hover:bg-[#AD841B] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-xs transition-colors cursor-pointer"
         >
           <PlusCircle className="w-3.5 h-3.5" />
           <span>Add Funds / Deposit</span>
@@ -300,7 +300,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <button
           id="btn-quick-transfer"
           onClick={() => onNavigateToTransfer()}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#0F766E] hover:bg-[#115E59] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-xs transition-colors cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#173B70] hover:bg-[#245B9E] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-xs transition-colors cursor-pointer"
         >
           <span>Transfer Money</span>
           <ArrowRight className="w-3.5 h-3.5" />
@@ -330,14 +330,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Card: Your Accounts */}
           <div className="bg-white border border-gray-200 shadow-sm p-4 sm:p-5 rounded-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[#0F766E] font-bold text-base sm:text-lg flex items-center">
-                <Landmark className="w-5 h-5 mr-2 text-[#0F766E]" />
+              <h2 className="text-[#173B70] font-bold text-base sm:text-lg flex items-center">
+                <Landmark className="w-5 h-5 mr-2 text-[#173B70]" />
                 Your Accounts
               </h2>
               {selectedAccountId !== 'all' && (
                 <button
                   onClick={() => setSelectedAccountId('all')}
-                  className="text-[11px] text-[#0F766E] font-semibold hover:underline cursor-pointer"
+                  className="text-[11px] text-[#173B70] font-semibold hover:underline cursor-pointer"
                 >
                   View All
                 </button>
@@ -356,7 +356,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     onClick={() => setSelectedAccountId(account.id)}
                     className={`p-3.5 rounded-sm cursor-pointer transition-all ${
                       isSelected
-                        ? 'bg-emerald-50 border-l-4 border-[#0F766E] shadow-2xs'
+                        ? 'bg-emerald-50 border-l-4 border-[#173B70] shadow-2xs'
                         : 'border border-gray-200 hover:bg-gray-50'
                     }`}
                   >
@@ -369,7 +369,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </span>
                     </div>
 
-                    <p className={`text-2xl font-bold font-serif mt-1 ${isSelected ? 'text-[#0F766E]' : 'text-gray-800'}`}>
+                    <p className={`text-2xl font-bold font-serif mt-1 ${isSelected ? 'text-[#173B70]' : 'text-gray-800'}`}>
                       {formatUSD(isCreditCard ? account.balance : account.available_balance ?? account.balance)}
                     </p>
 
@@ -382,7 +382,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           e.stopPropagation();
                           onNavigateToTransfer(account.id);
                         }}
-                        className="text-[#0F766E] hover:text-[#C9932E] font-semibold underline"
+                        className="text-[#173B70] hover:text-[#D6A832] font-semibold underline"
                       >
                         Transfer
                       </button>
@@ -413,9 +413,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <button
                 id="quick-action-transfer"
                 onClick={() => onNavigateToTransfer()}
-                className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-sm hover:border-[#C9932E] hover:bg-red-50 text-gray-700 transition-colors cursor-pointer group"
+                className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-sm hover:border-[#D6A832] hover:bg-red-50 text-gray-700 transition-colors cursor-pointer group"
               >
-                <div className="w-8 h-8 bg-gray-100 group-hover:bg-white rounded-full flex items-center justify-center mb-2 text-[#0F766E] group-hover:text-[#C9932E] transition-colors">
+                <div className="w-8 h-8 bg-gray-100 group-hover:bg-white rounded-full flex items-center justify-center mb-2 text-[#173B70] group-hover:text-[#D6A832] transition-colors">
                   <ArrowRight className="w-4 h-4" />
                 </div>
                 <span className="text-[10px] font-bold tracking-wider uppercase">TRANSFER</span>
@@ -424,9 +424,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <button
                 id="quick-action-pay-bills"
                 onClick={() => onNavigateToTransfer()}
-                className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-sm hover:border-[#C9932E] hover:bg-red-50 text-gray-700 transition-colors cursor-pointer group"
+                className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-sm hover:border-[#D6A832] hover:bg-red-50 text-gray-700 transition-colors cursor-pointer group"
               >
-                <div className="w-8 h-8 bg-gray-100 group-hover:bg-white rounded-full flex items-center justify-center mb-2 text-[#0F766E] group-hover:text-[#C9932E] transition-colors">
+                <div className="w-8 h-8 bg-gray-100 group-hover:bg-white rounded-full flex items-center justify-center mb-2 text-[#173B70] group-hover:text-[#D6A832] transition-colors">
                   <Receipt className="w-4 h-4" />
                 </div>
                 <span className="text-[10px] font-bold tracking-wider uppercase">PAY BILLS</span>
@@ -435,9 +435,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <button
                 id="quick-action-recipient-transfer"
                 onClick={() => onNavigateToTransfer()}
-                className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-sm hover:border-[#C9932E] hover:bg-red-50 text-gray-700 transition-colors cursor-pointer group"
+                className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-sm hover:border-[#D6A832] hover:bg-red-50 text-gray-700 transition-colors cursor-pointer group"
               >
-                <div className="w-8 h-8 bg-gray-100 group-hover:bg-white rounded-full flex items-center justify-center mb-2 text-[#0F766E] group-hover:text-[#C9932E] transition-colors">
+                <div className="w-8 h-8 bg-gray-100 group-hover:bg-white rounded-full flex items-center justify-center mb-2 text-[#173B70] group-hover:text-[#D6A832] transition-colors">
                   <Send className="w-4 h-4" />
                 </div>
                 <span className="text-[10px] font-bold tracking-wider uppercase">RECIPIENT TRANSFER</span>
@@ -446,16 +446,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <button
                 id="quick-action-statements"
                 onClick={exportCSV}
-                className="sm:col-span-2 flex items-center justify-center gap-2 p-2.5 border border-gray-200 rounded-sm hover:border-[#0F766E] hover:bg-gray-50 text-gray-700 transition-colors cursor-pointer group"
+                className="sm:col-span-2 flex items-center justify-center gap-2 p-2.5 border border-gray-200 rounded-sm hover:border-[#173B70] hover:bg-gray-50 text-gray-700 transition-colors cursor-pointer group"
               >
-                <Download className="w-3.5 h-3.5 text-[#0F766E]" />
+                <Download className="w-3.5 h-3.5 text-[#173B70]" />
                 <span className="text-[11px] font-bold tracking-wider uppercase">DOWNLOAD CSV STATEMENT</span>
               </button>
             </div>
           </div>
 
           {/* Card: Security Tip (Navy Blue with Shield watermark) */}
-          <div className="bg-[#0F766E] text-white p-5 rounded-sm relative overflow-hidden shadow-xs">
+          <div className="bg-[#173B70] text-white p-5 rounded-sm relative overflow-hidden shadow-xs">
             <div className="relative z-10">
               <p className="text-xs font-bold uppercase mb-2 tracking-wider text-red-300 flex items-center gap-1.5">
                 <Shield className="w-3.5 h-3.5 text-red-400" />
@@ -480,7 +480,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div className="text-xs text-gray-500 font-medium uppercase tracking-wider">
                   Total Deposits Liquidity
                 </div>
-                <div className="text-2xl font-bold text-[#0F766E] font-serif mt-1">
+                <div className="text-2xl font-bold text-[#173B70] font-serif mt-1">
                   {formatUSD(summary.totalDepositBalanceUSD)}
                 </div>
                 <div className="text-[11px] text-emerald-700 font-medium mt-0.5">
@@ -532,14 +532,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     const el = document.getElementById('input-search-transactions');
                     el?.focus();
                   }}
-                  className="text-[#0F766E] hover:underline cursor-pointer"
+                  className="text-[#173B70] hover:underline cursor-pointer"
                 >
                   Search
                 </button>
                 <span className="text-gray-300">|</span>
                 <button
                   onClick={exportCSV}
-                  className="text-[#0F766E] hover:underline cursor-pointer flex items-center gap-1"
+                  className="text-[#173B70] hover:underline cursor-pointer flex items-center gap-1"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download CSV</span>
@@ -557,7 +557,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   placeholder="Search by merchant, payee, description, or amount..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-1.5 text-xs border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden"
+                  className="w-full pl-9 pr-3.5 py-1.5 text-xs border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#173B70] focus:border-[#173B70] outline-hidden"
                 />
               </div>
 
@@ -567,7 +567,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   id="select-status-filter"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full py-1.5 px-2 text-xs border border-gray-300 rounded-sm bg-white text-gray-700 focus:ring-1 focus:ring-[#0F766E] outline-hidden cursor-pointer"
+                  className="w-full py-1.5 px-2 text-xs border border-gray-300 rounded-sm bg-white text-gray-700 focus:ring-1 focus:ring-[#173B70] outline-hidden cursor-pointer"
                 >
                   <option value="all">All Records (Pending & Completed)</option>
                   <option value="completed">Completed Status Only</option>
@@ -665,7 +665,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   setStatusFilter('all');
                   setSearchQuery('');
                 }}
-                className="text-xs font-bold text-[#0F766E] hover:text-[#C9932E] uppercase tracking-wide cursor-pointer"
+                className="text-xs font-bold text-[#173B70] hover:text-[#D6A832] uppercase tracking-wide cursor-pointer"
               >
                 Reset Filters & View All
               </button>
@@ -678,14 +678,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {selectedTransaction && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 backdrop-blur-2xs">
           <div className="bg-white border border-gray-300 rounded-sm shadow-xl max-w-md w-full overflow-hidden">
-            <div className="h-1.5 bg-[#0F766E]" />
+            <div className="h-1.5 bg-[#173B70]" />
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <span className="text-[10px] font-bold text-[#C9932E] uppercase tracking-wider">
+                  <span className="text-[10px] font-bold text-[#D6A832] uppercase tracking-wider">
                     American Credit Union Financing · Account Activity
                   </span>
-                  <h3 className="text-lg font-bold text-[#0F766E] font-serif mt-0.5">
+                  <h3 className="text-lg font-bold text-[#173B70] font-serif mt-0.5">
                     {formatTransactionDescription(selectedTransaction.description)}
                   </h3>
                 </div>
@@ -741,7 +741,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div className="mt-5 flex justify-end">
                 <button
                   onClick={() => setSelectedTransaction(null)}
-                  className="px-4 py-2 bg-[#0F766E] hover:bg-[#115E59] text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-2xs transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-[#173B70] hover:bg-[#245B9E] text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-2xs transition-colors cursor-pointer"
                 >
                   Close Receipt
                 </button>

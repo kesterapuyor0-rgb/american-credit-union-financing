@@ -119,7 +119,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onProfilePicture
     <section aria-labelledby="profile-heading" className="mx-auto w-full max-w-3xl space-y-6">
       <header className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:flex-row sm:text-left">
         <div className="relative h-24 w-24 shrink-0">
-          <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-full bg-emerald-50 text-3xl font-semibold text-teal-800 ring-2 ring-[#D6A84F]">
+          <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-full bg-emerald-50 text-3xl font-semibold text-teal-800 ring-2 ring-[#E5B841]">
             {user.profilePicture ? <img src={user.profilePicture} alt={`${user.full_name} profile`} className="h-full w-full object-cover" /> : user.full_name.charAt(0).toUpperCase() || 'U'}
           </div>
           <label title="Change profile picture" className="absolute bottom-0 right-0 grid h-9 w-9 cursor-pointer place-items-center rounded-full border-2 border-white bg-teal-800 text-white shadow">

@@ -190,7 +190,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   return (
     <div className="min-h-screen bg-[#F3F4F6] flex flex-col justify-between font-sans">
       {/* Professional Polish Header: Navy Blue + Flag Red Accent Border */}
-      <header className="bg-[#0F766E] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#C9932E] shadow-lg">
+      <header className="bg-[#173B70] text-white px-4 sm:px-8 py-4 flex justify-between items-center h-[80px] shrink-0 border-b-4 border-[#D6A832] shadow-lg">
         <div className="flex items-center space-x-4">
           <BrandLogo variant="white" showSubtitle={true} />
         </div>
@@ -227,12 +227,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8">
         <div className="w-full max-w-md bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
           {/* Top Flag Red Accent Bar */}
-          <div className="h-1.5 bg-[#C9932E] w-full" />
+          <div className="h-1.5 bg-[#D6A832] w-full" />
 
           <div className="p-6 sm:p-8">
             {step === 'credentials' ? (
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-[#0F766E] mb-1 font-serif tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-bold text-[#173B70] mb-1 font-serif tracking-tight">
                   {adminOnly ? 'Core Ledger Administrator Sign-In' : 'Log In to Online Banking'}
                 </h1>
                 <p className="text-xs text-gray-500 mb-6">
@@ -249,8 +249,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 )}
 
                 {error && (
-                  <div className="mb-5 p-3 bg-red-50 border-l-4 border-[#C9932E] text-red-800 text-xs flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-[#C9932E] flex-shrink-0 mt-0.5" />
+                  <div className="mb-5 p-3 bg-red-50 border-l-4 border-[#D6A832] text-red-800 text-xs flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-[#D6A832] flex-shrink-0 mt-0.5" />
                     <span>{error}</span>
                   </div>
                 )}
@@ -270,7 +270,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="customer@bankofamerica.com"
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
+                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#173B70] focus:border-[#173B70] outline-hidden transition-colors"
                     />
                   </div>
 
@@ -289,7 +289,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         placeholder="••••••••"
-                        className="w-full px-3.5 py-2.5 pr-10 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
+                        className="w-full px-3.5 py-2.5 pr-10 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#173B70] focus:border-[#173B70] outline-hidden transition-colors"
                       />
                       <button
                         type="button"
@@ -307,11 +307,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         type="checkbox"
                         checked={rememberId}
                         onChange={(e) => setRememberId(e.target.checked)}
-                        className="rounded-sm text-[#0F766E] focus:ring-[#0F766E]"
+                        className="rounded-sm text-[#173B70] focus:ring-[#173B70]"
                       />
                       <span>Save this Online ID</span>
                     </label>
-                    <a href="#help" className="text-[#0F766E] hover:underline font-semibold">
+                    <a href="#help" className="text-[#173B70] hover:underline font-semibold">
                       Forgot ID/Passcode?
                     </a>
                   </div>
@@ -320,7 +320,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     id="btn-submit-login"
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 px-4 bg-[#0F766E] hover:bg-[#115E59] text-white font-bold text-sm uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 mt-4 cursor-pointer disabled:opacity-75"
+                    className="w-full py-3 px-4 bg-[#173B70] hover:bg-[#245B9E] text-white font-bold text-sm uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 mt-4 cursor-pointer disabled:opacity-75"
                   >
                     {loading ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />
@@ -342,7 +342,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       id="btn-goto-register"
                       type="button"
                       onClick={onNavigateToRegister}
-                      className="text-xs font-bold text-[#0F766E] hover:text-[#C9932E] hover:underline cursor-pointer inline-flex items-center gap-1 transition-colors"
+                      className="text-xs font-bold text-[#173B70] hover:text-[#D6A832] hover:underline cursor-pointer inline-flex items-center gap-1 transition-colors"
                     >
                       <span>Create an Account / Enroll Now</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -353,11 +353,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
             ) : (
               /* Two-Step Verification Screen */
               <div>
-                <div className="flex items-center gap-2 text-xs font-bold text-[#C9932E] uppercase tracking-wider mb-1">
+                <div className="flex items-center gap-2 text-xs font-bold text-[#D6A832] uppercase tracking-wider mb-1">
                   <ShieldCheck className="w-4 h-4" />
                   <span>Two-Step Verification</span>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-bold text-[#0F766E] mb-1 font-serif tracking-tight">
+                <h2 className="text-xl sm:text-2xl font-bold text-[#173B70] mb-1 font-serif tracking-tight">
                   Verify Your Identity
                 </h2>
                 <p className="text-xs text-gray-600 mb-4">
@@ -374,7 +374,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         name="channel"
                         checked={selectedChannel === 'sms'}
                         onChange={() => setSelectedChannel('sms')}
-                        className="text-[#0F766E] focus:ring-[#0F766E]"
+                        className="text-[#173B70] focus:ring-[#173B70]"
                       />
                       <Smartphone className="w-3.5 h-3.5 text-gray-500" />
                       <span>Text Message (SMS) to {maskedPhone}</span>
@@ -385,7 +385,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         name="channel"
                         checked={selectedChannel === 'email'}
                         onChange={() => setSelectedChannel('email')}
-                        className="text-[#0F766E] focus:ring-[#0F766E]"
+                        className="text-[#173B70] focus:ring-[#173B70]"
                       />
                       <Mail className="w-3.5 h-3.5 text-gray-500" />
                       <span>Email to {maskedEmail}</span>
@@ -411,7 +411,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     </div>
                     <div className="mt-1 flex items-baseline gap-2">
                       <span className="text-xs text-emerald-700">Code:</span>
-                      <span className="text-base font-mono font-bold tracking-widest text-[#0F766E] bg-white px-2.5 py-0.5 rounded-sm border border-emerald-200">
+                      <span className="text-base font-mono font-bold tracking-widest text-[#173B70] bg-white px-2.5 py-0.5 rounded-sm border border-emerald-200">
                         {simulatedOtp}
                       </span>
                     </div>
@@ -426,8 +426,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 )}
 
                 {error && (
-                  <div className="mb-4 p-3 bg-red-50 border-l-4 border-[#C9932E] text-red-800 text-xs flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-[#C9932E] flex-shrink-0 mt-0.5" />
+                  <div className="mb-4 p-3 bg-red-50 border-l-4 border-[#D6A832] text-red-800 text-xs flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-[#D6A832] flex-shrink-0 mt-0.5" />
                     <span>{error}</span>
                   </div>
                 )}
@@ -449,7 +449,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       required
                       placeholder="123456"
                       autoFocus
-                      className="w-full text-center text-xl font-mono tracking-widest px-3.5 py-2.5 border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0F766E] focus:border-[#0F766E] outline-hidden transition-colors"
+                      className="w-full text-center text-xl font-mono tracking-widest px-3.5 py-2.5 border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#173B70] focus:border-[#173B70] outline-hidden transition-colors"
                     />
                   </div>
 
@@ -458,7 +458,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       type="button"
                       onClick={handleResendOtp}
                       disabled={resendCooldown > 0 || loading}
-                      className="text-[#0F766E] hover:underline font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer"
+                      className="text-[#173B70] hover:underline font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer"
                     >
                       <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
                       <span>
@@ -485,7 +485,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     id="btn-submit-otp"
                     type="submit"
                     disabled={loading || otpCode.length !== 6}
-                    className="w-full py-3 px-4 bg-[#C9932E] hover:bg-[#A8761B] text-white font-bold text-sm uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                    className="w-full py-3 px-4 bg-[#D6A832] hover:bg-[#AD841B] text-white font-bold text-sm uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                   >
                     {loading ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />

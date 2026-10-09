@@ -165,7 +165,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
     >
       <div className="flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col overflow-hidden rounded-sm border border-gray-300 bg-white shadow-2xl">
         {/* Modal Header */}
-        <div className="flex shrink-0 items-center justify-between border-b-2 border-[#C9932E] bg-[#0F766E] px-3 py-2.5 text-white sm:px-5">
+        <div className="flex shrink-0 items-center justify-between border-b-2 border-[#D6A832] bg-[#173B70] px-3 py-2.5 text-white sm:px-5">
           <div className="flex items-center space-x-2">
             <div className="rounded-sm bg-white/10 p-1">
               <Landmark className="h-4 w-4 text-white" />
@@ -198,7 +198,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
               </div>
 
               <div className="space-y-1">
-                <h4 className="text-lg font-bold text-[#0F766E] font-serif">
+                <h4 className="text-lg font-bold text-[#173B70] font-serif">
                   Deposit Submitted Successfully
                 </h4>
                 <p className="text-sm font-semibold text-amber-700 bg-amber-50 inline-block px-3 py-1 rounded-full">
@@ -216,7 +216,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Credited To:</span>
-                  <span className="font-semibold text-[#0F766E]">
+                  <span className="font-semibold text-[#173B70]">
                     {selectedTargetAccount?.nickname} ({selectedTargetAccount?.account_number})
                   </span>
                 </div>
@@ -236,7 +236,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
               </div>
 
               <div className="bg-emerald-50 border border-emerald-200 rounded-sm p-3 flex items-start gap-2 text-[11px] text-emerald-900">
-                <ShieldCheck className="w-4 h-4 text-[#0F766E] shrink-0 mt-0.5" />
+                <ShieldCheck className="w-4 h-4 text-[#173B70] shrink-0 mt-0.5" />
                 <span>You can track this request in your transaction activity. An administrator must review it before the account balance changes.</span>
               </div>
 
@@ -245,7 +245,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                   id="btn-add-funds-done"
                   type="button"
                   onClick={handleResetAndClose}
-                  className="w-full py-2.5 bg-[#0F766E] hover:bg-[#115E59] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-xs transition-colors cursor-pointer"
+                  className="w-full py-2.5 bg-[#173B70] hover:bg-[#245B9E] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-xs transition-colors cursor-pointer"
                 >
                   Done & Return to Dashboard
                 </button>
@@ -263,7 +263,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                   id="select-deposit-target-account"
                   value={targetAccountId}
                   onChange={(e) => setTargetAccountId(e.target.value)}
-                  className="w-full rounded-sm border border-gray-300 bg-white p-2 text-xs font-semibold focus:border-transparent focus:ring-2 focus:ring-[#0F766E] outline-hidden"
+                  className="w-full rounded-sm border border-gray-300 bg-white p-2 text-xs font-semibold focus:border-transparent focus:ring-2 focus:ring-[#173B70] outline-hidden"
                 >
                   {accounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
@@ -286,7 +286,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                       onClick={() => handleSelectInstitution(inst)}
                       className={`shrink-0 rounded-xs border px-2 py-0.5 text-[10px] font-medium transition-colors cursor-pointer ${
                         institutionName === inst
-                          ? 'bg-[#0F766E] text-white border-[#0F766E]'
+                          ? 'bg-[#173B70] text-white border-[#173B70]'
                           : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
                       }`}
                     >
@@ -303,7 +303,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                     placeholder="Enter financial institution name"
                     value={institutionName}
                     onChange={(e) => setInstitutionName(e.target.value)}
-                    className="w-full rounded-sm border border-gray-300 py-1.5 pl-9 pr-3 text-xs focus:border-transparent focus:ring-2 focus:ring-[#0F766E] outline-hidden"
+                    className="w-full rounded-sm border border-gray-300 py-1.5 pl-9 pr-3 text-xs focus:border-transparent focus:ring-2 focus:ring-[#173B70] outline-hidden"
                   />
                 </div>
               </div>
@@ -322,7 +322,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                     placeholder="Enter 9-digit ABA routing number"
                     value={routingNumber}
                     onChange={(e) => setRoutingNumber(e.target.value.replace(/\D/g, '').slice(0, 9))}
-                    className="w-full rounded-sm border border-gray-300 p-1.5 font-mono text-xs font-medium focus:border-transparent focus:ring-2 focus:ring-[#0F766E] outline-hidden"
+                    className="w-full rounded-sm border border-gray-300 p-1.5 font-mono text-xs font-medium focus:border-transparent focus:ring-2 focus:ring-[#173B70] outline-hidden"
                   />
                   <span className="text-[9px] leading-3 text-gray-500">9-digit ABA code</span>
                 </div>
@@ -338,7 +338,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                     placeholder="Enter account number"
                     value={accountNumber}
                     onChange={(e) => setAccountNumber(e.target.value.replace(/\s/g, ''))}
-                    className="w-full rounded-sm border border-gray-300 p-1.5 font-mono text-xs font-medium focus:border-transparent focus:ring-2 focus:ring-[#0F766E] outline-hidden"
+                    className="w-full rounded-sm border border-gray-300 p-1.5 font-mono text-xs font-medium focus:border-transparent focus:ring-2 focus:ring-[#173B70] outline-hidden"
                   />
                   <span className="text-[9px] leading-3 text-gray-500">Checking or Savings account</span>
                 </div>
@@ -362,7 +362,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full rounded-sm border border-gray-300 py-1.5 pl-8 pr-12 text-sm font-mono font-bold focus:border-transparent focus:ring-2 focus:ring-[#0F766E] outline-hidden"
+                    className="w-full rounded-sm border border-gray-300 py-1.5 pl-8 pr-12 text-sm font-mono font-bold focus:border-transparent focus:ring-2 focus:ring-[#173B70] outline-hidden"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
                     USD
@@ -386,7 +386,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
 
               {/* Security & Verification Notice */}
               <div className="flex items-start gap-1.5 rounded-sm border border-emerald-200 bg-emerald-50/70 p-2 text-[10px] leading-4 text-emerald-900">
-                <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#0F766E]" />
+                <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#173B70]" />
                 <span>
                   <strong>Instant Availability:</strong> External funds transferred via ACH are verified instantaneously in testing sandbox mode and credited directly to your ledger balance.
                 </span>
@@ -394,8 +394,8 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
 
               {/* Error display */}
               {error && (
-                <div className="flex items-center gap-2 border-l-4 border-[#C9932E] bg-red-50 p-2 text-xs text-red-800">
-                  <AlertCircle className="w-4 h-4 text-[#C9932E] shrink-0" />
+                <div className="flex items-center gap-2 border-l-4 border-[#D6A832] bg-red-50 p-2 text-xs text-red-800">
+                  <AlertCircle className="w-4 h-4 text-[#D6A832] shrink-0" />
                   <span>{error}</span>
                 </div>
               )}
@@ -413,7 +413,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                   id="btn-submit-external-deposit"
                   type="submit"
                   disabled={submitting}
-                  className="min-h-10 px-4 py-2 bg-[#C9932E] hover:bg-[#A8761B] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-xs transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-60"
+                  className="min-h-10 px-4 py-2 bg-[#D6A832] hover:bg-[#AD841B] text-white font-bold text-xs uppercase tracking-wider rounded-sm shadow-xs transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-60"
                 >
                   {submitting ? (
                     <>

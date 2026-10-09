@@ -60,9 +60,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       {/* Modal Container */}
       <div className="relative bg-white border border-gray-200 rounded-sm shadow-2xl max-w-md w-full overflow-hidden z-10 animate-in zoom-in-95 duration-200">
         {/* Navy Header with Red Accent line */}
-        <div className="h-1.5 bg-[#C9932E]" />
+        <div className="h-1.5 bg-[#D6A832]" />
         
-        <div className="bg-[#0F766E] text-white px-6 py-5 flex items-center justify-between">
+        <div className="bg-[#173B70] text-white px-6 py-5 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white font-bold text-lg font-serif">
               {user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
@@ -168,7 +168,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 <span className="font-medium">Account Number:</span>
               </div>
               <div className="flex items-center space-x-1.5">
-                <span className="font-mono font-bold text-[#0F766E]">
+                <span className="font-mono font-bold text-[#173B70]">
                   {showFullAccount && accountNumber ? accountNumber : maskedAccount}
                 </span>
                 {accountNumber && (
@@ -197,9 +197,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
           {/* Security Notice */}
           <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-sm text-[11px] text-gray-600 flex items-start space-x-2">
-            <Lock className="w-3.5 h-3.5 text-[#0F766E] shrink-0 mt-0.5" />
+            <Lock className="w-3.5 h-3.5 text-[#173B70] shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-[#0F766E] block">Protect your account details</span>
+              <span className="font-bold text-[#173B70] block">Protect your account details</span>
               <span>Keep your account and routing numbers private and share them only when needed for trusted transactions.</span>
             </div>
           </div>
@@ -222,7 +222,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               onClose();
               onViewFullProfile();
             }}
-            className="px-4 py-2 bg-[#0F766E] hover:bg-[#115E59] text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer"
+            className="px-4 py-2 bg-[#173B70] hover:bg-[#245B9E] text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer"
           >
             <span>View Full Profile</span>
             <ExternalLink className="w-3.5 h-3.5" />

@@ -12,22 +12,23 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   showSubtitle = false,
 }) => {
   const isWhite = variant === 'white';
-  const textColor = isWhite ? '#FFFFFF' : '#0F766E';
+  const textColor = isWhite ? '#FFFFFF' : '#173B70';
   const subColor = isWhite ? '#D1D5DB' : '#5A6872';
 
   return (
     <div className={`flex min-w-0 items-center gap-2 select-none sm:gap-3 ${className}`}>
-      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/20 bg-white shadow-sm">
-        <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#0F766E]">
-          <div className="h-3 w-3 rounded-full bg-[#D6A84F]" />
-        </div>
-      </div>
+      <img
+        src="/img/acu%20logo.jpeg"
+        alt=""
+        aria-hidden="true"
+        className="h-10 w-10 shrink-0 rounded-lg border border-white/20 bg-white object-contain shadow-sm"
+      />
 
       <div className="min-w-0 flex flex-col leading-none">
         <div className="flex items-center gap-1.5">
           <span
             style={{ color: textColor }}
-            className="max-w-[220px] break-words font-bold leading-tight tracking-tight text-sm font-serif sm:max-w-none sm:text-lg md:text-xl"
+            className="max-w-[125px] break-words font-bold leading-tight tracking-tight text-[11px] font-serif sm:max-w-none sm:text-lg md:text-xl"
           >
             American Credit Union Financing
           </span>

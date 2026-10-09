@@ -503,7 +503,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
       {/* Admin Warning Banner */}
       <div className="bg-[#1E293B] text-white p-5 rounded-xs shadow-xs border border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-[#C9932E] rounded-xs text-white">
+          <div className="p-2.5 bg-[#D6A832] rounded-xs text-white">
             <ShieldAlert className="w-6 h-6" />
           </div>
           <div>
@@ -546,7 +546,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-4 border border-gray-200 rounded-sm shadow-sm">
             <div className="text-xs text-gray-500 font-medium">Total Registered Users</div>
-            <div className="text-2xl font-bold text-[#0F766E] font-serif mt-1">
+            <div className="text-2xl font-bold text-[#173B70] font-serif mt-1">
               {overview.totalUsers}
             </div>
             <div className="text-[11px] text-gray-500 mt-0.5">Consumer & Business Profiles</div>
@@ -570,7 +570,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
 
           <div className="bg-white p-4 border border-gray-200 rounded-sm shadow-sm">
             <div className="text-xs text-gray-500 font-medium">Audited Actions</div>
-            <div className="text-2xl font-bold text-[#C9932E] font-serif mt-1">
+            <div className="text-2xl font-bold text-[#D6A832] font-serif mt-1">
               {overview.totalAuditLogs}
             </div>
             <div className="text-[11px] text-gray-500 mt-0.5">Immutable audit events</div>
@@ -594,7 +594,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
               onClick={() => setActiveTab('users')}
               className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
                 activeTab === 'users'
-                  ? 'bg-[#0F766E] text-white'
+                  ? 'bg-[#173B70] text-white'
                   : 'text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -607,7 +607,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                 }}
                 className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
                   activeTab === 'pending'
-                    ? 'bg-[#C9932E] text-white'
+                    ? 'bg-[#D6A832] text-white'
                     : 'text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -620,7 +620,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
               }}
               className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
                 activeTab === 'cards'
-                  ? 'bg-[#0F766E] text-white'
+                  ? 'bg-[#173B70] text-white'
                   : 'text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -630,7 +630,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
               onClick={() => setActiveTab('audit')}
               className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
                 activeTab === 'audit'
-                  ? 'bg-[#0F766E] text-white'
+                  ? 'bg-[#173B70] text-white'
                   : 'text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -640,7 +640,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
               onClick={() => setActiveTab('transactions')}
               className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
                 activeTab === 'transactions'
-                  ? 'bg-[#0F766E] text-white'
+                  ? 'bg-[#173B70] text-white'
                   : 'text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -655,8 +655,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
             {/* Header: Manage Customer Balances Panel */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-gray-200">
               <div>
-                <h3 className="text-base font-bold text-[#0F766E] font-serif flex items-center gap-2">
-                  <Users className="w-4 h-4 text-[#0F766E]" />
+                <h3 className="text-base font-bold text-[#173B70] font-serif flex items-center gap-2">
+                  <Users className="w-4 h-4 text-[#173B70]" />
                   <span>Manage Customer Balances</span>
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -668,7 +668,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                 id="btn-admin-credit-customer-modal"
                 type="button"
                 onClick={() => openCreditModal()}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#C9932E] hover:bg-[#A8761B] text-white font-bold text-xs uppercase tracking-wider rounded-xs shadow-xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#D6A832] hover:bg-[#AD841B] text-white font-bold text-xs uppercase tracking-wider rounded-xs shadow-xs transition-colors cursor-pointer"
               >
                 <PlusCircle className="w-3.5 h-3.5" />
                 <span>Add Funds / Credit Account</span>
@@ -685,12 +685,12 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                   placeholder="Search by customer name, email, or account number..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E] outline-hidden"
+                  className="w-full pl-9 pr-3 py-2 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#173B70] outline-hidden"
                 />
               </div>
               <button
                 type="submit"
-                className="px-4 py-2 bg-[#0F766E] text-white text-xs font-semibold rounded-xs hover:bg-[#115E59] cursor-pointer"
+                className="px-4 py-2 bg-[#173B70] text-white text-xs font-semibold rounded-xs hover:bg-[#245B9E] cursor-pointer"
               >
                 Search
               </button>
@@ -763,7 +763,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                           type="button"
                           disabled={isAdminAccount || savingRestrictionId === customer.id}
                           onClick={() => void saveUserRestriction(customer)}
-                          className="min-h-11 rounded-sm bg-[#0F766E] px-3 py-2 text-xs font-bold text-white hover:bg-[#115E59] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="min-h-11 rounded-sm bg-[#173B70] px-3 py-2 text-xs font-bold text-white hover:bg-[#245B9E] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {savingRestrictionId === customer.id ? 'Saving…' : 'Save'}
                         </button>
@@ -792,7 +792,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                   {users.flatMap((u) =>
                     (u.accounts || []).map((acc) => (
                       <tr key={acc.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-3.5 px-4 font-mono font-bold text-[#0F766E]">
+                        <td className="py-3.5 px-4 font-mono font-bold text-[#173B70]">
                           {acc.account_number}
                         </td>
                         <td className="py-3.5 px-4">
@@ -831,7 +831,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                               id={`btn-adjust-account-${acc.id}`}
                               type="button"
                               onClick={() => openAdjustment(acc, u.full_name)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#0F766E] text-white hover:bg-[#115E59] text-xs font-medium rounded-xs shadow-2xs transition-colors cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#173B70] text-white hover:bg-[#245B9E] text-xs font-medium rounded-xs shadow-2xs transition-colors cursor-pointer"
                             >
                               <Sliders className="w-3.5 h-3.5" />
                               <span>Adjust</span>
@@ -852,7 +852,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
           <div className="p-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-gray-200">
               <div>
-                <h3 className="text-base font-bold text-[#C9932E] font-serif flex items-center gap-2">
+                <h3 className="text-base font-bold text-[#D6A832] font-serif flex items-center gap-2">
                   <ArrowDownCircle className="w-4 h-4" />
                   <span>Pending Transactions</span>
                 </h3>
@@ -1100,7 +1100,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                   {allTransactions.map((t) => (
                     <tr key={t.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3 px-4 font-mono text-gray-600 whitespace-nowrap">{t.date}</td>
-                      <td className="py-3 px-4 font-mono text-[#0F766E] font-semibold">
+                      <td className="py-3 px-4 font-mono text-[#173B70] font-semibold">
                         {t.account_number || t.account_name}
                       </td>
                       <td className="py-3 px-4">
@@ -1134,15 +1134,15 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
       {adjustModalOpen && selectedAccount && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-2xs">
           <div className="bg-white border border-gray-300 rounded-xs shadow-2xl max-w-lg w-full overflow-hidden">
-            <div className="h-1.5 bg-[#C9932E]" />
+            <div className="h-1.5 bg-[#D6A832]" />
 
             <form onSubmit={handleProcessAdjustment} className="p-6 space-y-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <span className="text-xs font-bold text-[#C9932E] uppercase tracking-wider">
+                  <span className="text-xs font-bold text-[#D6A832] uppercase tracking-wider">
                     Administrative Ledger Override
                   </span>
-                  <h3 className="text-xl font-bold text-[#0F766E] font-serif mt-0.5">
+                  <h3 className="text-xl font-bold text-[#173B70] font-serif mt-0.5">
                     Direct Balance Adjustment
                   </h3>
                 </div>
@@ -1169,7 +1169,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Current Balance:</span>
-                  <span className="font-mono font-bold text-sm text-[#0F766E]">
+                  <span className="font-mono font-bold text-sm text-[#173B70]">
                     {formatUSD(selectedAccount.balance)} USD
                   </span>
                 </div>
@@ -1246,7 +1246,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                     placeholder="0.00"
                     value={adjustAmount}
                     onChange={(e) => setAdjustAmount(e.target.value)}
-                    className="w-full pl-8 pr-12 py-2 text-base font-bold border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E]"
+                    className="w-full pl-8 pr-12 py-2 text-base font-bold border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#173B70]"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
                     USD
@@ -1269,12 +1269,12 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                   placeholder="Describe the reason for this adjustment"
                   value={adjustReason}
                   onChange={(e) => setAdjustReason(e.target.value)}
-                  className="w-full p-2.5 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E]"
+                  className="w-full p-2.5 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#173B70]"
                 />
               </div>
 
               {error && (
-                <div className="p-2.5 bg-red-50 border-l-4 border-[#C9932E] text-red-800 text-xs">
+                <div className="p-2.5 bg-red-50 border-l-4 border-[#D6A832] text-red-800 text-xs">
                   {error}
                 </div>
               )}
@@ -1291,7 +1291,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                   id="btn-confirm-adjust-ledger"
                   type="submit"
                   disabled={submittingAdjustment}
-                  className="px-5 py-2 bg-[#C9932E] hover:bg-[#A8761B] text-white text-xs font-bold uppercase tracking-wider rounded-xs shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                  className="px-5 py-2 bg-[#D6A832] hover:bg-[#AD841B] text-white text-xs font-bold uppercase tracking-wider rounded-xs shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
                 >
                   {submittingAdjustment ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -1311,7 +1311,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
         >
           <div className="bg-white border border-gray-300 rounded-sm shadow-2xl max-w-lg w-full overflow-hidden">
-            <div className="bg-[#0F766E] text-white px-6 py-4 flex items-center justify-between border-b-2 border-[#C9932E]">
+            <div className="bg-[#173B70] text-white px-6 py-4 flex items-center justify-between border-b-2 border-[#D6A832]">
               <div className="flex items-center space-x-2.5">
                 <div className="p-1.5 bg-white/10 rounded-sm">
                   <ArrowUpCircle className="w-5 h-5 text-emerald-400" />
@@ -1346,7 +1346,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                   id="select-credit-customer-account"
                   value={creditAccountId}
                   onChange={(e) => setCreditAccountId(e.target.value)}
-                  className="w-full text-xs font-medium p-2.5 border border-gray-300 rounded-xs bg-white focus:ring-1 focus:ring-[#0F766E] outline-hidden"
+                  className="w-full text-xs font-medium p-2.5 border border-gray-300 rounded-xs bg-white focus:ring-1 focus:ring-[#173B70] outline-hidden"
                   required
                 >
                   <option value="">-- Select Customer Account --</option>
@@ -1380,7 +1380,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Account Number:</span>
-                      <span className="font-mono font-bold text-[#0F766E]">
+                      <span className="font-mono font-bold text-[#173B70]">
                         {chosenAcc.account_number}
                       </span>
                     </div>
@@ -1415,7 +1415,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                     placeholder="0.00"
                     value={creditAmount}
                     onChange={(e) => setCreditAmount(e.target.value)}
-                    className="w-full pl-8 pr-12 py-2 text-base font-bold font-mono border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E]"
+                    className="w-full pl-8 pr-12 py-2 text-base font-bold font-mono border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#173B70]"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
                     USD
@@ -1452,12 +1452,12 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'cards' | 'audi
                   placeholder="Describe the reason for this credit"
                   value={creditMemo}
                   onChange={(e) => setCreditMemo(e.target.value)}
-                  className="w-full p-2.5 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#0F766E]"
+                  className="w-full p-2.5 text-xs border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#173B70]"
                 />
               </div>
 
               {error && (
-                <div className="p-2.5 bg-red-50 border-l-4 border-[#C9932E] text-red-800 text-xs">
+                <div className="p-2.5 bg-red-50 border-l-4 border-[#D6A832] text-red-800 text-xs">
                   {error}
                 </div>
               )}

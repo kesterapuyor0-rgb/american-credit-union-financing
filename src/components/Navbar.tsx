@@ -145,8 +145,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('home')}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'home'
-                  ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
-                  : 'text-gray-600 hover:text-[#0F766E] font-medium'
+                  ? 'border-b-4 border-[#173B70] text-[#173B70] font-bold'
+                  : 'text-gray-600 hover:text-[#173B70] font-medium'
               }`}
             >
               Accounts
@@ -157,8 +157,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('transfer')}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'transfer'
-                  ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
-                  : 'text-gray-600 hover:text-[#0F766E] font-medium'
+                  ? 'border-b-4 border-[#173B70] text-[#173B70] font-bold'
+                  : 'text-gray-600 hover:text-[#173B70] font-medium'
               }`}
             >
               Transfers
@@ -169,8 +169,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('history')}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'history'
-                  ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
-                  : 'text-gray-600 hover:text-[#0F766E] font-medium'
+                  ? 'border-b-4 border-[#173B70] text-[#173B70] font-bold'
+                  : 'text-gray-600 hover:text-[#173B70] font-medium'
               }`}
             >
               Bill Pay & Activity
@@ -181,8 +181,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('security')}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'security'
-                  ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
-                  : 'text-gray-600 hover:text-[#0F766E] font-medium'
+                  ? 'border-b-4 border-[#173B70] text-[#173B70] font-bold'
+                  : 'text-gray-600 hover:text-[#173B70] font-medium'
               }`}
             >
               Security Center
@@ -193,8 +193,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('profile')}
               className={`flex items-center px-1 text-sm transition-colors cursor-pointer whitespace-nowrap h-full ${
                 activeTab === 'profile'
-                  ? 'border-b-4 border-[#0F766E] text-[#0F766E] font-bold'
-                  : 'text-gray-600 hover:text-[#0F766E] font-medium'
+                  ? 'border-b-4 border-[#173B70] text-[#173B70] font-bold'
+                  : 'text-gray-600 hover:text-[#173B70] font-medium'
               }`}
             >
               Profile & Details
@@ -221,7 +221,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('users')}
               className={`px-3 py-1.5 rounded-sm font-semibold transition-colors cursor-pointer ${
                 activeTab === 'users'
-                  ? 'bg-[#C9932E] text-white shadow-xs'
+                  ? 'bg-[#D6A832] text-white shadow-xs'
                   : 'text-slate-300 hover:bg-slate-800'
               }`}
             >
@@ -232,7 +232,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('audit')}
               className={`px-3 py-1.5 rounded-sm font-semibold transition-colors cursor-pointer ${
                 activeTab === 'audit'
-                  ? 'bg-[#C9932E] text-white shadow-xs'
+                  ? 'bg-[#D6A832] text-white shadow-xs'
                   : 'text-slate-300 hover:bg-slate-800'
               }`}
             >
@@ -243,7 +243,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('transactions')}
               className={`px-3 py-1.5 rounded-sm font-semibold transition-colors cursor-pointer ${
                 activeTab === 'transactions'
-                  ? 'bg-[#C9932E] text-white shadow-xs'
+                  ? 'bg-[#D6A832] text-white shadow-xs'
                   : 'text-slate-300 hover:bg-slate-800'
               }`}
             >
