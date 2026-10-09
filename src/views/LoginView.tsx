@@ -242,7 +242,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      placeholder="customer@bankofamerica.com"
+                      placeholder="Enter your email address"
                       className="w-full px-3.5 py-2.5 text-sm border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#173B70] focus:border-[#173B70] outline-hidden transition-colors"
                     />
                   </div>

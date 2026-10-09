@@ -433,7 +433,7 @@ router.post('/register', async (req, res): Promise<void> => {
     try {
       const auditId = 'aud_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
       await AuditLog.create({
-        id: auditId, admin_id: 'system', admin_email: 'system@bankofamerica.com',
+        id: auditId, admin_id: 'system', admin_email: 'system@americancreditunion.financing',
         action: 'ACCOUNT_OPENED', target_user_id: userId, target_account_id: accountId,
         amount: 0, details: 'Self-service online registration and Advantage Checking opened ($0.00 USD)',
         created_at: createdAt,

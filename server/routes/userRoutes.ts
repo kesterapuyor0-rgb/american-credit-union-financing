@@ -284,7 +284,7 @@ router.post(['/deposit', '/accounts/deposit'], requireAuth, async (req: Authenti
     const parsedAmount = parseFloat(amount);
 
     if (!cleanInstitution) {
-      res.status(400).json({ error: 'External Institution Name is required (e.g. Chase, Wells Fargo).' });
+      res.status(400).json({ error: 'External financial institution name is required.' });
       return;
     }
 
