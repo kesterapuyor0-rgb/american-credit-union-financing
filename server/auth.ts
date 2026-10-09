@@ -70,8 +70,8 @@ export interface AuthenticatedRequest extends Request {
   user?: TokenPayload;
 }
 
-export function isAdminRole(role: unknown): boolean {
-  return String(role || '').toUpperCase() === 'ADMIN';
+export function isAdminRole(role: unknown, isAdmin?: unknown): boolean {
+  return isAdmin === true || String(role || '').toUpperCase() === 'ADMIN';
 }
 
 export function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
@@ -118,9 +118,9 @@ export function requireAdmin(req: AuthenticatedRequest, res: Response, next: Nex
       return;
     }
     const userId = req.user.id;
-    void User.findOne({ id: userId }).select('role').lean<{ role?: string }>()
+    void User.findOne({ id: userId }).select('role isAdmin').lean<{ role?: string; isAdmin?: boolean }>()
       .then((user) => {
-        if (!user || !isAdminRole(user.role)) {
+        if (!user || !isAdminRole(user.role, user.isAdmin)) {
           res.status(403).json({ error: 'Forbidden: Administrator privileges required.' });
           return;
         }

@@ -6,6 +6,7 @@ const userSchema = new Schema({
   password_hash: { type: String, required: true, select: false },
   full_name: { type: String, required: true, trim: true },
   role: { type: String, required: true, default: 'user', index: true },
+  isAdmin: { type: Boolean, default: false, index: true },
   phone: { type: String, required: true, trim: true },
   address: { type: String, default: '', trim: true, maxlength: 200 },
   profilePicture: { type: String, default: '' },
