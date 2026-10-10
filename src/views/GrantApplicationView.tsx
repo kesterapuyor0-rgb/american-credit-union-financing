@@ -1,6 +1,7 @@
 import React, { ChangeEvent, FormEvent, useEffect, useState } from 'react';
-import { CheckCircle2, HandCoins, RefreshCw, Upload } from 'lucide-react';
-import { GrantApplication, GrantStatus, User } from '../types';
+import { CheckCircle2, CircleAlert, Clock3, HandCoins, RefreshCw, Upload } from 'lucide-react';
+import { GrantApplication, User } from '../types';
+import { GrantStatusBadge, normalizeGrantStatus } from '../components/GrantStatusBadge';
 import { getAuthHeaders } from '../utils/api';
 
 const GRANT_CATEGORIES = [
@@ -9,14 +10,6 @@ const GRANT_CATEGORIES = [
   'Tech/Innovation',
   'Emergency Business Relief',
 ] as const;
-
-const GRANT_STATUS_STYLES: Record<GrantStatus, string> = {
-  'PENDING REVIEW': 'border-amber-200 bg-amber-50 text-amber-900',
-  'UNDER COMMITTEE EVALUATION': 'border-blue-200 bg-blue-50 text-blue-900',
-  APPROVED: 'border-emerald-200 bg-emerald-50 text-emerald-900',
-  DISBURSED: 'border-teal-200 bg-teal-50 text-teal-900',
-  REJECTED: 'border-rose-200 bg-rose-50 text-rose-900',
-};
 
 interface GrantApplicationViewProps {
   user: User;
@@ -50,6 +43,7 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
   const [document, setDocument] = useState<GrantDocument | null>(null);
   const [loadingApplications, setLoadingApplications] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showReapplicationForm, setShowReapplicationForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadApplications = async (showLoading = true) => {
@@ -156,13 +150,11 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
     minimumFractionDigits: 2,
   }).format(amount);
 
-  const isActiveApplication = (application: GrantApplication) => {
-    const status = application.status.toUpperCase().replace(/[_-]+/g, ' ').trim();
-    return ['PENDING', 'PENDING REVIEW', 'UNDER REVIEW', 'UNDER COMMITTEE EVALUATION', 'APPROVED'].includes(status);
-  };
+  const isActiveApplication = (application: GrantApplication) =>
+    normalizeGrantStatus(application.status) !== 'REJECTED';
   const activeApplication = applications.find(isActiveApplication);
   const latestRejectedApplication = applications.find((application) =>
-    application.status.toUpperCase().replace(/[_-]+/g, ' ').trim() === 'REJECTED'
+    normalizeGrantStatus(application.status) === 'REJECTED'
   );
 
   if (loadingApplications && applications.length === 0) {
@@ -181,25 +173,29 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
   }
 
   if (activeApplication) {
-    const normalizedStatus = activeApplication.status.toUpperCase().replace(/[_-]+/g, ' ').trim();
-    const displayStatus = normalizedStatus === 'PENDING' ? 'PENDING REVIEW'
-      : normalizedStatus === 'UNDER REVIEW' ? 'UNDER COMMITTEE EVALUATION'
-        : normalizedStatus;
-    const statusStyle = GRANT_STATUS_STYLES[activeApplication.status] || GRANT_STATUS_STYLES['PENDING REVIEW'];
+    const status = normalizeGrantStatus(activeApplication.status);
+    const isAwarded = status === 'APPROVED' || status === 'DISBURSED';
+    const HeaderIcon = status === 'PENDING_REVIEW'
+      ? Clock3
+      : status === 'UNDER_COMMITTEE_REVIEW'
+        ? RefreshCw
+        : CheckCircle2;
 
     return (
       <section className="mx-auto w-full max-w-3xl">
         <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="bg-gradient-to-r from-[#102a50] to-teal-900 p-5 text-white sm:p-7">
             <div className="flex items-start gap-3">
-              <HandCoins aria-hidden="true" className="mt-1 h-7 w-7 shrink-0 text-amber-300" />
+              <HeaderIcon aria-hidden="true" className={`mt-1 h-7 w-7 shrink-0 ${isAwarded ? 'text-emerald-300' : 'text-amber-300'} ${status === 'UNDER_COMMITTEE_REVIEW' ? 'animate-spin' : ''}`} />
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-amber-200">Business & Community Grant Program</p>
                 <h1 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">
-                  {displayStatus === 'APPROVED' ? 'Grant Application Status Tracker' : 'Grant Application Under Review'}
+                  {isAwarded ? 'Grant Awarded' : 'Grant Application Under Review'}
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-blue-50">
-                  Your application is being handled by our Member Services Grant Committee.
+                  {isAwarded
+                    ? 'Your grant application has been approved by our Member Services Grant Committee.'
+                    : 'Your application is being handled by our Member Services Grant Committee. For inquiries, contact americancreditunion.financing@gmail.com'}
                 </p>
               </div>
             </div>
@@ -226,25 +222,51 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
               </div>
               <div className="flex justify-between gap-4 px-4 py-3">
                 <dt className="text-sm text-slate-500">Current status</dt>
-                <dd className="text-right"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusStyle}`}>{displayStatus}</span></dd>
+                <dd className="text-right"><GrantStatusBadge status={status} /></dd>
               </div>
             </dl>
 
-            {displayStatus === 'APPROVED' && (
+            {isAwarded && (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
                 <h2 className="font-semibold">Official grant award notice</h2>
                 <p className="mt-1">
                   Your application has been approved for {formatMoney(activeApplication.approvedAmount || 0)}.
-                  {activeApplication.adminNotes ? ` ${activeApplication.adminNotes}` : ' The award is approved and awaiting disbursement.'}
+                  {status === 'DISBURSED'
+                    ? ` Funds were disbursed on ${activeApplication.disbursedAt ? new Date(activeApplication.disbursedAt).toLocaleDateString() : 'the date shown in your account activity'}.${activeApplication.transactionId ? ` Transaction reference: ${activeApplication.transactionId}.` : ''}`
+                    : activeApplication.adminNotes ? ` ${activeApplication.adminNotes}` : ' The award is approved and awaiting disbursement.'}
                 </p>
               </div>
             )}
 
-            <p className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
+            {!isAwarded && <p className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
               For inquiries, contact{' '}
               <a className="font-semibold underline" href="mailto:americancreditunion.financing@gmail.com">americancreditunion.financing@gmail.com</a>.
-            </p>
+            </p>}
           </div>
+        </article>
+      </section>
+    );
+  }
+
+  if (latestRejectedApplication && !showReapplicationForm) {
+    return (
+      <section className="mx-auto w-full max-w-3xl">
+        <article className="space-y-5 rounded-2xl border border-red-200 bg-white p-5 shadow-sm sm:p-7">
+          <div className="flex items-start gap-3">
+            <CircleAlert aria-hidden="true" className="mt-0.5 h-7 w-7 shrink-0 text-red-700" />
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-red-700">Business & Community Grant Program</p>
+              <h1 className="mt-1 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Grant Application Update</h1>
+            </div>
+          </div>
+          <GrantStatusBadge status="REJECTED" />
+          <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-950">
+            <h2 className="font-semibold">Application Not Approved</h2>
+            <p className="mt-1 whitespace-pre-wrap">{latestRejectedApplication.rejectionReason || latestRejectedApplication.adminNotes || 'No specific reason was provided.'}</p>
+          </div>
+          <button type="button" onClick={() => setShowReapplicationForm(true)} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-teal-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-900">
+            Submit New Application
+          </button>
         </article>
       </section>
     );
@@ -267,7 +289,7 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
 
       {latestRejectedApplication && (
         <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-950">
-          <p className="font-semibold">Application Not Approved: {latestRejectedApplication.rejectionReason || 'No specific reason was provided.'}</p>
+          <p className="font-semibold">Application Not Approved: {latestRejectedApplication.rejectionReason || latestRejectedApplication.adminNotes || 'No specific reason was provided.'}</p>
           <p className="mt-1">You may submit a new application below.</p>
         </div>
       )}

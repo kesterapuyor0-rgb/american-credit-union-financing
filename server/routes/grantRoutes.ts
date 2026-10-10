@@ -15,7 +15,23 @@ const GRANT_CATEGORIES = new Set([
   'Tech/Innovation',
   'Emergency Business Relief',
 ]);
-const GRANT_STATUSES = new Set(['UNDER COMMITTEE EVALUATION', 'APPROVED', 'REJECTED']);
+const GRANT_STATUSES = new Set(['UNDER_COMMITTEE_REVIEW', 'APPROVED', 'REJECTED']);
+const REVIEWABLE_STATUSES = [
+  'PENDING_REVIEW',
+  'UNDER_COMMITTEE_REVIEW',
+  'PENDING REVIEW',
+  'UNDER COMMITTEE EVALUATION',
+];
+
+const normalizeGrantStatus = (status: string): string => {
+  const normalizedStatus = status.toUpperCase().replace(/[_-]+/g, ' ').trim();
+  if (normalizedStatus === 'PENDING' || normalizedStatus === 'PENDING REVIEW') return 'PENDING_REVIEW';
+  if (['UNDER REVIEW', 'UNDER COMMITTEE REVIEW', 'UNDER COMMITTEE EVALUATION'].includes(normalizedStatus)) {
+    return 'UNDER_COMMITTEE_REVIEW';
+  }
+  if (['APPROVED', 'DISBURSED', 'REJECTED'].includes(normalizedStatus)) return normalizedStatus;
+  return status;
+};
 
 const isValidGrantDocument = (data: unknown, contentType: unknown): data is string => {
   if (typeof data !== 'string' || typeof contentType !== 'string' || !ALLOWED_DOCUMENT_TYPES.has(contentType)) return false;
@@ -80,7 +96,7 @@ router.post('/apply', requireApprovedUser, async (req: AuthenticatedRequest, res
       documentBase64,
       documentName: cleanDocumentName,
       documentContentType,
-      status: 'PENDING REVIEW',
+      status: 'PENDING_REVIEW',
       submittedAt: new Date(),
     });
 
@@ -90,9 +106,10 @@ router.post('/apply', requireApprovedUser, async (req: AuthenticatedRequest, res
         businessName: grant.businessName,
         category: grant.category,
         requestedAmount: grant.requestedAmount,
-        status: grant.status,
+        status: normalizeGrantStatus(grant.status),
         submittedAt: grant.submittedAt,
         adminNotes: grant.adminNotes,
+        rejectionReason: grant.rejectionReason,
       },
     });
   } catch (err) {
@@ -107,7 +124,12 @@ router.get('/user', requireApprovedUser, async (req: AuthenticatedRequest, res: 
       .select('-documentBase64')
       .sort({ submittedAt: -1 })
       .lean();
-    res.json({ applications });
+    res.json({
+      applications: applications.map((application) => ({
+        ...application,
+        status: normalizeGrantStatus(application.status),
+      })),
+    });
   } catch (err) {
     console.error('Grant application lookup failed:', err);
     res.status(500).json({ error: errorMessage(err, 'Unable to load grant applications.') });
@@ -124,6 +146,7 @@ router.get('/admin/all', requireAdmin, async (_req: AuthenticatedRequest, res: R
     res.json({
       applications: applications.map((application) => ({
         ...application,
+        status: normalizeGrantStatus(application.status),
         applicantName: usersById.get(application.userId)?.full_name || 'Member',
         applicantEmail: usersById.get(application.userId)?.email || '',
       })),
@@ -153,7 +176,7 @@ router.put('/admin/:id/status', requireAdmin, async (req: AuthenticatedRequest, 
       await session.withTransaction(async () => {
         const grant = await Grant.findOne({
           id: req.params.id,
-          status: { $in: ['PENDING REVIEW', 'UNDER COMMITTEE EVALUATION'] },
+          status: { $in: REVIEWABLE_STATUSES },
         }).session(session).lean<any>();
         if (!grant) throw new Error('Grant application not found or no longer available for review.');
         if (status === 'APPROVED' && amount > grant.requestedAmount) {
@@ -169,7 +192,7 @@ router.put('/admin/:id/status', requireAdmin, async (req: AuthenticatedRequest, 
         if (status === 'APPROVED') fields.approvedAmount = amount;
         if (status === 'REJECTED') fields.rejectionReason = reason;
         updatedGrant = await Grant.findOneAndUpdate(
-          { id: grant.id, status: { $in: ['PENDING REVIEW', 'UNDER COMMITTEE EVALUATION'] } },
+          { id: grant.id, status: { $in: REVIEWABLE_STATUSES } },
           { $set: fields },
           { new: true, session },
         ).lean<any>();
@@ -178,7 +201,7 @@ router.put('/admin/:id/status', requireAdmin, async (req: AuthenticatedRequest, 
           id: `log_grant_${randomUUID()}`,
           admin_id: req.user!.id,
           admin_email: req.user!.email,
-          action: `GRANT_${status.replaceAll(' ', '_')}`,
+          action: `GRANT_${status}`,
           target_user_id: grant.userId,
           amount: status === 'APPROVED' ? amount : grant.requestedAmount,
           details: `${status} grant ${grant.id} for ${grant.businessName}. ${status === 'REJECTED' ? reason : notes || 'No additional notes.'}`,
@@ -241,7 +264,7 @@ router.post('/admin/:id/disburse', requireAdmin, async (req: AuthenticatedReques
         type: 'deposit',
         amount: grant.approvedAmount,
         currency: 'USD',
-        description: 'Community Grant Disbursement',
+        description: 'Community Micro-Grant Award',
         recipient_name: grant.businessName,
         status: 'Completed',
         category: 'Grant',

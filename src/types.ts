@@ -55,8 +55,8 @@ export interface Transaction {
 }
 
 export type GrantStatus =
-  | 'PENDING REVIEW'
-  | 'UNDER COMMITTEE EVALUATION'
+  | 'PENDING_REVIEW'
+  | 'UNDER_COMMITTEE_REVIEW'
   | 'APPROVED'
   | 'DISBURSED'
   | 'REJECTED';

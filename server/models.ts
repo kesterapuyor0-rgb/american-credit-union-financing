@@ -92,7 +92,7 @@ const grantSchema = new Schema({
   documentBase64: { type: String, required: true, select: false },
   documentName: { type: String, required: true, maxlength: 120 },
   documentContentType: { type: String, required: true, enum: ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'] },
-  status: { type: String, required: true, enum: ['PENDING REVIEW', 'UNDER COMMITTEE EVALUATION', 'APPROVED', 'DISBURSED', 'REJECTED'], default: 'PENDING REVIEW', index: true },
+  status: { type: String, required: true, enum: ['PENDING_REVIEW', 'UNDER_COMMITTEE_REVIEW', 'APPROVED', 'DISBURSED', 'REJECTED'], default: 'PENDING_REVIEW', index: true },
   adminNotes: { type: String, default: '', maxlength: 1000 },
   rejectionReason: { type: String, default: '', maxlength: 1000 },
   submittedAt: { type: Date, required: true, default: Date.now, index: true },

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, AuditLog, AdminOverviewData, UserWithAccounts, BankAccount, Transaction, CardApplication, BankCard, GrantApplication } from '../types';
 import { getStoredAuthToken } from '../utils/api';
 import { formatTransactionDescription } from '../utils/transactionFormatting';
+import { GrantStatusBadge } from '../components/GrantStatusBadge';
 import {
   ShieldAlert,
   Search,
@@ -48,7 +49,7 @@ interface VerificationApplicant {
 }
 
 const CARD_COLOR_OPTIONS = ['emerald', 'navy', 'crimson', 'gold'] as const;
-type GrantReviewDecision = 'UNDER COMMITTEE EVALUATION' | 'APPROVED' | 'REJECTED';
+type GrantReviewDecision = 'UNDER_COMMITTEE_REVIEW' | 'APPROVED' | 'REJECTED';
 
 const getVerificationDocumentUrl = (
   document?: User['verificationDocument'],
@@ -895,7 +896,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                   : 'text-gray-700 hover:bg-gray-200'
               }`}
             >
-              Grant Applications ({grantApplications.filter((application) => ['PENDING REVIEW', 'UNDER COMMITTEE EVALUATION'].includes(application.status)).length} pending)
+              Grant Applications ({grantApplications.filter((application) => ['PENDING_REVIEW', 'UNDER_COMMITTEE_REVIEW'].includes(application.status)).length} pending)
             </button>
             <button
               onClick={() => setActiveTab('audit')}
@@ -1485,7 +1486,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {grantApplications.map((application) => {
-                      const canReview = ['PENDING REVIEW', 'UNDER COMMITTEE EVALUATION'].includes(application.status);
+                      const canReview = ['PENDING_REVIEW', 'UNDER_COMMITTEE_REVIEW'].includes(application.status);
                       return (
                         <tr key={application.id} className="align-top">
                           <td className="px-4 py-4">
@@ -1515,8 +1516,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                             <p className="mt-1 max-w-40 break-all text-[10px] text-slate-500">{application.documentName}</p>
                           </td>
                           <td className="w-[390px] px-4 py-4">
-                            <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold text-slate-800">{application.status}</span>
-                            {application.status === 'DISBURSED' && <p className="mt-2 text-emerald-800">Award disbursed: {formatUSD(application.approvedAmount || 0)}</p>}
+                            <GrantStatusBadge status={application.status} />
+                            {application.status === 'DISBURSED' && <p className="mt-2 text-emerald-800">Award disbursed: {formatUSD(application.approvedAmount || 0)}{application.disbursedAt ? ` on ${new Date(application.disbursedAt).toLocaleDateString()}` : ''}</p>}
                             {application.status === 'APPROVED' && (
                               <div className="mt-2 space-y-2">
                                 <p className="text-emerald-800">Approved award: {formatUSD(application.approvedAmount || 0)}</p>
@@ -1537,7 +1538,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                                   <input type="number" min="0.01" max={application.requestedAmount} step="0.01" value={grantAwards[application.id] || ''} onChange={(event) => setGrantAwards((current) => ({ ...current, [application.id]: event.target.value }))} className="mt-1 min-h-9 w-full rounded-md border border-slate-200 px-2 text-xs" />
                                 </label>
                                 <div className="flex flex-wrap gap-2">
-                                  <button type="button" disabled={savingGrantId === application.id} onClick={() => void updateGrantStatus(application, 'UNDER COMMITTEE EVALUATION')} className="rounded-md border border-blue-200 px-2.5 py-2 font-semibold text-blue-800 hover:bg-blue-50 disabled:opacity-50">Send to committee</button>
+                                  <button type="button" disabled={savingGrantId === application.id} onClick={() => void updateGrantStatus(application, 'UNDER_COMMITTEE_REVIEW')} className="rounded-md border border-blue-200 px-2.5 py-2 font-semibold text-blue-800 hover:bg-blue-50 disabled:opacity-50">Under Review</button>
                                   <button type="button" disabled={savingGrantId === application.id} onClick={() => void updateGrantStatus(application, 'APPROVED')} className="rounded-md bg-emerald-700 px-2.5 py-2 font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">Approve</button>
                                   <button type="button" disabled={savingGrantId === application.id} onClick={() => void updateGrantStatus(application, 'REJECTED')} className="rounded-md border border-rose-200 px-2.5 py-2 font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">Reject</button>
                                 </div>
