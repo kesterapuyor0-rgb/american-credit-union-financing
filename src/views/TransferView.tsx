@@ -69,7 +69,9 @@ export const TransferView: React.FC<TransferViewProps> = ({
   const selectedSourceAccount = accounts.find((a) => a.id === sourceAccountId);
   const getAvailableBalance = (account: BankAccount) => Math.max(0, account.available_balance ?? account.balance - (account.held_balance || 0));
   const estimatedCharges = transferType === 'wire' ? 3.04 : 0;
-  const receiptRecipientName = recipientName.trim() || 'James Smith';
+  const receiptRecipientName = recipientName.trim()
+    || accounts.find((account) => account.id === destinationAccountId)?.nickname
+    || 'James smith';
   const receiptFee = transferFee || (transferType === 'wire' ? 2.01 : 0);
   const receiptTax = transferTax || (transferType === 'wire' ? 1.03 : 0);
 
@@ -710,9 +712,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
             </div>
 
             <h2 className="break-words text-2xl font-bold text-[#173B70] font-serif">
-              {transferType === 'wire'
-                ? `Domestic Wire Transfer Out to ${receiptRecipientName || 'Recipient'}`
-                : 'Transfer Submitted for Review'}
+              {`Domestic Wire Transfer Out to ${receiptRecipientName}`}
             </h2>
             <p className="text-xs text-gray-500 mt-1">
               Your transfer request is pending. The amount is reserved now and will post after approval.
@@ -725,12 +725,10 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   {formatUSD(parseFloat(amount))} USD
                 </span>
               </div>
-              {transferType === 'wire' && (
-                <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
-                  <span className="text-gray-500">Recipient:</span>
-                  <span className="break-words font-semibold text-gray-900 sm:text-right">{receiptRecipientName}</span>
-                </div>
-              )}
+              <div className="flex justify-between py-2">
+                <span className="text-gray-500">Recipient:</span>
+                <span className="font-semibold text-gray-900">{receiptRecipientName}</span>
+              </div>
               <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                 <span className="text-gray-500">Transfer fee:</span>
                 <span className="font-semibold text-gray-900">{formatUSD(receiptFee)} USD</span>
@@ -747,12 +745,10 @@ export const TransferView: React.FC<TransferViewProps> = ({
                 <span className="text-gray-500">Reference:</span>
                 <span className="break-all font-mono text-gray-700 sm:text-right">{completedTxId}</span>
               </div>
-              {transferType === 'wire' && (
-                <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
-                  <span className="text-gray-500">Date:</span>
-                  <span className="font-mono text-gray-700 sm:text-right">{new Date().toISOString().slice(0, 10)}</span>
-                </div>
-              )}
+              <div className="flex justify-between py-2">
+                <span className="text-gray-500">Date:</span>
+                <span className="font-mono text-gray-700">{new Date().toISOString().slice(0, 10)}</span>
+              </div>
               <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                 <span className="text-gray-500">Funding Account:</span>
                 <span className="break-words font-semibold text-gray-900 sm:text-right">
