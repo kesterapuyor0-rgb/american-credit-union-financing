@@ -382,7 +382,9 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               <div key={application.id} className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-800">{application.product_name}</p>
-                  {application.review_reason && <p className="mt-1 text-xs text-slate-500">{application.review_reason}</p>}
+                  {application.review_reason?.trim().toLowerCase() !== application.status.toLowerCase()
+                    && application.review_reason
+                    && <p className="mt-1 text-xs text-slate-500">{application.review_reason}</p>}
                 </div>
                 <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-medium ${application.status === 'Approved' ? 'bg-emerald-50 text-emerald-700' : application.status === 'Rejected' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-800'}`}>{application.status}</span>
               </div>
@@ -398,16 +400,41 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             <h2 className="text-lg font-semibold text-slate-900">Recent Activity</h2>
             <button type="button" onClick={() => onNavigateToTab('history')} className="text-sm font-medium text-slate-600 hover:text-slate-900">See all</button>
           </div>
-          <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white px-4">
-            {recentTransactions.map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-900">{formatTransactionDescription(transaction.description)}</p>
-                  <p className="text-xs text-slate-500">{transaction.date}</p>
+          <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white px-3 sm:px-4">
+            {recentTransactions.map((transaction) => {
+              const category = transaction.category?.toLowerCase() || '';
+              const description = formatTransactionDescription(transaction.description).toLowerCase();
+              const isGrant = category.includes('grant')
+                || transaction.id.startsWith('tx_grant_')
+                || description.includes('grant');
+              const isIncoming = isGrant || [
+                'deposit',
+                'transfer_in',
+                'admin_credit',
+                'admin_release',
+                'card_credit',
+              ].includes(transaction.type)
+                || (transaction.type === 'admin_adjustment' && transaction.amount > 0);
+              const amount = Math.abs(transaction.amount)
+                + (!isIncoming && transaction.type === 'transfer_out'
+                  ? (transaction.transfer_fee || 0) + (transaction.transfer_tax || 0)
+                  : 0);
+              const AmountIcon = isIncoming ? ArrowDownLeft : ArrowUpRight;
+              return (
+                <div key={transaction.id} className="flex min-w-0 items-center gap-3 py-3">
+                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${isIncoming ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                    <AmountIcon aria-hidden="true" className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-900">{formatTransactionDescription(transaction.description)}</p>
+                    <p className="truncate text-xs text-slate-500">{transaction.date}</p>
+                  </div>
+                  <p className={`shrink-0 whitespace-nowrap text-right text-sm font-bold tabular-nums ${isIncoming ? 'text-emerald-700' : 'text-slate-900'}`}>
+                    {isIncoming ? '+' : '−'}{formatMoney(amount)}
+                  </p>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-slate-800">{formatMoney(transaction.amount + (transaction.type === 'transfer_out' ? (transaction.transfer_fee || 0) + (transaction.transfer_tax || 0) : 0))}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
