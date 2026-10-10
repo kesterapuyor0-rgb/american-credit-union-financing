@@ -10,6 +10,7 @@ const GRANT_CATEGORIES = [
   'Tech/Innovation',
   'Emergency Business Relief',
 ] as const;
+const SERVICE_UNAVAILABLE_MESSAGE = 'Service temporarily updating. Please refresh in a moment.';
 
 interface GrantApplicationViewProps {
   user: User;
@@ -47,36 +48,75 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
   const [submitting, setSubmitting] = useState(false);
   const [showReapplicationForm, setShowReapplicationForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusFetchUnavailable, setStatusFetchUnavailable] = useState(false);
 
   const loadApplications = async (showLoading = true) => {
     if (showLoading) {
       setLoadingApplications(true);
-      setError(null);
     }
-    try {
-      const response = await fetch('/api/grants/user', {
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Unable to load grant applications.');
-      const nextApplications: GrantApplication[] = Array.isArray(data.applications) ? data.applications : [];
-      const newlyDisbursed = nextApplications.some((application) =>
-        normalizeGrantStatus(application.status) === 'DISBURSED'
-        && lastKnownStatuses.current.get(application.id) !== 'DISBURSED'
-      );
-      lastKnownStatuses.current = new Map(nextApplications.map((application) => [
-        application.id,
-        normalizeGrantStatus(application.status),
-      ]));
-      setApplications(nextApplications);
-      if (newlyDisbursed) await onRefresh();
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load grant applications.');
-    } finally {
-      if (showLoading) setLoadingApplications(false);
+    let lastLoadError: unknown;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const response = await fetch('/api/grants/user', {
+          headers: getAuthHeaders(),
+          credentials: 'include',
+        });
+        if (response.status === 502 || response.status === 503) {
+          lastLoadError = new Error(`Grant status service returned ${response.status}.`);
+          if (attempt < 2) {
+            await new Promise((resolve) => window.setTimeout(resolve, 500 * (attempt + 1)));
+            continue;
+          }
+          break;
+        }
+        if (!response.ok) throw new Error(`Grant status service returned ${response.status}.`);
+        const data = await response.json();
+        const nextApplications: GrantApplication[] = Array.isArray(data.applications) ? data.applications : [];
+        const newlyDisbursed = nextApplications.some((application) =>
+          normalizeGrantStatus(application.status) === 'DISBURSED'
+          && lastKnownStatuses.current.get(application.id) !== 'DISBURSED'
+        );
+        lastKnownStatuses.current = new Map(nextApplications.map((application) => [
+          application.id,
+          normalizeGrantStatus(application.status),
+        ]));
+        setApplications(nextApplications);
+        setStatusFetchUnavailable(false);
+        if (newlyDisbursed) {
+          try {
+            await onRefresh();
+          } catch (refreshError) {
+            console.error('Banking data refresh after grant disbursement failed:', refreshError);
+          }
+        }
+        if (showLoading) setLoadingApplications(false);
+        return;
+      } catch (loadError) {
+        lastLoadError = loadError;
+        if (loadError instanceof TypeError && attempt < 2) {
+          await new Promise((resolve) => window.setTimeout(resolve, 500 * (attempt + 1)));
+          continue;
+        }
+        break;
+      }
     }
+    console.error('Grant application status refresh failed:', lastLoadError);
+    setStatusFetchUnavailable(true);
+    if (showLoading) {
+      setLoadingApplications(false);
+    }
+    return;
   };
+
+  const renderServiceUnavailableNotice = () => statusFetchUnavailable && (
+    <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+      <span>{SERVICE_UNAVAILABLE_MESSAGE}</span>
+      <button type="button" onClick={() => void loadApplications()} disabled={loadingApplications} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60">
+        <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loadingApplications ? 'animate-spin' : ''}`} />
+        {loadingApplications ? 'Refreshing…' : 'Refresh'}
+      </button>
+    </div>
+  );
 
   useEffect(() => {
     void loadApplications();
@@ -150,7 +190,8 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
       });
       setDocument(null);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Unable to submit your grant application.');
+      console.error('Grant application submission failed:', submitError);
+      setStatusFetchUnavailable(true);
     } finally {
       setSubmitting(false);
     }
@@ -170,16 +211,14 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
   );
 
   if (loadingApplications && applications.length === 0) {
-    return <p role="status" className="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Loading your grant application status…</p>;
-  }
-
-  if (error && applications.length === 0) {
     return (
-      <section className="mx-auto max-w-3xl space-y-3">
-        <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</p>
-        <button type="button" onClick={() => void loadApplications()} disabled={loadingApplications} className="rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-60">
-          Try again
-        </button>
+      <section role="status" aria-label="Loading grant status" className="mx-auto max-w-5xl animate-pulse space-y-4">
+        <div className="h-32 rounded-2xl bg-slate-200" />
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="h-5 w-48 rounded bg-slate-200" />
+          <div className="h-4 w-full rounded bg-slate-100" />
+          <div className="h-4 w-2/3 rounded bg-slate-100" />
+        </div>
       </section>
     );
   }
@@ -214,6 +253,7 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
           </div>
 
           <div className="space-y-4 p-4 sm:p-6">
+            {renderServiceUnavailableNotice()}
             {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</p>}
             <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200">
               <div className="flex justify-between gap-4 px-4 py-3">
@@ -269,6 +309,7 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
     return (
       <section className="mx-auto w-full max-w-3xl">
         <article className="space-y-5 rounded-2xl border border-red-200 bg-white p-5 shadow-sm sm:p-7">
+          {renderServiceUnavailableNotice()}
           <div className="flex items-start gap-3">
             <CircleAlert aria-hidden="true" className="mt-0.5 h-7 w-7 shrink-0 text-red-700" />
             <div>
@@ -304,6 +345,7 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
         </div>
       </header>
 
+      {renderServiceUnavailableNotice()}
       {latestRejectedApplication && (
         <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-950">
           <p className="font-semibold">Application Not Approved: {latestRejectedApplication.rejectionReason || latestRejectedApplication.adminNotes || 'No specific reason was provided.'}</p>
