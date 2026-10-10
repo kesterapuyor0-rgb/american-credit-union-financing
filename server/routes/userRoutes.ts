@@ -8,6 +8,29 @@ import { maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
 const router = Router();
 router.use(requireDatabase);
 
+// GET /api/user/wallets — expose only the authenticated member's assigned deposit addresses.
+router.get('/wallets', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userWallets = await User.findOne({ id: req.user!.id })
+      .select('assigned_btc_address assigned_usdt_address usdt_network')
+      .lean<any>();
+    if (!userWallets) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+    res.json({
+      wallets: {
+        bitcoin: userWallets.assigned_btc_address || '',
+        usdt: userWallets.assigned_usdt_address || '',
+        usdtNetwork: userWallets.usdt_network || '',
+      },
+    });
+  } catch (err) {
+    console.error('Failed to retrieve member crypto deposit addresses:', err);
+    res.status(500).json({ error: errorMessage(err, 'Failed to retrieve crypto deposit addresses.') });
+  }
+});
+
 // GET /api/user/accounts
 router.get('/accounts', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {

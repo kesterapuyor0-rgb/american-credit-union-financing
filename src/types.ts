@@ -14,6 +14,9 @@ export interface User {
   };
   address?: string;
   profilePicture?: string;
+  assigned_btc_address?: string;
+  assigned_usdt_address?: string;
+  usdt_network?: '' | 'TRC-20' | 'ERC-20';
   created_at?: string;
 }
 

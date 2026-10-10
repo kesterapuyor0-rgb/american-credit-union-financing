@@ -97,6 +97,12 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
   const [restrictionEdits, setRestrictionEdits] = useState<Record<string, { isRestricted: boolean; restrictionReason: string }>>({});
   const [savingRestrictionId, setSavingRestrictionId] = useState<string | null>(null);
   const [restrictionError, setRestrictionError] = useState<string | null>(null);
+  const [walletUser, setWalletUser] = useState<UserWithAccounts | null>(null);
+  const [walletBtcAddress, setWalletBtcAddress] = useState('');
+  const [walletUsdtAddress, setWalletUsdtAddress] = useState('');
+  const [walletUsdtNetwork, setWalletUsdtNetwork] = useState<'TRC-20' | 'ERC-20'>('TRC-20');
+  const [savingWallets, setSavingWallets] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -183,6 +189,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
       isRestricted: targetUser.isRestricted === true,
       restrictionReason: targetUser.restrictionReason || '',
     };
+
     if (edit.isRestricted && !edit.restrictionReason.trim()) {
       setRestrictionError('Enter a restriction reason before saving.');
       return;
@@ -221,6 +228,66 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
       setRestrictionError(err instanceof Error ? err.message : 'Unable to update account restriction.');
     } finally {
       setSavingRestrictionId(null);
+    }
+  };
+
+  const openWalletAssignment = (targetUser: UserWithAccounts) => {
+    setWalletUser(targetUser);
+    setWalletBtcAddress(targetUser.assigned_btc_address || '');
+    setWalletUsdtAddress(targetUser.assigned_usdt_address || '');
+    setWalletUsdtNetwork(targetUser.usdt_network === 'ERC-20' ? 'ERC-20' : 'TRC-20');
+    setWalletError(null);
+  };
+
+  const saveWalletAssignment = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!walletUser) return;
+    const btcAddress = walletBtcAddress.trim();
+    const usdtAddress = walletUsdtAddress.trim();
+    const btcBase58 = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/;
+    const btcBech32 = /^bc1[ac-hj-np-z02-9]{11,71}$/;
+    const validBtc = btcBase58.test(btcAddress)
+      || ((btcAddress === btcAddress.toLowerCase() || btcAddress === btcAddress.toUpperCase())
+        && btcBech32.test(btcAddress.toLowerCase()));
+    const validUsdt = walletUsdtNetwork === 'TRC-20'
+      ? /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(usdtAddress)
+      : /^0x[a-fA-F0-9]{40}$/.test(usdtAddress);
+    if (btcAddress && !validBtc) {
+      setWalletError('Enter a valid Bitcoin mainnet address.');
+      return;
+    }
+    if (usdtAddress && !validUsdt) {
+      setWalletError(`Enter a valid ${walletUsdtNetwork} USDT address.`);
+      return;
+    }
+
+    setSavingWallets(true);
+    setWalletError(null);
+    try {
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(walletUser.id)}/wallets`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          assigned_btc_address: btcAddress,
+          assigned_usdt_address: usdtAddress,
+          usdt_network: usdtAddress ? walletUsdtNetwork : '',
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to save crypto wallet addresses.');
+      setUsers((currentUsers) => currentUsers.map((currentUser) =>
+        currentUser.id === walletUser.id ? { ...currentUser, ...data.user } : currentUser
+      ));
+      setSuccessMsg(`Crypto deposit wallets updated for ${walletUser.full_name}.`);
+      setWalletUser(null);
+    } catch (saveError) {
+      setWalletError(saveError instanceof Error ? saveError.message : 'Unable to save crypto wallet addresses.');
+    } finally {
+      setSavingWallets(false);
     }
   };
 
@@ -1094,6 +1161,15 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                         <p className={`mt-1 text-[10px] font-bold uppercase ${edit.isRestricted ? 'text-red-700' : 'text-emerald-700'}`}>
                           {isAdminAccount ? 'Member Services account' : edit.isRestricted ? 'Restricted' : 'Active'}
                         </p>
+                        {!isAdminAccount && (
+                          <div className="mt-2 space-y-1 text-[10px]">
+                            <p className="break-all text-slate-600"><span className="font-semibold">BTC:</span> {customer.assigned_btc_address || 'Not assigned'}</p>
+                            <p className="break-all text-slate-600"><span className="font-semibold">USDT {customer.usdt_network ? `(${customer.usdt_network})` : ''}:</span> {customer.assigned_usdt_address || 'Not assigned'}</p>
+                            <button type="button" onClick={() => openWalletAssignment(customer)} className="mt-1 min-h-9 rounded border border-teal-200 px-2.5 py-1.5 font-semibold text-teal-800 hover:bg-teal-50">
+                              Assign crypto wallets
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <label className="min-w-0 space-y-1 text-xs font-medium text-gray-700">
                         <span>Restriction reason shown to customer</span>
@@ -1167,6 +1243,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                         <td className="py-3.5 px-4">
                           <div className="font-semibold text-gray-900">{u.full_name}</div>
                           <div className="text-[11px] text-gray-500 font-mono">{u.email}</div>
+                          <div className="mt-1 break-all text-[9px] text-gray-500 sm:text-[10px]"><span className="font-bold">BTC:</span> {u.assigned_btc_address || 'Not assigned'}</div>
+                          <div className="break-all text-[9px] text-gray-500 sm:text-[10px]"><span className="font-bold">USDT {u.usdt_network ? `(${u.usdt_network})` : ''}:</span> {u.assigned_usdt_address || 'Not assigned'}</div>
                         </td>
                         <td className="py-3.5 px-4 font-mono font-bold text-sm text-gray-900">
                           <div>{formatUSD(acc.account_type === 'Credit Card' ? acc.balance : Math.max(0, acc.balance - (acc.held_balance || 0)))} available</div>
@@ -2274,6 +2352,36 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
               </div>
             </form>
           </div>
+        </div>
+      )}
+      {walletUser && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4" role="presentation" onClick={() => !savingWallets && setWalletUser(null)}>
+          <form onSubmit={saveWalletAssignment} onClick={(event) => event.stopPropagation()} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-4 shadow-2xl sm:p-6" role="dialog" aria-modal="true" aria-labelledby="crypto-wallet-assignment-title">
+            <div>
+              <h2 id="crypto-wallet-assignment-title" className="text-lg font-bold text-slate-900">Crypto Wallet Assignment</h2>
+              <p className="mt-1 break-words text-sm text-slate-600">Assign public deposit addresses for {walletUser.full_name} ({walletUser.email}).</p>
+              <p className="mt-1 text-xs text-amber-800">Verify each address and network before saving. Never enter private keys or recovery phrases.</p>
+            </div>
+            <label className="block text-sm font-medium text-slate-700">Bitcoin mainnet address
+              <input type="text" autoComplete="off" maxLength={100} value={walletBtcAddress} onChange={(event) => setWalletBtcAddress(event.target.value)} placeholder="bc1... or legacy 1... / 3..." className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 px-3 font-mono text-xs" />
+            </label>
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+              <label className="block text-sm font-medium text-slate-700">USDT network
+                <select value={walletUsdtNetwork} onChange={(event) => setWalletUsdtNetwork(event.target.value as 'TRC-20' | 'ERC-20')} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                  <option value="TRC-20">TRC-20 (Tron)</option>
+                  <option value="ERC-20">ERC-20 (Ethereum)</option>
+                </select>
+              </label>
+              <label className="block min-w-0 text-sm font-medium text-slate-700">USDT deposit address
+                <input type="text" autoComplete="off" maxLength={100} value={walletUsdtAddress} onChange={(event) => setWalletUsdtAddress(event.target.value)} placeholder={walletUsdtNetwork === 'TRC-20' ? 'T...' : '0x...'} className="mt-1 min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-3 font-mono text-xs" />
+              </label>
+            </div>
+            {walletError && <p role="alert" className="break-words rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{walletError}</p>}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" disabled={savingWallets} onClick={() => setWalletUser(null)} className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 disabled:opacity-50">Cancel</button>
+              <button type="submit" disabled={savingWallets} className="min-h-10 rounded-lg bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50">{savingWallets ? 'Saving…' : 'Save wallet addresses'}</button>
+            </div>
+          </form>
         </div>
       )}
       {cardToDebit && (
