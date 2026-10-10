@@ -211,7 +211,7 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
   const receiptFee = selectedTransaction?.transfer_fee || 0;
   const receiptTax = selectedTransaction?.transfer_tax || 0;
 
-  const openTransactionFromKeyboard = (event: KeyboardEvent<HTMLTableRowElement>, transaction: Transaction) => {
+  const openTransactionFromKeyboard = (event: KeyboardEvent<HTMLDivElement>, transaction: Transaction) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       setSelectedTransaction(transaction);
@@ -303,62 +303,50 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
             <p className="mt-1 text-sm text-slate-500">Try changing your search or status filter.</p>
           </div>
         ) : (
-          <div className="w-full overflow-x-auto">
-            <table className="w-full min-w-[980px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th scope="col" className="px-4 py-3 font-semibold sm:px-5">Date</th>
-                  <th scope="col" className="px-4 py-3 font-semibold sm:px-5">Transaction details</th>
-                  <th scope="col" className="px-4 py-3 font-semibold sm:px-5">Type</th>
-                  <th scope="col" className="px-4 py-3 text-right font-semibold sm:px-5">Amount</th>
-                  <th scope="col" className="px-4 py-3 font-semibold sm:px-5">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredTransactions.map((transaction) => {
-                  const presentation = getTransactionPresentation(transaction);
-                  const statusPresentation = getStatusPresentation(transaction.status);
-                  const { Icon } = presentation;
-                  const { Icon: StatusIcon } = statusPresentation;
-                  return (
-                    <tr
-                      key={transaction.id}
-                      tabIndex={0}
-                      aria-label={`View transaction ${presentation.title}`}
-                      onClick={() => setSelectedTransaction(transaction)}
-                      onKeyDown={(event) => openTransactionFromKeyboard(event, transaction)}
-                      className="cursor-pointer hover:bg-emerald-50/50 focus:bg-emerald-50/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-700"
-                    >
-                      <td className="whitespace-nowrap px-4 py-4 text-slate-600 sm:px-5">{formatTransactionDate(transaction.date)}</td>
-                      <td className="px-4 py-4 sm:px-5">
-                        <div className="font-medium text-slate-900">{presentation.title}</div>
-                        <div className="mt-0.5 text-xs text-slate-500">{presentation.subtitle} · {transaction.account_name || transaction.account_number || 'Account activity'}</div>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 sm:px-5">
-                        <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-current/10 px-2.5 py-1 text-xs font-semibold ${presentation.iconClassName}`}>
-                          <Icon aria-hidden="true" className="h-3.5 w-3.5" /> {presentation.typeLabel}
-                        </span>
-                      </td>
-                      <td className={`whitespace-nowrap px-4 py-4 text-right sm:px-5 ${presentation.amountClassName}`}>
-                        <span className="inline-flex items-center justify-end gap-1">
-                          {presentation.isIncoming ? <ArrowDownLeft aria-hidden="true" className="h-4 w-4" /> : <ArrowUpRight aria-hidden="true" className="h-4 w-4" />}
-                          {presentation.isIncoming ? '+' : '−'}{formatMoney(transaction.amount)}
-                        </span>
-                        {transaction.type === 'transfer_out' && ((transaction.transfer_fee || 0) + (transaction.transfer_tax || 0) > 0) && (
-                          <span className="mt-1 block text-xs font-normal text-slate-500">Plus {formatMoney((transaction.transfer_fee || 0) + (transaction.transfer_tax || 0))} in fees/tax</span>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 sm:px-5">
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${statusPresentation.className}`}>
-                          <StatusIcon aria-hidden="true" className={`h-3.5 w-3.5 ${statusPresentation.label === 'Under Review' ? 'animate-spin' : ''}`} />
-                          {statusPresentation.label}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="divide-y divide-slate-100">
+            {filteredTransactions.map((transaction) => {
+              const presentation = getTransactionPresentation(transaction);
+              const statusPresentation = getStatusPresentation(transaction.status);
+              const { Icon } = presentation;
+              const { Icon: StatusIcon } = statusPresentation;
+              return (
+                <div
+                  key={transaction.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View transaction ${presentation.title}`}
+                  onClick={() => setSelectedTransaction(transaction)}
+                  onKeyDown={(event) => openTransactionFromKeyboard(event, transaction)}
+                  className="flex min-w-0 cursor-pointer items-center gap-2.5 px-3 py-2.5 text-left transition hover:bg-emerald-50/50 focus:bg-emerald-50/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-700 sm:gap-3 sm:px-4 sm:py-3"
+                >
+                  <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${presentation.iconClassName}`}>
+                    <Icon aria-hidden="true" className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold leading-5 text-slate-900">{presentation.title}</span>
+                    <span className="mt-0.5 block truncate text-xs leading-4 text-slate-500">
+                      {presentation.typeLabel} · {presentation.subtitle} · {formatTransactionDate(transaction.date)}
+                    </span>
+                    <span className="block truncate text-[11px] leading-4 text-slate-400">
+                      {transaction.account_name || transaction.account_number || 'Account activity'}
+                    </span>
+                  </span>
+                  <span className={`flex shrink-0 flex-col items-end gap-1 text-right ${presentation.amountClassName}`}>
+                    <span className="inline-flex max-w-full items-center justify-end gap-0.5 whitespace-nowrap text-xs font-bold tabular-nums sm:gap-1 sm:text-sm">
+                      {presentation.isIncoming ? <ArrowDownLeft aria-hidden="true" className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" /> : <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />}
+                      {presentation.isIncoming ? '+' : '−'}{formatMoney(transaction.amount)}
+                    </span>
+                    {transaction.type === 'transfer_out' && ((transaction.transfer_fee || 0) + (transaction.transfer_tax || 0) > 0) && (
+                      <span className="hidden text-[10px] font-normal text-slate-500 sm:block">Plus {formatMoney((transaction.transfer_fee || 0) + (transaction.transfer_tax || 0))} fees/tax</span>
+                    )}
+                    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-medium leading-4 ${statusPresentation.className}`}>
+                      <StatusIcon aria-hidden="true" className={`h-3 w-3 ${statusPresentation.label === 'Under Review' ? 'animate-spin' : ''}`} />
+                      {statusPresentation.label}
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
