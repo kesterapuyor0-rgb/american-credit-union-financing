@@ -718,73 +718,73 @@ export const TransferView: React.FC<TransferViewProps> = ({
         <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
           <div className="h-1.5 bg-emerald-600" />
 
-          <div className="p-6 sm:p-8 text-center">
-            <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+          <div className="p-3 text-center sm:p-8">
+            <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 sm:mb-4 sm:h-14 sm:w-14">
+              <CheckCircle2 className="h-6 w-6 text-emerald-600 sm:h-8 sm:w-8" />
             </div>
 
-            <h2 className="break-words text-2xl font-bold text-[#173B70] font-serif">
+            <h2 className="break-words font-serif text-lg font-bold text-[#173B70] sm:text-2xl">
               {`Domestic Wire Transfer Out to ${receiptRecipientName}`}
             </h2>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="mt-1 text-[11px] text-gray-500 sm:text-xs">
               Your transfer request is pending. The amount is reserved now and will post after approval.
             </p>
 
-            <div className="mt-6 max-w-md mx-auto bg-gray-50 border border-gray-200 rounded-sm p-4 text-xs text-left space-y-2.5">
-              <div className="flex flex-col gap-1 pb-2 border-b border-gray-200 sm:flex-row sm:items-start sm:justify-between">
-                <span className="text-gray-500">Transfer amount:</span>
-                <span className="break-words font-mono font-bold text-base text-gray-900 sm:text-right">
+            <div className="mx-auto mt-3 max-w-md space-y-1 rounded-sm border border-gray-200 bg-gray-50 p-2.5 text-left text-xs sm:mt-6 sm:space-y-2.5 sm:p-4">
+              <div className="flex items-center justify-between gap-2 border-b border-gray-200 pb-1 sm:pb-2">
+                <span className="shrink-0 text-gray-500">Transfer amount:</span>
+                <span className="break-words text-right font-mono text-sm font-bold text-gray-900 sm:text-base">
                   {formatUSD(parseFloat(amount))} USD
                 </span>
               </div>
-              <div className="flex justify-between py-2">
-                <span className="text-gray-500">Recipient:</span>
+              <div className="flex items-center justify-between gap-2 py-0.5 sm:py-2">
+                <span className="shrink-0 text-gray-500">Recipient:</span>
                 <span className="min-w-0 break-words text-right font-semibold text-gray-900">{receiptRecipientName}</span>
               </div>
-              <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
-                <span className="text-gray-500">Transfer fee:</span>
-                <span className="font-semibold text-gray-900">{formatUSD(receiptFee)} USD</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="shrink-0 text-gray-500">Transfer fee:</span>
+                <span className="text-right font-semibold text-gray-900">{formatUSD(receiptFee)} USD</span>
               </div>
-              <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
-                <span className="text-gray-500">Tax:</span>
-                <span className="font-semibold text-gray-900">{formatUSD(receiptTax)} USD</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="shrink-0 text-gray-500">Tax:</span>
+                <span className="text-right font-semibold text-gray-900">{formatUSD(receiptTax)} USD</span>
               </div>
-              <div className="flex flex-col gap-1 border-b border-gray-200 pb-2 sm:flex-row sm:justify-between">
-                <span className="text-gray-500">Total debit:</span>
-                <span className="font-bold text-gray-900">{formatUSD(parseFloat(amount) + receiptFee + receiptTax)} USD</span>
+              <div className="flex items-center justify-between gap-2 border-b border-gray-200 pb-1 sm:pb-2">
+                <span className="shrink-0 text-gray-500">Total debit:</span>
+                <span className="text-right font-bold text-gray-900">{formatUSD(parseFloat(amount) + receiptFee + receiptTax)} USD</span>
               </div>
-              <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
-                <span className="text-gray-500">Reference:</span>
-                <span className="break-all font-mono text-gray-700 sm:text-right">{completedTxId}</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="shrink-0 text-gray-500">Reference:</span>
+                <span className="min-w-0 break-all text-right font-mono text-[10px] text-gray-700 sm:text-xs">{completedTxId}</span>
               </div>
-              <div className="flex justify-between py-2">
-                <span className="text-gray-500">Date:</span>
-                <span className="font-mono text-gray-700">{new Date().toISOString().slice(0, 10)}</span>
+              <div className="flex items-center justify-between gap-2 py-0.5 sm:py-2">
+                <span className="shrink-0 text-gray-500">Date:</span>
+                <span className="text-right font-mono text-gray-700">{new Date().toISOString().slice(0, 10)}</span>
               </div>
-              <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
-                <span className="text-gray-500">Funding Account:</span>
-                <span className="break-words font-semibold text-gray-900 sm:text-right">
+              <div className="flex items-center justify-between gap-2">
+                <span className="shrink-0 text-gray-500">Funding Account:</span>
+                <span className="min-w-0 break-words text-right font-semibold text-gray-900">
                   {selectedSourceAccount?.nickname} ({selectedSourceAccount?.display_number})
                 </span>
               </div>
               {newSourceBalance !== null && (
-                <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
-                  <span className="text-gray-500">New Available Balance:</span>
-                  <span className="font-mono font-bold text-emerald-700">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="shrink-0 text-gray-500">New Available Balance:</span>
+                  <span className="text-right font-mono font-bold text-emerald-700">
                     {formatUSD(newSourceBalance)} USD
                   </span>
                 </div>
               )}
-              <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
-                <span className="text-gray-500">Status:</span>
-                <span className="inline-flex items-center gap-1.5 font-bold text-amber-700">
-                  <Clock aria-hidden="true" className="h-4 w-4" />
+              <div className="flex items-center justify-between gap-2">
+                <span className="shrink-0 text-gray-500">Status:</span>
+                <span className="inline-flex items-center gap-1 font-bold text-amber-700">
+                  <Clock aria-hidden="true" className="h-3.5 w-3.5" />
                   PENDING
                 </span>
               </div>
             </div>
 
-            <div className="mt-8 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-center sm:gap-3">
+            <div className="mt-3 flex flex-col-reverse gap-1.5 sm:mt-8 sm:flex-row sm:items-center sm:justify-center sm:gap-3">
               <button
                 type="button"
                 onClick={() => {
@@ -793,7 +793,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   setMemo('');
                   setOtpCode('');
                 }}
-                className="min-h-11 w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold rounded-sm transition-colors cursor-pointer sm:w-auto"
+                className="min-h-9 w-full rounded-sm bg-gray-100 px-3 py-1.5 text-[11px] font-semibold text-gray-800 transition-colors hover:bg-gray-200 sm:min-h-11 sm:w-auto sm:px-4 sm:py-2 sm:text-xs"
               >
                 Make Another Transfer
               </button>
@@ -801,7 +801,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
               <button
                 type="button"
                 onClick={onCancel}
-                className="min-h-11 w-full px-5 py-2 bg-[#173B70] hover:bg-[#245B9E] text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-sm transition-colors cursor-pointer sm:w-auto"
+                className="min-h-9 w-full rounded-sm bg-[#173B70] px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-[#245B9E] sm:min-h-11 sm:w-auto sm:px-5 sm:py-2 sm:text-xs"
               >
                 Return to Accounts Overview
               </button>
