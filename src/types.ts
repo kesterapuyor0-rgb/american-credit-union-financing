@@ -48,6 +48,8 @@ export interface Transaction {
   currency: string;
   description: string;
   sender_name?: string;
+  senderName?: string;
+  counterparty?: string;
   reference_id?: string;
   transaction_type?: string;
   formatted_amount?: string;

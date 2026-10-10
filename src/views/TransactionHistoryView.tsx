@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Transaction, User } from '../types';
-import { formatTransactionDescription } from '../utils/transactionFormatting';
+import { formatTransactionDescription, getTransactionSenderName } from '../utils/transactionFormatting';
 
 interface TransactionHistoryViewProps {
   user: User;
@@ -100,8 +100,7 @@ const getTransactionPresentation = (transaction: Transaction): TransactionPresen
     };
   }
   if (isIncoming) {
-    const source = transaction.sender_name?.trim()
-      || transaction.recipient_name?.trim()
+    const source = getTransactionSenderName(transaction)
       || description.replace(/^direct deposit\s*[-:]\s*/i, '').trim()
       || 'Account';
     const incomingType = transaction.transaction_type || transaction.category || 'Direct Deposit';
@@ -388,7 +387,7 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
               <div className="flex items-start justify-between gap-3"><dt className="min-w-0 flex-1 text-slate-500">Transaction reference</dt><dd className="min-w-0 flex-1 break-all text-right font-mono text-xs text-slate-700">{selectedTransaction.reference_id || selectedTransaction.id}</dd></div>
               {selectedTransaction.reference_id && <div className="flex items-start justify-between gap-3"><dt className="min-w-0 flex-1 text-slate-500">System transaction ID</dt><dd className="min-w-0 flex-1 break-all text-right font-mono text-xs text-slate-700">{selectedTransaction.id}</dd></div>}
               <div className="flex items-start justify-between gap-2 text-xs sm:text-sm"><dt className="min-w-0 flex-1 break-words text-slate-500">Full description</dt><dd className="min-w-0 flex-1 break-words text-right font-medium text-slate-900">{formatTransactionDescription(selectedTransaction.description)}</dd></div>
-              {selectedTransaction.sender_name && <div className="flex items-start justify-between gap-2 text-xs sm:text-sm"><dt className="min-w-0 flex-1 break-words text-slate-500">Sender / issuer</dt><dd className="min-w-0 flex-1 break-words text-right font-medium text-slate-900">{selectedTransaction.sender_name}</dd></div>}
+              {selectedPresentation?.isIncoming && <div className="flex items-start justify-between gap-2 text-xs sm:text-sm"><dt className="min-w-0 flex-1 break-words text-slate-500">Sender / issuer</dt><dd className="min-w-0 flex-1 break-words text-right font-medium text-slate-900">{getTransactionSenderName(selectedTransaction)}</dd></div>}
               {(selectedTransaction.recipient_name || selectedTransactionIsWire) && <div className="flex items-start justify-between gap-2 text-xs sm:text-sm"><dt className="min-w-0 flex-1 break-words text-slate-500">Recipient</dt><dd className="min-w-0 flex-1 break-words text-right font-medium text-slate-900">{selectedTransaction.recipient_name || receiptRecipientName}</dd></div>}
               {selectedTransaction.recipient_account && <div className="flex items-start justify-between gap-2 text-xs sm:text-sm"><dt className="min-w-0 flex-1 break-words text-slate-500">Counterparty account</dt><dd className="min-w-0 flex-1 break-all text-right font-medium text-slate-900">{selectedTransaction.recipient_account}</dd></div>}
               <div className="flex items-start justify-between gap-2 text-xs sm:text-sm"><dt className="min-w-0 flex-1 break-words text-slate-500">Transaction date &amp; time</dt><dd className="min-w-0 flex-1 break-words text-right font-medium text-slate-900">{formatTransactionDateTime(selectedTransaction)}</dd></div>

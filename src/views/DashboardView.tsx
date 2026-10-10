@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BankAccount, Transaction, User, UserSummary } from '../types';
-import { formatTransactionDescription } from '../utils/transactionFormatting';
+import { formatTransactionDescription, getTransactionSenderName } from '../utils/transactionFormatting';
 import {
   CreditCard,
   Landmark,
@@ -65,6 +65,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const selectedTransactionIsWire = selectedTransaction?.type === 'transfer_out'
     && selectedTransaction.description.toLowerCase().includes('domestic wire transfer');
   const receiptRecipientName = selectedTransaction?.recipient_name?.trim() || 'James Smith';
+  const selectedTransactionIsIncoming = selectedTransaction
+    ? ['deposit', 'transfer_in', 'admin_credit', 'admin_release', 'card_credit'].includes(selectedTransaction.type)
+      || (selectedTransaction.type === 'admin_adjustment' && selectedTransaction.amount > 0)
+    : false;
   const receiptFee = selectedTransactionIsWire
     ? selectedTransaction?.transfer_fee || 2.01
     : selectedTransaction?.transfer_fee || 0;
@@ -694,10 +698,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <span className="text-[10px] font-bold text-[#D6A832] uppercase tracking-wider">
                     American Credit Union Financing · Account Activity
                   </span>
-                  <h3 className="text-lg font-bold text-[#173B70] font-serif mt-0.5">
+                  <h3 className="break-words text-lg font-bold text-[#173B70] font-serif mt-0.5">
                     {selectedTransactionIsWire
                       ? `Domestic Wire Transfer Out to ${receiptRecipientName || 'Recipient'}`
-                      : formatTransactionDescription(selectedTransaction.description)}
+                      : selectedTransactionIsIncoming
+                        ? `Direct Deposit - ${getTransactionSenderName(selectedTransaction)}`
+                        : formatTransactionDescription(selectedTransaction.description)}
                   </h3>
                 </div>
                 <button
@@ -771,10 +777,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <span className="font-medium text-gray-900">{selectedTransactionIsWire ? receiptRecipientName : selectedTransaction.recipient_name}</span>
                   </div>
                 )}
-                {selectedTransaction.sender_name && (
+                {selectedTransactionIsIncoming && (
                   <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                     <span className="text-gray-500">Sender / Issuer:</span>
-                    <span className="break-words font-medium text-gray-900">{selectedTransaction.sender_name}</span>
+                    <span className="break-words font-medium text-gray-900">{getTransactionSenderName(selectedTransaction)}</span>
                   </div>
                 )}
               </div>
