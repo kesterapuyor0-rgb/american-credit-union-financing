@@ -178,7 +178,14 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Unable to submit your grant application.');
+      if (!response.ok) {
+        if (response.status >= 500) {
+          setStatusFetchUnavailable(true);
+        } else {
+          setError('We could not submit your application. Please review the form and try again.');
+        }
+        return;
+      }
       setApplications((current) => [data.application, ...current]);
       setForm({
         businessName: '',
