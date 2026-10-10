@@ -46,6 +46,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
     accounts[1]?.id || ''
   );
   const [recipientName, setRecipientName] = useState('');
+  const [submittedRecipientName, setSubmittedRecipientName] = useState('');
   const [recipientAccount, setRecipientAccount] = useState('');
   const [recipientRouting, setRecipientRouting] = useState('026009593');
   const [amount, setAmount] = useState<string>('');
@@ -69,7 +70,8 @@ export const TransferView: React.FC<TransferViewProps> = ({
   const selectedSourceAccount = accounts.find((a) => a.id === sourceAccountId);
   const getAvailableBalance = (account: BankAccount) => Math.max(0, account.available_balance ?? account.balance - (account.held_balance || 0));
   const estimatedCharges = transferType === 'wire' ? 3.04 : 0;
-  const receiptRecipientName = recipientName.trim()
+  const receiptRecipientName = submittedRecipientName
+    || recipientName.trim()
     || accounts.find((account) => account.id === destinationAccountId)?.nickname
     || 'James smith';
   const receiptFee = transferFee || (transferType === 'wire' ? 2.01 : 0);
@@ -150,6 +152,13 @@ export const TransferView: React.FC<TransferViewProps> = ({
       }
 
       setVerificationId(data.verificationId);
+      setSubmittedRecipientName(
+        typeof data.recipientName === 'string' && data.recipientName.trim()
+          ? data.recipientName.trim()
+          : recipientName.trim()
+            || accounts.find((account) => account.id === destinationAccountId)?.nickname
+            || 'James smith',
+      );
       setTransferFee(Number(data.transferFee) || 0);
       setTransferTax(Number(data.transferTax) || 0);
       setMaskedContact(data.maskedContact);
@@ -193,6 +202,9 @@ export const TransferView: React.FC<TransferViewProps> = ({
         throw new Error(data.error || 'Authorization failed.');
       }
 
+      if (typeof data.recipientName === 'string' && data.recipientName.trim()) {
+        setSubmittedRecipientName(data.recipientName.trim());
+      }
       setCompletedTxId(data.transactionId);
       setNewSourceBalance(null);
       setStep('success');
@@ -727,7 +739,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
               </div>
               <div className="flex justify-between py-2">
                 <span className="text-gray-500">Recipient:</span>
-                <span className="font-semibold text-gray-900">{receiptRecipientName}</span>
+                <span className="min-w-0 break-words text-right font-semibold text-gray-900">{receiptRecipientName}</span>
               </div>
               <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                 <span className="text-gray-500">Transfer fee:</span>
