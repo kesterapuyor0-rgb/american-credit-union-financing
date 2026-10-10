@@ -1,5 +1,5 @@
 import React, { ChangeEvent, FormEvent, useEffect, useState } from 'react';
-import { CheckCircle2, FileText, HandCoins, RefreshCw, Upload } from 'lucide-react';
+import { CheckCircle2, HandCoins, RefreshCw, Upload } from 'lucide-react';
 import { GrantApplication, GrantStatus, User } from '../types';
 import { getAuthHeaders } from '../utils/api';
 
@@ -51,7 +51,6 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
   const [loadingApplications, setLoadingApplications] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [submittedAmount, setSubmittedAmount] = useState<number | null>(null);
 
   const loadApplications = async (showLoading = true) => {
     if (showLoading) {
@@ -135,7 +134,6 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Unable to submit your grant application.');
       setApplications((current) => [data.application, ...current]);
-      setSubmittedAmount(amount);
       setForm({
         businessName: '',
         category: GRANT_CATEGORIES[0],
@@ -158,6 +156,100 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
     minimumFractionDigits: 2,
   }).format(amount);
 
+  const isActiveApplication = (application: GrantApplication) => {
+    const status = application.status.toUpperCase().replace(/[_-]+/g, ' ').trim();
+    return ['PENDING', 'PENDING REVIEW', 'UNDER REVIEW', 'UNDER COMMITTEE EVALUATION', 'APPROVED'].includes(status);
+  };
+  const activeApplication = applications.find(isActiveApplication);
+  const wasPreviouslyRejected = applications.some((application) =>
+    application.status.toUpperCase().replace(/[_-]+/g, ' ').trim() === 'REJECTED'
+  );
+
+  if (loadingApplications && applications.length === 0) {
+    return <p role="status" className="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Loading your grant application status…</p>;
+  }
+
+  if (error && applications.length === 0) {
+    return (
+      <section className="mx-auto max-w-3xl space-y-3">
+        <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</p>
+        <button type="button" onClick={() => void loadApplications()} disabled={loadingApplications} className="rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-60">
+          Try again
+        </button>
+      </section>
+    );
+  }
+
+  if (activeApplication) {
+    const normalizedStatus = activeApplication.status.toUpperCase().replace(/[_-]+/g, ' ').trim();
+    const displayStatus = normalizedStatus === 'PENDING' ? 'PENDING REVIEW'
+      : normalizedStatus === 'UNDER REVIEW' ? 'UNDER COMMITTEE EVALUATION'
+        : normalizedStatus;
+    const statusStyle = GRANT_STATUS_STYLES[activeApplication.status] || GRANT_STATUS_STYLES['PENDING REVIEW'];
+
+    return (
+      <section className="mx-auto w-full max-w-3xl">
+        <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="bg-gradient-to-r from-[#102a50] to-teal-900 p-5 text-white sm:p-7">
+            <div className="flex items-start gap-3">
+              <HandCoins aria-hidden="true" className="mt-1 h-7 w-7 shrink-0 text-amber-300" />
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-amber-200">Business & Community Grant Program</p>
+                <h1 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">
+                  {displayStatus === 'APPROVED' ? 'Grant Application Status Tracker' : 'Grant Application Under Review'}
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-blue-50">
+                  Your application is being handled by our Member Services Grant Committee.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4 p-4 sm:p-6">
+            {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</p>}
+            <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <dt className="text-sm text-slate-500">Business / project</dt>
+                <dd className="text-right text-sm font-semibold text-slate-900">{activeApplication.businessName}</dd>
+              </div>
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <dt className="text-sm text-slate-500">Amount requested</dt>
+                <dd className="text-right text-sm font-semibold text-slate-900">{formatMoney(activeApplication.requestedAmount)}</dd>
+              </div>
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <dt className="text-sm text-slate-500">Category</dt>
+                <dd className="text-right text-sm font-semibold text-slate-900">{activeApplication.category}</dd>
+              </div>
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <dt className="text-sm text-slate-500">Submission date</dt>
+                <dd className="text-right text-sm font-semibold text-slate-900">{new Date(activeApplication.submittedAt).toLocaleDateString()}</dd>
+              </div>
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <dt className="text-sm text-slate-500">Current status</dt>
+                <dd className="text-right"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusStyle}`}>{displayStatus}</span></dd>
+              </div>
+            </dl>
+
+            {displayStatus === 'APPROVED' && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
+                <h2 className="font-semibold">Official grant award notice</h2>
+                <p className="mt-1">
+                  Your application has been approved for {formatMoney(activeApplication.approvedAmount || 0)}.
+                  {activeApplication.adminNotes ? ` ${activeApplication.adminNotes}` : ' The award is approved and awaiting disbursement.'}
+                </p>
+              </div>
+            )}
+
+            <p className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
+              For inquiries, contact{' '}
+              <a className="font-semibold underline" href="mailto:americancreditunion.financing@gmail.com">americancreditunion.financing@gmail.com</a>.
+            </p>
+          </div>
+        </article>
+      </section>
+    );
+  }
+
   return (
     <section className="mx-auto w-full max-w-5xl space-y-6">
       <header className="rounded-2xl bg-gradient-to-r from-[#102a50] to-teal-900 p-5 text-white shadow-sm sm:p-7">
@@ -173,25 +265,14 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
         </div>
       </header>
 
-      {submittedAmount !== null && (
-        <section role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950 sm:p-5">
-          <div className="flex items-start gap-3">
-            <CheckCircle2 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
-            <div>
-              <h2 className="font-semibold">Grant Application Under Review</h2>
-              <p className="mt-1 text-sm leading-6">
-                Your request for {formatMoney(submittedAmount)} has been successfully submitted and is under evaluation by our Member Services Grant Committee. For inquiries or additional details while waiting for approval, please contact customer support at{' '}
-                <a className="font-semibold underline" href="mailto:americancreditunion.financing@gmail.com">americancreditunion.financing@gmail.com</a>.
-              </p>
-            </div>
-          </div>
-        </section>
+      {wasPreviouslyRejected && (
+        <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+          Your previous grant application was not approved. You may submit a new application below.
+        </p>
       )}
-
       {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</p>}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
-        <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+      <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">Grant application</h2>
             <p className="mt-1 text-sm text-slate-600">Share how the funding will support your business or community project.</p>
@@ -237,51 +318,7 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
           <button type="submit" disabled={submitting} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-teal-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? <><RefreshCw aria-hidden="true" className="h-4 w-4 animate-spin" /> Submitting…</> : 'Submit Grant Application'}
           </button>
-        </form>
-
-        <aside className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-slate-900">Grant Applications</h2>
-            <button type="button" onClick={() => void loadApplications()} disabled={loadingApplications} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-60">
-              <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loadingApplications ? 'animate-spin' : ''}`} /> Refresh
-            </button>
-          </div>
-          <p className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-blue-950">
-            Have questions about your pending grant application? Contact Member Services at{' '}
-            <a className="font-semibold underline" href="mailto:americancreditunion.financing@gmail.com">americancreditunion.financing@gmail.com</a>
-          </p>
-          {loadingApplications ? (
-            <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">Loading grant applications…</p>
-          ) : applications.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">No grant applications yet. Submit a proposal to start tracking its status here.</p>
-          ) : applications.map((application) => (
-            <article key={application.id} className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="break-words font-semibold text-slate-900">{application.businessName}</h3>
-                  <p className="mt-1 text-xs text-slate-500">{application.category} · {new Date(application.submittedAt).toLocaleDateString()}</p>
-                </div>
-                <span className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-bold ${GRANT_STATUS_STYLES[application.status]}`}>{application.status}</span>
-              </div>
-              <div className="flex justify-between gap-3 text-sm">
-                <span className="text-slate-500">Requested</span>
-                <span className="font-semibold text-slate-900">{formatMoney(application.requestedAmount)}</span>
-              </div>
-              {['APPROVED', 'DISBURSED'].includes(application.status) && (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
-                  <p className="font-semibold">Official grant award notice</p>
-                  <p className="mt-1">Your application has been approved for {formatMoney(application.approvedAmount || 0)}.{application.status === 'DISBURSED' ? ' The award has been deposited into your account.' : ' The award is approved and awaiting disbursement.'}</p>
-                </div>
-              )}
-              {application.status === 'REJECTED' && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-900">{application.adminNotes || 'This application was not approved.'}</p>}
-              {application.adminNotes && !['REJECTED'].includes(application.status) && (
-                <p className="text-xs leading-5 text-slate-600"><span className="font-semibold">Committee update:</span> {application.adminNotes}</p>
-              )}
-              <div className="flex items-center gap-2 text-xs text-slate-500"><FileText aria-hidden="true" className="h-4 w-4" /> {application.documentName}</div>
-            </article>
-          ))}
-        </aside>
-      </div>
+      </form>
     </section>
   );
 };
