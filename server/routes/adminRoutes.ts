@@ -873,13 +873,30 @@ router.post('/cards/:cardId/debit', async (req: AuthenticatedRequest, res: Respo
 // POST /api/admin/credit-user
 // Admin endpoint to instantly credit customer accounts
 router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const session = await mongoose.startSession();
   try {
-    const { userId, accountId, accountNumber, amount, memo, description, reason } = req.body || {};
-    const memoText = String(memo || description || reason || 'Administrative Credit / Fund Injection').trim();
+    const { userId, accountId, accountNumber, amount } = req.body || {};
+    const senderName = String(req.body?.senderName || 'Gusto Payroll Services').trim();
+    const transactionType = String(req.body?.transactionType || 'ACH Direct Deposit').trim();
+    const referenceId = String(req.body?.referenceNumber || '').trim() || `ACH-${randomUUID()}`;
+    const memoText = String(req.body?.memo || req.body?.description || req.body?.reason || '').trim();
+    const parsedAmount = Math.round(Number(amount) * 100) / 100;
+    const allowedTransactionTypes = ['ACH Direct Deposit', 'Wire Transfer', 'Payroll Deposit', 'Grant Disbursement', 'Other Credit'];
 
-    const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      res.status(400).json({ error: 'Credit amount must be a positive number greater than $0.00.' });
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0 || parsedAmount > 10000000) {
+      res.status(400).json({ error: 'Credit amount must be greater than $0.00 and no more than $10,000,000.00.' });
+      return;
+    }
+    if (!senderName || senderName.length > 120) {
+      res.status(400).json({ error: 'Sender / issuer name is required and must be 120 characters or fewer.' });
+      return;
+    }
+    if (!allowedTransactionTypes.includes(transactionType)) {
+      res.status(400).json({ error: 'Select a supported transaction type.' });
+      return;
+    }
+    if (referenceId.length > 120 || memoText.length > 500) {
+      res.status(400).json({ error: 'Reference numbers must be 120 characters or fewer and memo text 500 characters or fewer.' });
       return;
     }
 
@@ -900,43 +917,56 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
     }
 
     const targetUser = await User.findOne({ id: account.user_id }).select('id email full_name').lean<any>();
-
-    // Increment balance directly
-    const updatedAccount = await Account.findOneAndUpdate(
-      { id: account.id }, { $inc: { balance: parsedAmount } }, { new: true }
-    ).lean<any>();
-    if (!updatedAccount) {
-      res.status(404).json({ error: 'Target customer account could not be found.' });
-      return;
-    }
-    const newBalance = updatedAccount.balance;
-
-    // Record as APPROVED transaction
-    const txId = 'tx_cred_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const txId = `tx_cred_${randomUUID()}`;
     const today = new Date().toISOString().split('T')[0];
-    const fullDesc = 'ACH Deposit Confirmed';
+    const fullDesc = `${transactionType} - ${senderName}`;
+    let updatedAccount: any;
 
-    await Transaction.create({
-      id: txId, user_id: account.user_id, account_id: account.id, type: 'admin_credit',
-      amount: parsedAmount, currency: 'USD', description: fullDesc,
-      recipient_name: 'Bank Administrator', recipient_account: account.account_number,
-      status: 'APPROVED', category: 'Deposit', date: today, created_at: Date.now(),
+    await session.withTransaction(async () => {
+      updatedAccount = await Account.findOneAndUpdate(
+        { id: account.id },
+        { $inc: { balance: parsedAmount } },
+        { new: true, session },
+      ).lean<any>();
+      if (!updatedAccount) throw new Error('Target customer account could not be found.');
+
+      await Transaction.create([{
+        id: txId,
+        user_id: account.user_id,
+        account_id: account.id,
+        type: 'admin_credit',
+        amount: parsedAmount,
+        currency: account.currency || 'USD',
+        description: memoText ? `${fullDesc} — ${memoText}` : fullDesc,
+        sender_name: senderName,
+        reference_id: referenceId,
+        transaction_type: transactionType,
+        recipient_account: account.account_number,
+        status: 'APPROVED',
+        category: transactionType,
+        date: today,
+        created_at: Date.now(),
+      }], { session });
+
+      await AuditLog.create([{
+        id: `aud_cred_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: 'ADMIN_CREDIT',
+        target_user_id: account.user_id,
+        target_account_id: account.id,
+        amount: parsedAmount,
+        details: `${transactionType} credit of $${parsedAmount.toFixed(2)} from ${senderName} to ${targetUser?.full_name || 'customer'} (Acct: ${account.account_number}). Reference: ${referenceId}.${memoText ? ` Memo: ${memoText}` : ''}`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
     });
 
-    // Record audit log
-    const logId = 'aud_cred_' + Date.now();
-    await AuditLog.create({
-      id: logId, admin_id: req.user!.id, admin_email: req.user!.email,
-      action: 'ADMIN_CREDIT', target_user_id: account.user_id, target_account_id: account.id,
-      amount: parsedAmount,
-      details: `Admin fund injection of $${parsedAmount.toFixed(2)} to ${targetUser?.full_name || 'customer'} (Acct: ${account.account_number}). Memo: ${memoText}`,
-      ip_address: req.ip || '127.0.0.1', created_at: new Date().toISOString(),
-    });
     try {
       await createNotification({
         userId: account.user_id,
         title: 'Account Credit Posted',
-        message: `$${parsedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD was credited to your account.`,
+        message: `${new Intl.NumberFormat('en-US', { style: 'currency', currency: account.currency || 'USD' }).format(parsedAmount)} from ${senderName} was credited to your account.`,
         type: 'deposit',
         category: 'deposit',
         link: 'history',
@@ -948,15 +978,27 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
     res.json({
       success: true,
       message: `Successfully credited $${parsedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} to ${targetUser?.full_name || 'Customer'}'s account (${account.account_number}).`,
-      newBalance,
+      newBalance: updatedAccount.balance,
       creditedAmount: parsedAmount,
       account: updatedAccount,
       user: targetUser,
       transactionId: txId,
+      transaction: {
+        id: txId,
+        sender_name: senderName,
+        reference_id: referenceId,
+        transaction_type: transactionType,
+        formatted_amount: new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: account.currency || 'USD',
+        }).format(parsedAmount),
+      },
     });
   } catch (err: any) {
     console.error('Error in credit-user:', err);
     res.status(500).json({ error: errorMessage(err, 'Failed to process admin credit to customer account.') });
+  } finally {
+    await session.endSession();
   }
 });
 
@@ -996,6 +1038,10 @@ router.get('/transactions', async (req: AuthenticatedRequest, res: Response): Pr
     const accountsById = new Map(accounts.map((account) => [account.id, account]));
     const transactions = rows.map((row) => ({
       ...row,
+      formatted_amount: new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: row.currency || 'USD',
+      }).format(Math.abs(Number(row.amount) || 0)),
       user_email: usersById.get(row.user_id)?.email,
       user_name: usersById.get(row.user_id)?.full_name,
       account_number: accountsById.get(row.account_id)?.account_number,

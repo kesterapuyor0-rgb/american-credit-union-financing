@@ -119,6 +119,9 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
   const [creditAccountId, setCreditAccountId] = useState('');
   const [creditAmount, setCreditAmount] = useState('');
   const [creditMemo, setCreditMemo] = useState('');
+  const [creditSenderName, setCreditSenderName] = useState('');
+  const [creditTransactionType, setCreditTransactionType] = useState('ACH Direct Deposit');
+  const [creditReferenceNumber, setCreditReferenceNumber] = useState('');
   const [submittingCredit, setSubmittingCredit] = useState(false);
   const [grantApplications, setGrantApplications] = useState<GrantApplication[]>([]);
   const [grantNotes, setGrantNotes] = useState<Record<string, string>>({});
@@ -594,7 +597,10 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
       setCreditAccountId(firstAcc?.id || '');
     }
     setCreditAmount('');
-    setCreditMemo('Member Services Account Credit');
+    setCreditMemo('Account funding credit');
+    setCreditSenderName('Gusto Payroll Services');
+    setCreditTransactionType('ACH Direct Deposit');
+    setCreditReferenceNumber(`ACH-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`);
     setCreditModalOpen(true);
     setError(null);
   };
@@ -602,8 +608,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
   const handleProcessCreditUser = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsed = parseFloat(creditAmount);
-    if (isNaN(parsed) || parsed <= 0) {
-      setError('Please enter a valid credit amount greater than $0.00 USD.');
+    if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 10000000) {
+      setError('Enter a credit amount greater than $0.00 and no more than $10,000,000.00 USD.');
       return;
     }
 
@@ -616,12 +622,16 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
       setError('A transaction memo / description is required.');
       return;
     }
+    if (!creditSenderName.trim() || !creditReferenceNumber.trim()) {
+      setError('A sender / issuer name and reference number are required.');
+      return;
+    }
 
     setSubmittingCredit(true);
     setError(null);
 
     try {
-      const res = await fetch('/api/admin/balance-adjustment', {
+      const res = await fetch('/api/admin/credit-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -631,8 +641,10 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
         body: JSON.stringify({
           accountId: creditAccountId,
           amount: parsed,
-          action: 'credit',
-          reason: creditMemo.trim(),
+          senderName: creditSenderName.trim(),
+          transactionType: creditTransactionType,
+          referenceNumber: creditReferenceNumber.trim(),
+          memo: creditMemo.trim(),
           token: activeToken,
         }),
       });
@@ -2051,7 +2063,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
               </button>
             </div>
 
-            <form onSubmit={handleProcessCreditUser} className="p-6 space-y-4">
+            <form onSubmit={handleProcessCreditUser} className="space-y-4 px-3.5 py-4 sm:p-6">
               {/* Customer Selection / Account Number */}
               <div>
                 <label
@@ -2112,6 +2124,58 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                 );
               })()}
 
+              <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+                <div className="min-w-0">
+                  <label htmlFor="input-credit-sender" className="mb-1 block text-xs font-bold uppercase tracking-wider text-gray-700">
+                    Sender / Issuer Name
+                  </label>
+                  <input
+                    id="input-credit-sender"
+                    type="text"
+                    required
+                    maxLength={120}
+                    placeholder="e.g., Gusto Payroll Services"
+                    value={creditSenderName}
+                    onChange={(event) => setCreditSenderName(event.target.value)}
+                    className="w-full min-w-0 rounded-xs border border-gray-300 p-2.5 text-xs focus:ring-1 focus:ring-[#173B70]"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label htmlFor="select-credit-transaction-type" className="mb-1 block text-xs font-bold uppercase tracking-wider text-gray-700">
+                    Transaction Type
+                  </label>
+                  <select
+                    id="select-credit-transaction-type"
+                    value={creditTransactionType}
+                    onChange={(event) => setCreditTransactionType(event.target.value)}
+                    className="w-full min-w-0 rounded-xs border border-gray-300 bg-white p-2.5 text-xs focus:ring-1 focus:ring-[#173B70]"
+                    required
+                  >
+                    <option>ACH Direct Deposit</option>
+                    <option>Wire Transfer</option>
+                    <option>Payroll Deposit</option>
+                    <option>Grant Disbursement</option>
+                    <option>Other Credit</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="input-credit-reference" className="mb-1 block text-xs font-bold uppercase tracking-wider text-gray-700">
+                  Reference Number
+                </label>
+                <input
+                  id="input-credit-reference"
+                  type="text"
+                  required
+                  maxLength={120}
+                  placeholder="Unique payment or issuer reference"
+                  value={creditReferenceNumber}
+                  onChange={(event) => setCreditReferenceNumber(event.target.value)}
+                  className="w-full min-w-0 rounded-xs border border-gray-300 p-2.5 text-xs font-mono focus:ring-1 focus:ring-[#173B70]"
+                />
+              </div>
+
               {/* Amount */}
               <div>
                 <label
@@ -2129,6 +2193,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                     type="number"
                     step="0.01"
                     min="0.01"
+                    max="10000000"
                     required
                     placeholder="0.00"
                     value={creditAmount}

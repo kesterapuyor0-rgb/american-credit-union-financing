@@ -44,6 +44,10 @@ export interface Transaction {
   transfer_tax?: number;
   currency: string;
   description: string;
+  sender_name?: string;
+  reference_id?: string;
+  transaction_type?: string;
+  formatted_amount?: string;
   recipient_name?: string;
   recipient_account?: string;
   status: string;

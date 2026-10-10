@@ -60,6 +60,10 @@ router.get('/transactions', requireApprovedUser, async (req: AuthenticatedReques
     const accountsById = new Map(accounts.map((account) => [account.id, account]));
     const transactions = rows.map((row) => ({
       ...row,
+      formatted_amount: new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: row.currency || 'USD',
+      }).format(Math.abs(Number(row.amount) || 0)),
       account_name: accountsById.get(row.account_id)?.nickname,
       account_number: accountsById.get(row.account_id)?.account_number,
     }));

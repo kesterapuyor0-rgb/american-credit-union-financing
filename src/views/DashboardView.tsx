@@ -712,7 +712,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                   <span className="text-gray-500">{selectedTransactionIsWire ? 'Transfer amount:' : 'Amount:'}</span>
                   <span className="font-mono font-bold text-base text-gray-900">
-                    {formatUSD(selectedTransaction.amount)} USD
+                    {selectedTransaction.formatted_amount || `${formatUSD(selectedTransaction.amount)} USD`}
                   </span>
                 </div>
                 {selectedTransactionIsWire && (
@@ -751,8 +751,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                   <span className="text-gray-500">{selectedTransactionIsWire ? 'Reference:' : 'Reference ID:'}</span>
-                  <span className="font-mono text-gray-700">{selectedTransaction.id}</span>
+                  <span className="break-all font-mono text-gray-700">{selectedTransaction.reference_id || selectedTransaction.id}</span>
                 </div>
+                {selectedTransaction.reference_id && (
+                  <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+                    <span className="text-gray-500">System transaction ID:</span>
+                    <span className="break-all font-mono text-gray-700">{selectedTransaction.id}</span>
+                  </div>
+                )}
                 {selectedTransaction.account_name && (
                   <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                     <span className="text-gray-500">Account:</span>
@@ -763,6 +769,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                     <span className="text-gray-500">{selectedTransactionIsWire ? 'Recipient:' : 'Payee / Recipient:'}</span>
                     <span className="font-medium text-gray-900">{selectedTransactionIsWire ? receiptRecipientName : selectedTransaction.recipient_name}</span>
+                  </div>
+                )}
+                {selectedTransaction.sender_name && (
+                  <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+                    <span className="text-gray-500">Sender / Issuer:</span>
+                    <span className="break-words font-medium text-gray-900">{selectedTransaction.sender_name}</span>
                   </div>
                 )}
               </div>
