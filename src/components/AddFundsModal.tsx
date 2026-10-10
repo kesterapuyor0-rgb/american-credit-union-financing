@@ -278,13 +278,13 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
                 <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-gray-700">
                   External Institution Name
                 </label>
-                <div className="mb-1.5 flex flex-nowrap gap-1 overflow-x-auto pb-1 whitespace-nowrap">
+                <div className="mb-1.5 flex flex-wrap gap-1 pb-1">
                   {POPULAR_INSTITUTIONS.map((inst) => (
                     <button
                       key={inst}
                       type="button"
                       onClick={() => handleSelectInstitution(inst)}
-                      className={`shrink-0 rounded-xs border px-2 py-0.5 text-[10px] font-medium transition-colors cursor-pointer ${
+                      className={`max-w-full whitespace-normal break-words rounded-xs border px-2 py-0.5 text-[10px] font-medium transition-colors cursor-pointer ${
                         institutionName === inst
                           ? 'bg-[#173B70] text-white border-[#173B70]'
                           : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'

@@ -261,7 +261,7 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
   };
 
   return (
-    <section aria-labelledby="transaction-history-heading" className="mx-auto w-full max-w-5xl space-y-5">
+    <section aria-labelledby="transaction-history-heading" className="mx-auto w-full min-w-0 max-w-full space-y-5 sm:max-w-5xl">
       <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Account activity</p>
@@ -378,10 +378,10 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
             </div>
             <dl className="mt-5 space-y-3 text-sm">
               <div className="flex justify-between gap-3"><dt className="text-slate-500">Transaction reference</dt><dd className="break-all text-right font-mono text-xs text-slate-700">{selectedTransaction.id}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-slate-500">Full description</dt><dd className="max-w-[65%] text-right font-medium text-slate-900">{formatTransactionDescription(selectedTransaction.description)}</dd></div>
-              {(selectedTransaction.recipient_name || selectedTransactionIsWire) && <div className="flex justify-between gap-3"><dt className="text-slate-500">{selectedTransactionIsWire ? 'Recipient' : 'Recipient / sender'}</dt><dd className="text-right font-medium text-slate-900">{selectedTransaction.recipient_name || receiptRecipientName}</dd></div>}
-              {selectedTransaction.recipient_account && <div className="flex justify-between gap-3"><dt className="text-slate-500">Counterparty account</dt><dd className="text-right font-medium text-slate-900">{selectedTransaction.recipient_account}</dd></div>}
-              <div className="flex justify-between gap-3"><dt className="text-slate-500">Transaction date &amp; time</dt><dd className="text-right font-medium text-slate-900">{formatTransactionDateTime(selectedTransaction)}</dd></div>
+              <div className="flex items-start justify-between gap-2 text-xs sm:text-sm"><dt className="min-w-0 flex-1 break-words text-slate-500">Full description</dt><dd className="min-w-0 flex-1 break-words text-right font-medium text-slate-900">{formatTransactionDescription(selectedTransaction.description)}</dd></div>
+              {(selectedTransaction.recipient_name || selectedTransactionIsWire) && <div className="flex items-start justify-between gap-2 text-xs sm:text-sm"><dt className="min-w-0 flex-1 break-words text-slate-500">{selectedTransactionIsWire ? 'Recipient' : 'Recipient / sender'}</dt><dd className="min-w-0 flex-1 break-words text-right font-medium text-slate-900">{selectedTransaction.recipient_name || receiptRecipientName}</dd></div>}
+              {selectedTransaction.recipient_account && <div className="flex items-start justify-between gap-2 text-xs sm:text-sm"><dt className="min-w-0 flex-1 break-words text-slate-500">Counterparty account</dt><dd className="min-w-0 flex-1 break-all text-right font-medium text-slate-900">{selectedTransaction.recipient_account}</dd></div>}
+              <div className="flex items-start justify-between gap-2 text-xs sm:text-sm"><dt className="min-w-0 flex-1 break-words text-slate-500">Transaction date &amp; time</dt><dd className="min-w-0 flex-1 break-words text-right font-medium text-slate-900">{formatTransactionDateTime(selectedTransaction)}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-slate-500">Status</dt><dd><span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${getStatusPresentation(selectedTransaction.status).className}`}>{getStatusPresentation(selectedTransaction.status).label}</span></dd></div>
               <div className="flex justify-between gap-3 border-t border-slate-100 pt-3"><dt className="text-slate-500">Principal amount</dt><dd className={`font-semibold ${selectedPresentation?.isIncoming ? 'text-emerald-700' : 'text-slate-900'}`}>{selectedPresentation?.isIncoming ? '+' : '−'}{formatMoney(selectedTransaction.amount)} {selectedTransaction.currency || 'USD'}</dd></div>
               {selectedTransactionIsWire && <>

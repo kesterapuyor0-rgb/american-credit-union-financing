@@ -195,7 +195,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-7 pb-6">
+    <div className="mx-auto w-full min-w-0 max-w-full space-y-7 pb-6 sm:max-w-5xl">
       {!showCardsOnly && <>
       <header className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex min-w-0 items-center gap-3">

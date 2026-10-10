@@ -119,7 +119,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 <span className="font-medium">Email Address:</span>
               </div>
               <div className="flex items-center space-x-1.5">
-                <span className="font-semibold text-gray-900 max-w-[190px] truncate">{user.email}</span>
+                <span className="min-w-0 break-all font-semibold text-gray-900">{user.email}</span>
                 <button
                   type="button"
                   onClick={() => handleCopy(user.email, 'email')}

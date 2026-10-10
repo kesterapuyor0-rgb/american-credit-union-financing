@@ -11,7 +11,7 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
   const maskedEmail = user.email.replace(/^(.)(.*)(@.*)$/, '$1***$3');
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="mx-auto w-full min-w-0 max-w-full space-y-6 overflow-x-hidden sm:max-w-4xl">
       {/* Header */}
       <div className="bg-white border border-gray-200 rounded-xs p-6 shadow-2xs">
         <div className="flex items-center gap-3">
@@ -96,7 +96,7 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
         <AlertCircle aria-hidden="true" className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-700" />
         <div className="min-w-0">
           <h2 className="mb-1 font-bold leading-5">SECURITY ADVISORY</h2>
-          <p className="leading-5">
+          <p className="break-words leading-5">
             American Credit Union will never request your password, one-time passcode (OTP), or sensitive account credentials via phone, SMS, or email. Protect your account by keeping your login details strictly confidential.
           </p>
         </div>

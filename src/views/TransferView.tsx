@@ -278,7 +278,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
   };
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-2xl">
+    <div className="mx-auto w-full min-w-0 max-w-full overflow-x-hidden sm:max-w-2xl">
       {/* Step Indicator Header */}
       <div className="mb-6 flex flex-col items-start gap-3 border-b border-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -335,7 +335,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
         <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
           <div className="h-1.5 bg-[#173B70]" />
 
-          <form onSubmit={handleInitiate} className="space-y-5 p-4 sm:p-6">
+          <form onSubmit={handleInitiate} className="space-y-5 px-3.5 py-4 sm:p-6">
             {/* Transfer Type Selector */}
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">

@@ -116,7 +116,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onProfilePicture
   };
 
   return (
-    <section aria-labelledby="profile-heading" className="mx-auto w-full max-w-3xl space-y-6">
+    <section aria-labelledby="profile-heading" className="mx-auto w-full min-w-0 max-w-full space-y-6 sm:max-w-3xl">
       <header className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:flex-row sm:text-left">
         <div className="relative h-24 w-24 shrink-0">
           <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-full bg-emerald-50 text-3xl font-semibold text-teal-800 ring-2 ring-[#E5B841]">
@@ -134,7 +134,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onProfilePicture
         </div>
       </header>
 
-      <form onSubmit={handleSave} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+      <form onSubmit={handleSave} className="space-y-5 rounded-2xl border border-slate-200 bg-white px-3.5 py-4 shadow-sm sm:p-7">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Profile information</h2>
           <p className="mt-1 text-sm text-slate-500">Your full name is read-only. Update your phone number or address below.</p>

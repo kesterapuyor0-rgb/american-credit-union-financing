@@ -219,7 +219,7 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
 
   if (loadingApplications && applications.length === 0) {
     return (
-      <section role="status" aria-label="Loading grant status" className="mx-auto max-w-5xl animate-pulse space-y-4">
+      <section role="status" aria-label="Loading grant status" className="mx-auto w-full min-w-0 max-w-full animate-pulse space-y-4 sm:max-w-5xl">
         <div className="h-32 rounded-2xl bg-slate-200" />
         <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5">
           <div className="h-5 w-48 rounded bg-slate-200" />
@@ -240,17 +240,17 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
         : CheckCircle2;
 
     return (
-      <section className="mx-auto w-full max-w-3xl">
+      <section className="mx-auto w-full min-w-0 max-w-full sm:max-w-3xl">
         <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="bg-gradient-to-r from-[#102a50] to-teal-900 p-5 text-white sm:p-7">
             <div className="flex items-start gap-3">
               <HeaderIcon aria-hidden="true" className={`mt-1 h-7 w-7 shrink-0 ${isAwarded ? 'text-emerald-300' : 'text-amber-300'} ${status === 'UNDER_COMMITTEE_REVIEW' ? 'animate-spin' : ''}`} />
-              <div>
+              <div className="min-w-0 break-words">
                 <p className="text-xs font-bold uppercase tracking-wider text-amber-200">Business & Community Grant Program</p>
                 <h1 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">
                   {isAwarded ? 'Grant Awarded' : 'Grant Application Under Review'}
                 </h1>
-                <p className="mt-2 text-sm leading-6 text-blue-50">
+                <p className="mt-2 break-words text-sm leading-6 text-blue-50">
                   {isAwarded
                     ? 'Your grant application has been approved by our Member Services Grant Committee.'
                     : 'Your application is being handled by our Member Services Grant Committee. For inquiries, contact americancreditunion.financing@gmail.com'}
@@ -259,34 +259,34 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
             </div>
           </div>
 
-          <div className="space-y-4 p-4 sm:p-6">
+          <div className="min-w-0 space-y-4 px-3.5 py-4 sm:p-6">
             {renderServiceUnavailableNotice()}
             {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</p>}
             <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200">
-              <div className="flex justify-between gap-4 px-4 py-3">
-                <dt className="text-sm text-slate-500">Business / project</dt>
-                <dd className="text-right text-sm font-semibold text-slate-900">{activeApplication.businessName}</dd>
+              <div className="flex items-center justify-between gap-2 px-3.5 py-3 sm:px-4">
+                <dt className="min-w-0 flex-1 break-words text-xs text-slate-500 sm:text-sm">Business / project</dt>
+                <dd className="min-w-0 flex-1 break-words text-right text-xs font-semibold text-slate-900 sm:text-sm">{activeApplication.businessName}</dd>
               </div>
-              <div className="flex justify-between gap-4 px-4 py-3">
-                <dt className="text-sm text-slate-500">Amount requested</dt>
-                <dd className="text-right text-sm font-semibold text-slate-900">{formatMoney(activeApplication.requestedAmount)}</dd>
+              <div className="flex items-center justify-between gap-2 px-3.5 py-3 sm:px-4">
+                <dt className="min-w-0 flex-1 break-words text-xs text-slate-500 sm:text-sm">Amount requested</dt>
+                <dd className="min-w-0 flex-1 break-words text-right text-xs font-semibold text-slate-900 sm:text-sm">{formatMoney(activeApplication.requestedAmount)}</dd>
               </div>
-              <div className="flex justify-between gap-4 px-4 py-3">
-                <dt className="text-sm text-slate-500">Category</dt>
-                <dd className="text-right text-sm font-semibold text-slate-900">{activeApplication.category}</dd>
+              <div className="flex items-center justify-between gap-2 px-3.5 py-3 sm:px-4">
+                <dt className="min-w-0 flex-1 break-words text-xs text-slate-500 sm:text-sm">Category</dt>
+                <dd className="min-w-0 flex-1 break-words text-right text-xs font-semibold text-slate-900 sm:text-sm">{activeApplication.category}</dd>
               </div>
-              <div className="flex justify-between gap-4 px-4 py-3">
-                <dt className="text-sm text-slate-500">Submission date</dt>
-                <dd className="text-right text-sm font-semibold text-slate-900">{new Date(activeApplication.submittedAt).toLocaleDateString()}</dd>
+              <div className="flex items-center justify-between gap-2 px-3.5 py-3 sm:px-4">
+                <dt className="min-w-0 flex-1 break-words text-xs text-slate-500 sm:text-sm">Submission date</dt>
+                <dd className="min-w-0 flex-1 break-words text-right text-xs font-semibold text-slate-900 sm:text-sm">{new Date(activeApplication.submittedAt).toLocaleDateString()}</dd>
               </div>
-              <div className="flex justify-between gap-4 px-4 py-3">
-                <dt className="text-sm text-slate-500">Current status</dt>
-                <dd className="text-right"><GrantStatusBadge status={status} /></dd>
+              <div className="flex items-center justify-between gap-2 px-3.5 py-3 sm:px-4">
+                <dt className="min-w-0 flex-1 break-words text-xs text-slate-500 sm:text-sm">Current status</dt>
+                <dd className="min-w-0 flex-1 text-right"><GrantStatusBadge status={status} /></dd>
               </div>
             </dl>
 
             {isAwarded && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
+              <div className="break-words rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-sm leading-6 text-emerald-950 sm:p-4">
                 <h2 className="font-semibold">Official grant award notice</h2>
                 <p className="mt-1">
                   Your application has been approved for {formatMoney(activeApplication.approvedAmount || 0)}.
@@ -314,8 +314,8 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
 
   if (latestRejectedApplication && !showReapplicationForm) {
     return (
-      <section className="mx-auto w-full max-w-3xl">
-        <article className="space-y-5 rounded-2xl border border-red-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="mx-auto w-full min-w-0 max-w-full sm:max-w-3xl">
+        <article className="space-y-5 rounded-2xl border border-red-200 bg-white px-3.5 py-4 shadow-sm sm:p-7">
           {renderServiceUnavailableNotice()}
           <div className="flex items-start gap-3">
             <CircleAlert aria-hidden="true" className="mt-0.5 h-7 w-7 shrink-0 text-red-700" />
@@ -325,7 +325,7 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
             </div>
           </div>
           <GrantStatusBadge status="REJECTED" />
-          <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-950">
+          <div role="alert" className="break-words rounded-xl border border-red-200 bg-red-50 p-3.5 text-sm leading-6 text-red-950 sm:p-4">
             <h2 className="font-semibold">Application Not Approved</h2>
             <p className="mt-1 whitespace-pre-wrap">{latestRejectedApplication.rejectionReason || latestRejectedApplication.adminNotes || 'No specific reason was provided.'}</p>
           </div>
@@ -338,8 +338,8 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
   }
 
   return (
-    <section className="mx-auto w-full max-w-5xl space-y-6">
-      <header className="rounded-2xl bg-gradient-to-r from-[#102a50] to-teal-900 p-5 text-white shadow-sm sm:p-7">
+    <section className="mx-auto w-full min-w-0 max-w-full space-y-6 sm:max-w-5xl">
+      <header className="break-words rounded-2xl bg-gradient-to-r from-[#102a50] to-teal-900 px-3.5 py-4 text-white shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <HandCoins aria-hidden="true" className="mt-1 h-7 w-7 shrink-0 text-amber-300" />
           <div>

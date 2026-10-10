@@ -120,7 +120,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 max-w-full space-y-6 overflow-x-hidden">
       {/* Top Welcome & Quick Navigation Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-200">
         <div>
@@ -586,7 +586,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             {/* Table Content */}
-            <div className="w-full overflow-x-auto">
+            <div className="w-full min-w-0 overflow-hidden">
               {filteredTransactions.length === 0 ? (
                 <div className="p-10 text-center text-gray-500">
                   <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
@@ -594,13 +594,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <p className="text-xs text-gray-400 mt-1">Try clearing your search query or status filter.</p>
                 </div>
               ) : (
-                <table className="w-full min-w-[600px] text-left border-collapse text-xs sm:text-sm">
+                <table className="w-full table-fixed text-left border-collapse text-[11px] sm:text-sm">
                   <thead className="bg-gray-100 text-[11px] uppercase text-gray-500 font-bold border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 w-32">Date</th>
-                      <th className="px-6 py-3">Description</th>
-                      <th className="px-6 py-3">Status</th>
-                      <th className="px-6 py-3 text-right">Amount (USD)</th>
+                      <th className="w-[18%] break-words px-2 py-3 sm:px-6">Date</th>
+                      <th className="break-words px-2 py-3 sm:px-6">Description</th>
+                      <th className="w-[22%] break-words px-2 py-3 sm:px-6">Status</th>
+                      <th className="w-[27%] break-words px-2 py-3 text-right sm:px-6">Amount (USD)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 text-gray-700">
@@ -621,20 +621,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           onClick={() => setSelectedTransaction(tx)}
                           className="hover:bg-gray-50 transition-colors cursor-pointer"
                         >
-                          <td className="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">
+                          <td className="break-words px-2 py-4 font-medium text-gray-700 sm:px-6">
                             {tx.date}
                           </td>
 
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-gray-900">{formatTransactionDescription(tx.description)}</span>
-                              <span className="text-[11px] text-gray-400">
+                          <td className="break-words px-2 py-4 sm:px-6">
+                            <div className="flex min-w-0 flex-col">
+                              <span className="break-words font-bold text-gray-900">{formatTransactionDescription(tx.description)}</span>
+                              <span className="break-words text-[11px] text-gray-400">
                                 {tx.account_name} {tx.recipient_name ? `• To: ${tx.recipient_name}` : ''}
                               </span>
                             </div>
                           </td>
 
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="break-words px-2 py-4 sm:px-6">
                             {isPending ? (
                               <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-[10px] font-bold rounded-sm uppercase tracking-wider inline-flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
@@ -649,7 +649,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           </td>
 
                           <td
-                            className={`px-6 py-4 text-right font-bold whitespace-nowrap font-mono ${
+                            className={`break-words px-2 py-4 text-right font-bold font-mono sm:px-6 ${
                               isPositive ? 'text-green-600' : 'text-gray-900'
                             }`}
                           >

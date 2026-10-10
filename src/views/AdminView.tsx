@@ -812,7 +812,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 max-w-full space-y-6 overflow-x-hidden break-words">
       {/* Member Services Operations Banner */}
       <div className="bg-[#1E293B] text-white p-5 rounded-xs shadow-xs border border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -1077,8 +1077,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                   return (
                     <div key={customer.id} className="grid gap-3 rounded-sm border border-gray-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-center">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-gray-900">{customer.full_name}</p>
-                        <p className="truncate text-xs text-gray-500">{customer.email}</p>
+                        <p className="break-words text-sm font-semibold text-gray-900">{customer.full_name}</p>
+                        <p className="break-all text-xs text-gray-500">{customer.email}</p>
                         <p className={`mt-1 text-[10px] font-bold uppercase ${edit.isRestricted ? 'text-red-700' : 'text-emerald-700'}`}>
                           {isAdminAccount ? 'Member Services account' : edit.isRestricted ? 'Restricted' : 'Active'}
                         </p>
@@ -1129,16 +1129,16 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
             </section>
 
             {/* Users / Accounts Table */}
-            <div className="overflow-x-auto border border-gray-200 rounded-xs">
-              <table className="w-full text-left text-xs">
+            <div className="w-full min-w-0 overflow-hidden rounded-xs border border-gray-200">
+              <table className="w-full table-fixed break-words text-left text-[10px] sm:text-xs">
                 <thead>
                   <tr className="bg-[#F8F9FA] text-gray-600 font-bold border-b border-gray-200 uppercase tracking-wider text-[11px]">
-                    <th className="py-3 px-4">Account Number</th>
-                    <th className="py-3 px-4">Account Nickname / Type</th>
-                    <th className="py-3 px-4">Account Holder</th>
-                    <th className="py-3 px-4">Available / Held (USD)</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Account Number</th>
+                    <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Account Nickname / Type</th>
+                    <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Account Holder</th>
+                    <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Available / Held (USD)</th>
+                    <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Status</th>
+                    <th className="break-words px-1.5 py-2 text-right sm:px-4 sm:py-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -1168,12 +1168,12 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                          <div className="flex flex-wrap items-center justify-end gap-1.5">
                             <button
                               id={`btn-credit-customer-${acc.id}`}
                               type="button"
                               onClick={() => openCreditModal(acc, u.full_name)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xs shadow-2xs transition-colors cursor-pointer"
+                              className="inline-flex max-w-full items-center gap-1 whitespace-normal break-words px-2 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] font-bold rounded-xs shadow-2xs transition-colors cursor-pointer sm:px-2.5 sm:text-xs"
                               title="Add Funds / Credit Account"
                             >
                               <PlusCircle className="w-3.5 h-3.5" />
@@ -1184,7 +1184,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                               id={`btn-adjust-account-${acc.id}`}
                               type="button"
                               onClick={() => openAdjustment(acc, u.full_name)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#173B70] text-white hover:bg-[#245B9E] text-xs font-medium rounded-xs shadow-2xs transition-colors cursor-pointer"
+                              className="inline-flex max-w-full items-center gap-1 whitespace-normal break-words px-2 py-1.5 bg-[#173B70] text-white hover:bg-[#245B9E] text-[10px] font-medium rounded-xs shadow-2xs transition-colors cursor-pointer sm:px-2.5 sm:text-xs"
                             >
                               <Sliders className="w-3.5 h-3.5" />
                               <span>Adjust</span>
@@ -1373,8 +1373,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                 <p className="text-sm font-semibold text-gray-700">No pending transactions</p>
               </div>
             ) : (
-              <div className="overflow-x-auto border border-gray-200 rounded-xs">
-                <table className="w-full text-left text-xs">
+              <div className="w-full min-w-0 overflow-hidden rounded-xs border border-gray-200">
+                <table className="w-full table-fixed break-words text-left text-[10px] sm:text-xs">
                   <thead>
                     <tr className="bg-[#F8F9FA] text-gray-600 font-bold border-b border-gray-200 uppercase tracking-wider text-[11px]">
                       <th className="py-3 px-4">Customer</th>
@@ -1399,12 +1399,12 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                           {['deposit', 'transfer_in'].includes(String(deposit.type).toLowerCase()) ? '+' : '−'}{formatUSD(deposit.amount + (String(deposit.type).toLowerCase() === 'transfer_out' ? (Number((deposit as any).transfer_fee) || 0) + (Number((deposit as any).transfer_tax) || 0) : 0))}
                           {Number((deposit as any).transfer_fee) + Number((deposit as any).transfer_tax) > 0 && <span className="mt-1 block text-[10px] font-normal text-gray-500">Includes {formatUSD(Number((deposit as any).transfer_fee) || 0)} fee + {formatUSD(Number((deposit as any).transfer_tax) || 0)} tax</span>}
                         </td>
-                        <td className="py-3.5 px-4 text-[11px] text-gray-600 whitespace-nowrap">{deposit.date || deposit.created_at}</td>
+                        <td className="break-words px-1.5 py-2 text-[10px] text-gray-600 sm:px-4 sm:py-3.5 sm:text-[11px]">{deposit.date || deposit.created_at}</td>
                         <td className="py-3.5 px-4">
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">{deposit.status}</span>
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <div className="min-w-56 space-y-2">
+                          <div className="w-full min-w-0 space-y-2">
                             <textarea rows={2} maxLength={500} required aria-label={`Review reason for transaction ${deposit.id}`} placeholder="Required decision reason" value={transactionReviewReasons[deposit.id] || ''} onChange={(event) => setTransactionReviewReasons((current) => ({ ...current, [deposit.id]: event.target.value }))} className="w-full rounded border border-slate-200 p-2 text-xs" />
                             <div className="flex justify-end gap-2">
                               <button type="button" onClick={() => handleReviewTransaction(deposit, 'reject')} disabled={approvingDepositId === deposit.id} className="rounded border border-rose-200 px-2 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-50">Reject</button>
@@ -1438,8 +1438,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                 <p className="text-sm font-semibold text-gray-700">No pending Zelle transfers</p>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded border border-gray-200">
-                <table className="w-full min-w-[760px] text-left text-xs">
+              <div className="w-full min-w-0 overflow-hidden rounded border border-gray-200">
+                <table className="w-full table-fixed break-words text-left text-[10px] sm:text-xs">
                   <thead className="border-b border-gray-200 bg-[#F8F9FA] text-[10px] font-bold uppercase tracking-wider text-gray-600">
                     <tr>
                       <th className="px-3 py-3">Member</th>
@@ -1462,7 +1462,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                         <td className="px-3 py-3 text-gray-600">{transfer.recipientIdentifier}</td>
                         <td className="px-3 py-3 text-gray-600">{transfer.accountName || 'Checking'} · •••• {transfer.accountNumber?.slice(-4) || '—'}</td>
                         <td className="px-3 py-3 text-right font-mono font-bold text-gray-900">{formatUSD(transfer.amount)}</td>
-                        <td className="whitespace-nowrap px-3 py-3 text-gray-600">{new Date(transfer.createdAt).toLocaleString()}</td>
+                        <td className="break-words px-1.5 py-2 text-gray-600 sm:px-3 sm:py-3">{new Date(transfer.createdAt).toLocaleString()}</td>
                         <td className="px-3 py-3 text-right">
                           <div className="flex justify-end gap-2">
                             <button type="button" onClick={() => { void handleReviewZelleTransfer(transfer, 'reject'); }} disabled={processingZelleId === transfer.id} className="rounded border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-50">Reject</button>
@@ -1487,8 +1487,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                   {pendingWireTransfers.map((transaction) => (
                     <article key={transaction.id} className="flex flex-col gap-3 rounded border border-gray-200 p-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-gray-900">{(transaction as any).user_name || 'Member'} · {transaction.recipient_name || 'Recipient'}</p>
-                        <p className="mt-1 truncate text-xs text-gray-600">{formatTransactionDescription(transaction.description)} · {transaction.recipient_account || 'No recipient account'}</p>
+                        <p className="break-words text-sm font-semibold text-gray-900">{(transaction as any).user_name || 'Member'} · {transaction.recipient_name || 'Recipient'}</p>
+                        <p className="mt-1 break-words text-xs text-gray-600">{formatTransactionDescription(transaction.description)} · {transaction.recipient_account || 'No recipient account'}</p>
                         <p className="mt-1 text-xs font-bold text-slate-800">{formatUSD(transaction.amount + (transaction.transfer_fee || 0) + (transaction.transfer_tax || 0))} · {transaction.date}</p>
                       </div>
                       <div className="w-full space-y-2 sm:w-64">
@@ -1518,31 +1518,31 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
             {cardApplications.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">No card applications yet.</div>
             ) : (
-              <div className="w-full overflow-x-auto rounded-xl border border-slate-200">
-                <table className="w-full min-w-[850px] text-left text-xs">
+              <div className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200">
+                <table className="w-full table-fixed break-words text-left text-[10px] sm:text-xs">
                   <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-600">
                     <tr>
-                      <th className="px-4 py-3">Customer</th>
-                      <th className="px-4 py-3">Requested card</th>
-                      <th className="px-4 py-3">Linked account</th>
-                      <th className="px-4 py-3">Request date</th>
-                      <th className="px-4 py-3">Status / review</th>
+                      <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Customer</th>
+                      <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Requested card</th>
+                      <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Linked account</th>
+                      <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Request date</th>
+                      <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Status / review</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {cardApplications.map((application) => (
                       <tr key={application.id} className="align-top">
-                        <td className="px-4 py-4">
+                        <td className="break-words px-1.5 py-2 sm:px-4 sm:py-4">
                           <p className="font-semibold text-slate-900">{application.customer_name || 'Customer'}</p>
                           <p className="mt-1 text-slate-500">{application.customer_email}</p>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="break-words px-1.5 py-2 sm:px-4 sm:py-4">
                           <p className="font-semibold text-slate-900">{application.product_name}</p>
                           <p className="mt-1 text-slate-500">{application.network || 'Visa'} · {application.card_type}{application.card_type === 'Credit' ? ` · Requested ${formatUSD(application.requested_limit)}` : ''}</p>
                         </td>
-                        <td className="px-4 py-4 text-slate-600">{application.account_nickname || 'Checking'} · •••• {application.account_number?.slice(-4) || '—'}</td>
-                        <td className="px-4 py-4 whitespace-nowrap text-slate-600">{new Date(application.created_at).toLocaleDateString()}</td>
-                        <td className="w-[340px] px-4 py-4">
+                        <td className="break-words px-1.5 py-2 text-slate-600 sm:px-4 sm:py-4">{application.account_nickname || 'Checking'} · •••• {application.account_number?.slice(-4) || '—'}</td>
+                        <td className="break-words px-1.5 py-2 text-slate-600 sm:px-4 sm:py-4">{new Date(application.created_at).toLocaleDateString()}</td>
+                        <td className="break-words px-1.5 py-2 sm:px-4 sm:py-4">
                           <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ${application.status === 'Pending' ? 'bg-amber-50 text-amber-800' : application.status === 'Approved' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>{application.status}</span>
                           {application.status === 'Pending' ? (
                             <div className="mt-2 space-y-2">
@@ -1561,7 +1561,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                               </div>
                             </div>
                           ) : (
-                            <p className="mt-2 max-w-[300px] whitespace-normal text-slate-500">{application.review_reason}</p>
+                            <p className="mt-2 max-w-full break-words text-slate-500">{application.review_reason}</p>
                           )}
                         </td>
                       </tr>
@@ -1582,18 +1582,18 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
               {issuedCards.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">No issued cards found.</div>
               ) : (
-                <div className="w-full overflow-x-auto rounded-xl border border-slate-200">
-                  <table className="w-full min-w-[760px] text-left text-xs">
+                  <div className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200">
+                    <table className="w-full table-fixed break-words text-left text-[10px] sm:text-xs">
                     <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-600">
-                      <tr><th className="px-4 py-3">Cardholder</th><th className="px-4 py-3">Card</th><th className="px-4 py-3">Color theme</th><th className="px-4 py-3">Linked account</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th></tr>
+                      <tr><th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Cardholder</th><th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Card</th><th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Color theme</th><th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Linked account</th><th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Status</th><th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Action</th></tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {issuedCards.map((card) => {
                         const canDebit = card.card_type === 'Debit' && card.status === 'Active' && card.account_status === 'Active';
                         return <tr key={card.id}>
-                          <td className="px-4 py-3"><div className="font-semibold text-slate-900">{card.customer_name}</div><div className="mt-1 text-slate-500">{card.customer_email}</div></td>
-                          <td className="px-4 py-3"><div className="font-semibold text-slate-900">{card.product_name}</div><div className="mt-1 font-mono text-slate-500">{card.network || 'Visa'} · {card.masked_number || `•••• •••• •••• ${card.last4}`}</div>{card.card_type === 'Credit' && <div className="mt-1 text-slate-600">Limit: {formatUSD(card.credit_limit || 0)}</div>}</td>
-                          <td className="px-4 py-3">
+                          <td className="break-words px-1.5 py-2 sm:px-4 sm:py-3"><div className="font-semibold text-slate-900">{card.customer_name}</div><div className="mt-1 break-all text-slate-500">{card.customer_email}</div></td>
+                          <td className="break-words px-1.5 py-2 sm:px-4 sm:py-3"><div className="font-semibold text-slate-900">{card.product_name}</div><div className="mt-1 break-words font-mono text-slate-500">{card.network || 'Visa'} · {card.masked_number || `•••• •••• •••• ${card.last4}`}</div>{card.card_type === 'Credit' && <div className="mt-1 text-slate-600">Limit: {formatUSD(card.credit_limit || 0)}</div>}</td>
+                          <td className="break-words px-1.5 py-2 sm:px-4 sm:py-3">
                             <label className="sr-only" htmlFor={`card-color-${card.id}`}>Color theme for {card.product_name}</label>
                             <select
                               id={`card-color-${card.id}`}
@@ -1611,9 +1611,9 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                             </select>
                             {savingCardColorId === card.id && <span className="ml-2 text-[10px] text-slate-500">Saving…</span>}
                           </td>
-                          <td className="px-4 py-3"><div>{card.account_nickname || 'Checking'}</div><div className="mt-1 text-slate-500">•••• {card.account_number?.slice(-4) || '—'} · {formatUSD(Math.max(0, (card.account_balance || 0) - (card.held_balance || 0)))} available</div></td>
-                          <td className="px-4 py-3">{card.status}</td>
-                          <td className="px-4 py-3"><button type="button" disabled={!canDebit} onClick={() => { setCardToDebit(card); setCardDebitAmount(''); setCardDebitReason(''); setError(null); }} className="rounded-lg bg-rose-700 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-40">Debit linked account</button></td>
+                          <td className="break-words px-1.5 py-2 sm:px-4 sm:py-3"><div>{card.account_nickname || 'Checking'}</div><div className="mt-1 break-words text-slate-500">•••• {card.account_number?.slice(-4) || '—'} · {formatUSD(Math.max(0, (card.account_balance || 0) - (card.held_balance || 0)))} available</div></td>
+                          <td className="break-words px-1.5 py-2 sm:px-4 sm:py-3">{card.status}</td>
+                          <td className="break-words px-1.5 py-2 sm:px-4 sm:py-3"><button type="button" disabled={!canDebit} onClick={() => { setCardToDebit(card); setCardDebitAmount(''); setCardDebitReason(''); setError(null); }} className="max-w-full whitespace-normal rounded-lg bg-rose-700 px-2 py-2 text-[10px] font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 sm:text-xs">Debit linked account</button></td>
                         </tr>;
                       })}
                     </tbody>
@@ -1638,16 +1638,16 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
             {grantApplications.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">No grant applications have been submitted.</div>
             ) : (
-              <div className="w-full overflow-x-auto rounded-lg border border-slate-200">
-                <table className="w-full min-w-[1050px] text-left text-xs">
+              <div className="w-full min-w-0 overflow-hidden rounded-lg border border-slate-200">
+                <table className="w-full table-fixed break-words text-left text-[10px] sm:text-xs">
                   <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-600">
                     <tr>
-                      <th className="px-4 py-3">Applicant</th>
-                      <th className="px-4 py-3">Business / Project</th>
-                      <th className="px-4 py-3">Requested</th>
-                      <th className="px-4 py-3">Date Submitted</th>
-                      <th className="px-4 py-3">Supporting Document</th>
-                      <th className="px-4 py-3">Current Status & Actions</th>
+                      <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Applicant</th>
+                      <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Business / Project</th>
+                      <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Requested</th>
+                      <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Date Submitted</th>
+                      <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Supporting Document</th>
+                      <th className="break-words px-1.5 py-2 sm:px-4 sm:py-3">Current Status & Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1655,11 +1655,11 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                       const canReview = ['PENDING_REVIEW', 'UNDER_COMMITTEE_REVIEW'].includes(application.status);
                       return (
                         <tr key={application.id} className="align-top">
-                          <td className="px-4 py-4">
+                          <td className="break-words px-1.5 py-2 sm:px-4 sm:py-4">
                             <p className="font-semibold text-slate-900">{application.applicantName || 'Member'}</p>
                             <p className="mt-1 text-slate-500">{application.applicantEmail}</p>
                           </td>
-                          <td className="max-w-sm px-4 py-4">
+                          <td className="max-w-sm break-words px-1.5 py-2 sm:px-4 sm:py-4">
                             <p className="font-semibold text-slate-900">{application.businessName}</p>
                             <p className="mt-1 text-slate-500">{application.category}</p>
                             <details className="mt-2">
@@ -1671,9 +1671,9 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                               </div>
                             </details>
                           </td>
-                          <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-900">{formatUSD(application.requestedAmount)}</td>
-                          <td className="whitespace-nowrap px-4 py-4 text-slate-600">{new Date(application.submittedAt).toLocaleDateString()}</td>
-                          <td className="px-4 py-4">
+                          <td className="break-words px-1.5 py-2 font-semibold text-slate-900 sm:px-4 sm:py-4">{formatUSD(application.requestedAmount)}</td>
+                          <td className="break-words px-1.5 py-2 text-slate-600 sm:px-4 sm:py-4">{new Date(application.submittedAt).toLocaleDateString()}</td>
+                          <td className="break-words px-1.5 py-2 sm:px-4 sm:py-4">
                             {application.documentBase64 ? (
                               <button type="button" onClick={() => setSelectedGrantDocument(application)} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-2 font-semibold text-teal-800 hover:bg-teal-50">
                                 <FileText className="h-3.5 w-3.5" /> Preview proposal
@@ -1681,7 +1681,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                             ) : <span className="text-slate-500">Document unavailable</span>}
                             <p className="mt-1 max-w-40 break-all text-[10px] text-slate-500">{application.documentName}</p>
                           </td>
-                          <td className="w-[390px] px-4 py-4">
+                          <td className="break-words px-1.5 py-2 sm:px-4 sm:py-4">
                             <GrantStatusBadge status={application.status} />
                             {application.status === 'DISBURSED' && <p className="mt-2 text-emerald-800">Award disbursed: {formatUSD(application.approvedAmount || 0)}{application.disbursedAt ? ` on ${new Date(application.disbursedAt).toLocaleDateString()}` : ''}</p>}
                             {application.status === 'APPROVED' && (
@@ -1729,8 +1729,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
               <span className="font-mono font-bold text-gray-700">{auditLogs.length} Events Total</span>
             </div>
 
-            <div className="overflow-x-auto border border-gray-200 rounded-xs">
-              <table className="w-full text-left text-xs">
+            <div className="w-full min-w-0 overflow-hidden rounded-xs border border-gray-200">
+              <table className="w-full table-fixed break-words text-left text-[10px] sm:text-xs">
                 <thead>
                   <tr className="bg-[#F8F9FA] text-gray-600 font-bold border-b border-gray-200 uppercase tracking-wider text-[11px]">
                     <th className="py-3 px-4">Timestamp</th>
@@ -1744,13 +1744,13 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                 <tbody className="divide-y divide-gray-100">
                   {auditLogs.map((log) => (
                     <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-4 font-mono text-gray-600 whitespace-nowrap text-[11px]">
+                      <td className="break-words px-1.5 py-2 font-mono text-[10px] text-gray-600 sm:px-4 sm:py-3 sm:text-[11px]">
                         {new Date(log.created_at).toLocaleString()}
                       </td>
-                      <td className="py-3 px-4 font-mono text-gray-800 font-medium">
+                      <td className="break-all px-1.5 py-2 font-mono font-medium text-gray-800 sm:px-4 sm:py-3">
                         {log.admin_email}
                       </td>
-                      <td className="py-3 px-4 whitespace-nowrap">
+                      <td className="break-words px-1.5 py-2 sm:px-4 sm:py-3">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                             log.action.includes('CREDIT')
@@ -1767,13 +1767,13 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                               : log.action}
                         </span>
                       </td>
-                      <td className="py-3 px-4 font-mono font-bold text-gray-900 whitespace-nowrap">
+                      <td className="break-words px-1.5 py-2 font-mono font-bold text-gray-900 sm:px-4 sm:py-3">
                         {log.amount ? `${formatUSD(log.amount)} USD` : '—'}
                       </td>
-                      <td className="py-3 px-4 text-gray-700 max-w-md">
+                      <td className="max-w-md break-words px-1.5 py-2 text-gray-700 sm:px-4 sm:py-3">
                         {log.details.replace(/^(\w+) \w+ verification submission for /i, '$1 enrollment verification for ')}
                       </td>
-                      <td className="py-3 px-4 font-mono text-gray-500 text-[11px]">
+                      <td className="break-all px-1.5 py-2 font-mono text-[10px] text-gray-500 sm:px-4 sm:py-3 sm:text-[11px]">
                         {log.ip_address || '127.0.0.1'}
                       </td>
                     </tr>
@@ -1788,8 +1788,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
         {/* TAB 4: SYSTEM TRANSACTIONS */}
         {activeTab === 'transactions' && (
           <div className="p-5">
-            <div className="overflow-x-auto border border-gray-200 rounded-xs">
-              <table className="w-full text-left text-xs">
+            <div className="w-full min-w-0 overflow-hidden rounded-xs border border-gray-200">
+              <table className="w-full table-fixed break-words text-left text-[10px] sm:text-xs">
                 <thead>
                   <tr className="bg-[#F8F9FA] text-gray-600 font-bold border-b border-gray-200 uppercase tracking-wider text-[11px]">
                     <th className="py-3 px-4">Date</th>
@@ -1802,15 +1802,15 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                 <tbody className="divide-y divide-gray-100">
                   {allTransactions.map((t) => (
                     <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-4 font-mono text-gray-600 whitespace-nowrap">{t.date}</td>
-                      <td className="py-3 px-4 font-mono text-[#173B70] font-semibold">
+                      <td className="break-words px-1.5 py-2 font-mono text-gray-600 sm:px-4 sm:py-3">{t.date}</td>
+                      <td className="break-all px-1.5 py-2 font-mono font-semibold text-[#173B70] sm:px-4 sm:py-3">
                         {t.account_number || t.account_name}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="break-words px-1.5 py-2 sm:px-4 sm:py-3">
                         <div className="font-semibold text-gray-900">{formatTransactionDescription(t.description)}</div>
                         <div className="text-[11px] text-gray-500">Category: {t.category || t.type}</div>
                       </td>
-                      <td className="py-3 px-4 whitespace-nowrap">
+                      <td className="break-words px-1.5 py-2 sm:px-4 sm:py-3">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                             t.status === 'Completed'
@@ -1821,7 +1821,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                           {t.status}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-bold text-gray-900">
+                      <td className="break-words px-1.5 py-2 text-right font-mono font-bold text-gray-900 sm:px-4 sm:py-3">
                         {formatUSD(t.amount)} USD
                       </td>
                     </tr>
