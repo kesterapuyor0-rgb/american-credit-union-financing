@@ -66,6 +66,25 @@ export interface BankingNotification {
   createdAt: string;
 }
 
+export interface ZelleTransfer {
+  id: string;
+  userId: string;
+  sourceAccountId: string;
+  transferType: 'ZELLE';
+  recipientIdentifier: string;
+  recipientName: string;
+  amount: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejectionReason: string;
+  transactionId: string;
+  createdAt: string;
+  processedAt?: string;
+  userName?: string;
+  userEmail?: string;
+  accountName?: string;
+  accountNumber?: string;
+}
+
 export type GrantStatus =
   | 'PENDING_REVIEW'
   | 'UNDER_COMMITTEE_REVIEW'

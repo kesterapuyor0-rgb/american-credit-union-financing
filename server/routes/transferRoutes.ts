@@ -1,15 +1,269 @@
 import { Router, Response } from 'express';
 import { randomUUID } from 'crypto';
 import mongoose from 'mongoose';
-import { Account, Transaction, VerificationCode } from '../models.js';
+import { Account, AuditLog, Transaction, Transfer, User, VerificationCode } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
-import { requireApprovedUser, AuthenticatedRequest, generateOTP } from '../auth.js';
+import { requireAdmin, requireApprovedUser, AuthenticatedRequest, generateOTP } from '../auth.js';
 import { createNotification } from '../notifications.js';
 
 const router = Router();
 router.use(requireDatabase);
 const WIRE_TRANSFER_FEE = 2.01;
 const WIRE_TRANSFER_TAX = 1.03;
+
+router.post('/zelle', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const sourceAccountId = typeof req.body?.sourceAccountId === 'string' ? req.body.sourceAccountId.trim() : '';
+  const recipientName = typeof req.body?.recipientName === 'string' ? req.body.recipientName.trim() : '';
+  const recipientIdentifier = typeof req.body?.recipientIdentifier === 'string'
+    ? req.body.recipientIdentifier.trim()
+    : '';
+  const amount = Math.round(Number(req.body?.amount) * 100) / 100;
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientIdentifier);
+  const phoneDigits = recipientIdentifier.replace(/\D/g, '');
+  const isPhone = phoneDigits.length >= 10 && phoneDigits.length <= 15
+    && /^[+()\-\s.\d]+$/.test(recipientIdentifier);
+  const isTag = /^@[A-Za-z0-9._-]{2,30}$/.test(recipientIdentifier);
+  if (!sourceAccountId || !recipientName || recipientName.length > 120
+    || (!isEmail && !isPhone && !isTag)
+    || !Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) {
+    res.status(400).json({ error: 'Enter a recipient name, valid email, phone number, or Zelle tag, and an amount up to $1,000,000.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let result: { transferId: string; transactionId: string; amount: number; createdAt: Date } | null = null;
+    await session.withTransaction(async () => {
+      const account = await Account.findOne({
+        id: sourceAccountId,
+        user_id: req.user!.id,
+        account_type: 'Checking',
+        status: 'Active',
+      }).session(session).lean<any>();
+      if (!account) throw new Error('Choose an active checking account for this transfer.');
+      const availableBalance = Math.max(0, account.balance - (account.held_balance || 0));
+      if (availableBalance < amount) throw new Error('The transfer amount exceeds your available checking balance.');
+
+      const now = new Date();
+      const transferId = `tr_zelle_${randomUUID()}`;
+      const transactionId = `tx_zelle_${randomUUID()}`;
+      const today = now.toISOString().slice(0, 10);
+      const reservedAccount = await Account.findOneAndUpdate({
+        id: account.id,
+        user_id: req.user!.id,
+        account_type: 'Checking',
+        status: 'Active',
+        $expr: { $gte: [
+          { $subtract: [{ $ifNull: ['$balance', 0] }, { $ifNull: ['$held_balance', 0] }] },
+          amount,
+        ] },
+      }, { $inc: { held_balance: amount } }, { new: true, session }).lean<any>();
+      if (!reservedAccount) throw new Error('The available checking balance changed. Review your balance and try again.');
+
+      await Transfer.create([{
+        id: transferId,
+        userId: req.user!.id,
+        sourceAccountId: account.id,
+        transferType: 'ZELLE',
+        recipientIdentifier,
+        recipientName,
+        amount,
+        status: 'PENDING',
+        transactionId,
+        createdAt: now,
+      }], { session });
+      await Transaction.create([{
+        id: transactionId,
+        user_id: req.user!.id,
+        account_id: account.id,
+        type: 'transfer_out',
+        amount,
+        transfer_fee: 0,
+        transfer_tax: 0,
+        currency: 'USD',
+        description: `Zelle Transfer to ${recipientName}`,
+        recipient_name: recipientName,
+        recipient_account: recipientIdentifier,
+        status: 'PENDING',
+        category: 'Zelle Transfer',
+        date: today,
+        created_at: now.getTime(),
+      }], { session });
+      await createNotification({
+        userId: req.user!.id,
+        title: 'Zelle Transfer Pending Review',
+        message: `Your $${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD transfer to ${recipientName} is pending security verification.`,
+        type: 'transfer',
+        category: 'transfer',
+        link: 'history',
+      }, session);
+      result = { transferId, transactionId, amount, createdAt: now };
+    });
+    res.status(201).json({ success: true, transfer: result });
+  } catch (err) {
+    const message = errorMessage(err, 'Unable to submit the Zelle transfer.');
+    const conflict = message.includes('available checking balance changed');
+    res.status(conflict ? 409 : 400).json({ error: message });
+  } finally {
+    await session.endSession();
+  }
+});
+
+router.get('/pending', requireAdmin, async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const transfers = await Transfer.find({ transferType: 'ZELLE', status: 'PENDING' })
+      .sort({ createdAt: -1 })
+      .lean<any[]>();
+    const [users, accounts] = await Promise.all([
+      User.find({ id: { $in: [...new Set(transfers.map((transfer) => transfer.userId))] } })
+        .select('id full_name email').lean<any[]>(),
+      Account.find({ id: { $in: [...new Set(transfers.map((transfer) => transfer.sourceAccountId))] } })
+        .select('id nickname account_number').lean<any[]>(),
+    ]);
+    const usersById = new Map(users.map((user) => [user.id, user]));
+    const accountsById = new Map(accounts.map((account) => [account.id, account]));
+    res.json({
+      transfers: transfers.map((transfer) => ({
+        ...transfer,
+        userName: usersById.get(transfer.userId)?.full_name || 'Member',
+        userEmail: usersById.get(transfer.userId)?.email || '',
+        accountName: accountsById.get(transfer.sourceAccountId)?.nickname || 'Checking',
+        accountNumber: accountsById.get(transfer.sourceAccountId)?.account_number || '',
+      })),
+    });
+  } catch (err) {
+    console.error('Pending Zelle transfer lookup failed:', err);
+    res.status(500).json({ error: errorMessage(err, 'Unable to load pending Zelle transfers.') });
+  }
+});
+
+router.put('/admin/:id/approve', requireAdmin, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const session = await mongoose.startSession();
+  try {
+    let approvedTransfer: any = null;
+    await session.withTransaction(async () => {
+      const transfer = await Transfer.findOne({ id: req.params.id, transferType: 'ZELLE', status: 'PENDING' })
+        .session(session).lean<any>();
+      if (!transfer) throw new Error('Pending Zelle transfer not found or already processed.');
+      const processedAt = new Date();
+      const account = await Account.findOneAndUpdate({
+        id: transfer.sourceAccountId,
+        user_id: transfer.userId,
+        status: 'Active',
+        balance: { $gte: transfer.amount },
+        held_balance: { $gte: transfer.amount },
+      }, { $inc: { balance: -transfer.amount, held_balance: -transfer.amount } }, { new: true, session }).lean<any>();
+      if (!account) throw new Error('The reserved transfer funds are no longer available.');
+
+      const updatedTransfer = await Transfer.findOneAndUpdate(
+        { id: transfer.id, status: 'PENDING' },
+        { $set: { status: 'APPROVED', processedAt } },
+        { new: true, session },
+      ).lean<any>();
+      if (!updatedTransfer) throw new Error('Transfer status changed before approval could complete.');
+      const transactionResult = await Transaction.updateOne(
+        { id: transfer.transactionId, status: 'PENDING' },
+        { $set: { status: 'COMPLETED', reviewed_at: processedAt, reviewed_by: req.user!.id } },
+        { session },
+      );
+      if (transactionResult.matchedCount !== 1) throw new Error('The pending ledger transaction could not be updated.');
+
+      await AuditLog.create([{
+        id: `log_zelle_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: 'ZELLE_TRANSFER_APPROVED',
+        target_user_id: transfer.userId,
+        target_account_id: transfer.sourceAccountId,
+        amount: transfer.amount,
+        details: `Approved Zelle transfer ${transfer.id} to ${transfer.recipientName} (${transfer.recipientIdentifier}).`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: processedAt.toISOString(),
+      }], { session });
+      await createNotification({
+        userId: transfer.userId,
+        title: 'Zelle Transfer Approved',
+        message: `Your $${transfer.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD transfer to ${transfer.recipientName} was approved.`,
+        type: 'transfer',
+        category: 'transfer',
+        link: 'history',
+      }, session);
+      approvedTransfer = updatedTransfer;
+    });
+    res.json({ success: true, transfer: approvedTransfer });
+  } catch (err) {
+    console.error('Zelle transfer approval failed:', err);
+    res.status(409).json({ error: errorMessage(err, 'Unable to approve Zelle transfer.') });
+  } finally {
+    await session.endSession();
+  }
+});
+
+router.put('/admin/:id/reject', requireAdmin, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const reason = typeof req.body?.rejectionReason === 'string' ? req.body.rejectionReason.trim() : '';
+  if (!reason || reason.length > 500) {
+    res.status(400).json({ error: 'Enter a rejection reason of 500 characters or fewer.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let rejectedTransfer: any = null;
+    await session.withTransaction(async () => {
+      const transfer = await Transfer.findOne({ id: req.params.id, transferType: 'ZELLE', status: 'PENDING' })
+        .session(session).lean<any>();
+      if (!transfer) throw new Error('Pending Zelle transfer not found or already processed.');
+      const processedAt = new Date();
+      const releasedAccount = await Account.findOneAndUpdate({
+        id: transfer.sourceAccountId,
+        user_id: transfer.userId,
+        held_balance: { $gte: transfer.amount },
+      }, { $inc: { held_balance: -transfer.amount } }, { new: true, session }).lean<any>();
+      if (!releasedAccount) throw new Error('The reserved transfer funds could not be released.');
+
+      const updatedTransfer = await Transfer.findOneAndUpdate(
+        { id: transfer.id, status: 'PENDING' },
+        { $set: { status: 'REJECTED', rejectionReason: reason, processedAt } },
+        { new: true, session },
+      ).lean<any>();
+      if (!updatedTransfer) throw new Error('Transfer status changed before rejection could complete.');
+      const transactionResult = await Transaction.updateOne(
+        { id: transfer.transactionId, status: 'PENDING' },
+        { $set: { status: 'REJECTED', review_reason: reason, reviewed_at: processedAt, reviewed_by: req.user!.id } },
+        { session },
+      );
+      if (transactionResult.matchedCount !== 1) throw new Error('The pending ledger transaction could not be updated.');
+
+      await AuditLog.create([{
+        id: `log_zelle_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: 'ZELLE_TRANSFER_REJECTED',
+        target_user_id: transfer.userId,
+        target_account_id: transfer.sourceAccountId,
+        amount: transfer.amount,
+        details: `Rejected Zelle transfer ${transfer.id} to ${transfer.recipientName}. Reason: ${reason}`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: processedAt.toISOString(),
+      }], { session });
+      await createNotification({
+        userId: transfer.userId,
+        title: 'Zelle Transfer Not Approved',
+        message: `Your $${transfer.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD transfer to ${transfer.recipientName} was not approved: ${reason}`,
+        type: 'transfer',
+        category: 'transfer',
+        link: 'history',
+      }, session);
+      rejectedTransfer = updatedTransfer;
+    });
+    res.json({ success: true, transfer: rejectedTransfer });
+  } catch (err) {
+    console.error('Zelle transfer rejection failed:', err);
+    res.status(409).json({ error: errorMessage(err, 'Unable to reject Zelle transfer.') });
+  } finally {
+    await session.endSession();
+  }
+});
 
 // POST /api/transfers/initiate
 router.post('/initiate', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -27,7 +281,7 @@ router.post('/initiate', requireApprovedUser, async (req: AuthenticatedRequest, 
       channel = 'email',
     } = req.body;
 
-    if (!['internal', 'external', 'zelle', 'wire'].includes(transferType)) {
+    if (!['internal', 'external', 'wire'].includes(transferType)) {
       res.status(400).json({ error: 'Please select a valid transfer method.' });
       return;
     }

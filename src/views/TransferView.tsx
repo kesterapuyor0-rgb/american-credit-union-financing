@@ -35,7 +35,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
   onCancel,
 }) => {
   // Step 1: Details | Step 2: Review & 2FA | Step 3: Success Confirmation
-  const [step, setStep] = useState<'details' | '2fa' | 'success'>('details');
+  const [step, setStep] = useState<'details' | 'review' | '2fa' | 'success'>('details');
 
   // Transfer Form State
   const [transferType, setTransferType] = useState<'internal' | 'external' | 'zelle' | 'wire'>('internal');
@@ -47,6 +47,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
   );
   const [recipientName, setRecipientName] = useState('');
   const [submittedRecipientName, setSubmittedRecipientName] = useState('');
+  const [submittedRecipientIdentifier, setSubmittedRecipientIdentifier] = useState('');
   const [recipientAccount, setRecipientAccount] = useState('');
   const [recipientRouting, setRecipientRouting] = useState('026009593');
   const [amount, setAmount] = useState<string>('');
@@ -114,8 +115,31 @@ export const TransferView: React.FC<TransferViewProps> = ({
       return;
     }
 
+    if (transferType === 'zelle' && selectedSourceAccount.account_type !== 'Checking') {
+      setError('Zelle transfers can only be sent from an active checking account.');
+      return;
+    }
+
     if (transferType !== 'internal' && !recipientName.trim()) {
       setError('Please provide the recipient name.');
+      return;
+    }
+
+    if (transferType === 'zelle') {
+      const identifier = recipientAccount.trim();
+      const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+      const digits = identifier.replace(/\D/g, '');
+      const validPhone = digits.length >= 10 && digits.length <= 15 && /^[+()\-\s.\d]+$/.test(identifier);
+      const validTag = /^@[A-Za-z0-9._-]{2,30}$/.test(identifier);
+      if (!validEmail && !validPhone && !validTag) {
+        setError('Enter a valid recipient email, mobile phone number, or Zelle® tag.');
+        return;
+      }
+      setSubmittedRecipientName(recipientName.trim());
+      setSubmittedRecipientIdentifier(identifier);
+      setTransferFee(0);
+      setTransferTax(0);
+      setStep('review');
       return;
     }
 
@@ -166,6 +190,38 @@ export const TransferView: React.FC<TransferViewProps> = ({
       setStep('2fa');
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitZelleTransfer = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const activeToken = token || getStoredAuthToken();
+      const response = await fetch('/api/transfers/zelle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          sourceAccountId,
+          recipientName: submittedRecipientName,
+          recipientIdentifier: submittedRecipientIdentifier,
+          amount: Number(amount),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to submit the Zelle transfer.');
+      setCompletedTxId(data.transfer?.transactionId || '');
+      setNewSourceBalance(null);
+      setStep('success');
+      onTransferComplete();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to submit the Zelle transfer.');
     } finally {
       setLoading(false);
     }
@@ -246,12 +302,12 @@ export const TransferView: React.FC<TransferViewProps> = ({
           <span>→</span>
           <span
             className={`w-6 h-6 rounded-full flex items-center justify-center ${
-              step === '2fa' ? 'bg-[#D6A832] text-white' : step === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'
+              step === '2fa' || step === 'review' ? 'bg-[#D6A832] text-white' : step === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'
             }`}
           >
             2
           </span>
-          <span>Verify</span>
+          <span>{transferType === 'zelle' ? 'Review' : 'Verify'}</span>
           <span>→</span>
           <span
             className={`w-6 h-6 rounded-full flex items-center justify-center ${
@@ -301,7 +357,13 @@ export const TransferView: React.FC<TransferViewProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => setTransferType('zelle')}
+                  onClick={() => {
+                    setTransferType('zelle');
+                    if (selectedSourceAccount?.account_type !== 'Checking') {
+                      const checkingAccount = accounts.find((account) => account.account_type === 'Checking' && account.status === 'Active');
+                      if (checkingAccount) setSourceAccountId(checkingAccount.id);
+                    }
+                  }}
                   className={`flex min-h-12 items-center gap-3 p-3 border rounded-xs font-semibold text-left transition-colors cursor-pointer sm:min-h-0 sm:flex-col sm:gap-0 sm:text-center ${
                     transferType === 'zelle'
                       ? 'border-[#173B70] bg-blue-50/60 text-[#173B70]'
@@ -309,7 +371,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   }`}
                 >
                   <Send className="w-4 h-4 shrink-0 text-[#173B70] sm:mx-auto sm:mb-1" />
-                  Send to saved recipient
+                  Zelle® Transfer
                 </button>
 
                 <button
@@ -354,7 +416,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                 onChange={(e) => setSourceAccountId(e.target.value)}
                 className="min-h-12 w-full min-w-0 p-3 text-base border border-gray-300 rounded-xs bg-white text-gray-900 focus:ring-1 focus:ring-[#173B70] focus:border-[#173B70] outline-hidden"
               >
-                {accounts.map((acc) => (
+                {accounts.filter((account) => transferType !== 'zelle' || account.account_type === 'Checking').map((acc) => (
                   <option key={acc.id} value={acc.id}>
                     {acc.nickname} · {acc.display_number} — {formatUSD(getAvailableBalance(acc))} available
                   </option>
@@ -425,14 +487,14 @@ export const TransferView: React.FC<TransferViewProps> = ({
                 <div>
                   <label className="block font-medium text-gray-600 mb-1">
                     {transferType === 'zelle'
-                      ? 'Recipient Email or Mobile Phone'
+                      ? 'Recipient Email, Mobile Phone, or Zelle® Tag'
                       : 'Recipient Account Number'}
                   </label>
                   <input
                     type="text"
                     required
                     placeholder={
-                      transferType === 'zelle' ? 'name@domain.com or (555) 000-0000' : '9-12 digit account number'
+                      transferType === 'zelle' ? 'name@domain.com, (555) 000-0000, or @tag' : '9-12 digit account number'
                     }
                     value={recipientAccount}
                     onChange={(e) => setRecipientAccount(e.target.value)}
@@ -580,6 +642,36 @@ export const TransferView: React.FC<TransferViewProps> = ({
         </div>
       )}
 
+      {step === 'review' && transferType === 'zelle' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+        <section role="dialog" aria-modal="true" aria-labelledby="zelle-review-heading" className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-sm border border-gray-200 bg-white shadow-xl">
+          <div className="h-1.5 bg-[#173B70]" />
+          <div className="p-4 sm:p-6">
+            <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#D6A832]">
+              <ShieldCheck aria-hidden="true" className="h-4 w-4" />
+              Review transfer details
+            </div>
+            <h2 id="zelle-review-heading" className="font-serif text-xl font-bold text-[#173B70]">Confirm Zelle® Transfer</h2>
+            <p className="mt-1 text-xs leading-5 text-gray-600">Review the recipient and amount before submitting your transfer for security verification.</p>
+            <dl className="mt-5 space-y-3 rounded-sm border border-gray-200 bg-gray-50 p-4 text-sm">
+              <div className="flex justify-between gap-4"><dt className="text-gray-500">Recipient Name</dt><dd className="min-w-0 break-words text-right font-semibold text-gray-900">{submittedRecipientName}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="shrink-0 text-gray-500">Email / Phone / Zelle® Tag</dt><dd className="min-w-0 break-all text-right font-medium text-gray-900">{submittedRecipientIdentifier}</dd></div>
+              <div className="flex justify-between gap-4 border-t border-gray-200 pt-3"><dt className="text-gray-500">Transfer Amount</dt><dd className="font-mono font-bold text-[#173B70]">{formatUSD(Number(amount))} USD</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-gray-500">Processing Fee</dt><dd className="font-semibold text-gray-900">{formatUSD(0)} USD</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-gray-500">Estimated Delivery</dt><dd className="text-right font-medium text-gray-900">After Member Services security review and approval</dd></div>
+            </dl>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+              <button type="button" onClick={() => setStep('details')} className="min-h-11 rounded-sm px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100">Back to Details</button>
+              <button type="button" onClick={() => { void handleSubmitZelleTransfer(); }} disabled={loading} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-[#173B70] px-5 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#245B9E] disabled:opacity-60">
+                {loading ? <RefreshCw aria-hidden="true" className="h-4 w-4 animate-spin" /> : <Send aria-hidden="true" className="h-4 w-4" />}
+                Send with Zelle®
+              </button>
+            </div>
+          </div>
+        </section>
+        </div>
+      )}
+
       {/* STEP 2: REVIEW & TWO-STEP VERIFICATION */}
       {step === '2fa' && (
         <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
@@ -724,10 +816,16 @@ export const TransferView: React.FC<TransferViewProps> = ({
             </div>
 
             <h2 className="break-words font-serif text-lg font-bold text-[#173B70] sm:text-2xl">
-              {`Domestic Wire Transfer Out to ${receiptRecipientName}`}
+              {transferType === 'zelle'
+                ? `Zelle® Transfer to ${receiptRecipientName}`
+                : transferType === 'wire'
+                  ? `Domestic Wire Transfer Out to ${receiptRecipientName}`
+                  : `Transfer to ${receiptRecipientName}`}
             </h2>
             <p className="mt-1 text-[11px] text-gray-500 sm:text-xs">
-              Your transfer request is pending. The amount is reserved now and will post after approval.
+              {transferType === 'zelle'
+                ? `Transfer Submitted — Your Zelle® transfer of ${formatUSD(Number(amount))} to ${receiptRecipientName} is pending security verification by Member Services. For inquiries, contact americancreditunion.financing@gmail.com.`
+                : 'Your transfer request is pending. The amount is reserved now and will post after approval.'}
             </p>
 
             <div className="mx-auto mt-3 max-w-md space-y-1 rounded-sm border border-gray-200 bg-gray-50 p-2.5 text-left text-xs sm:mt-6 sm:space-y-2.5 sm:p-4">
@@ -741,6 +839,12 @@ export const TransferView: React.FC<TransferViewProps> = ({
                 <span className="shrink-0 text-gray-500">Recipient:</span>
                 <span className="min-w-0 break-words text-right font-semibold text-gray-900">{receiptRecipientName}</span>
               </div>
+              {transferType === 'zelle' && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="shrink-0 text-gray-500">Recipient identifier:</span>
+                  <span className="min-w-0 break-all text-right font-medium text-gray-900">{submittedRecipientIdentifier}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-2">
                 <span className="shrink-0 text-gray-500">Transfer fee:</span>
                 <span className="text-right font-semibold text-gray-900">{formatUSD(receiptFee)} USD</span>

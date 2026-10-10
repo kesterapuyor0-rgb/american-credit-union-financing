@@ -1010,7 +1010,10 @@ router.get('/transactions', async (req: AuthenticatedRequest, res: Response): Pr
 // GET /api/admin/pending-deposits — compatibility path for the pending transaction review queue.
 router.get('/pending-deposits', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const rows = await Transaction.find({ status: /^pending$/i }).sort({ date: -1 }).lean<any[]>();
+    const rows = await Transaction.find({
+      status: /^pending$/i,
+      category: { $not: /zelle/i },
+    }).sort({ date: -1 }).lean<any[]>();
     const [users, accounts] = await Promise.all([
       User.find({ id: { $in: rows.map((row) => row.user_id) } }).select('id email full_name').lean<any[]>(),
       Account.find({ id: { $in: rows.map((row) => row.account_id) } }).select('id account_number nickname').lean<any[]>(),

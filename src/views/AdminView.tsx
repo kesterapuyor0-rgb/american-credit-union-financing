@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, AuditLog, AdminOverviewData, UserWithAccounts, BankAccount, Transaction, CardApplication, BankCard, GrantApplication } from '../types';
+import { User, AuditLog, AdminOverviewData, UserWithAccounts, BankAccount, Transaction, CardApplication, BankCard, GrantApplication, ZelleTransfer } from '../types';
 import { getStoredAuthToken } from '../utils/api';
 import { formatTransactionDescription } from '../utils/transactionFormatting';
 import { GrantStatusBadge } from '../components/GrantStatusBadge';
@@ -72,11 +72,13 @@ const getVerificationDocumentUrl = (
 };
 
 export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) => {
-const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications' | 'cards' | 'audit' | 'transactions' | 'grants'>('users');
+const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'verifications' | 'cards' | 'audit' | 'transactions' | 'grants'>('users');
   const [overview, setOverview] = useState<AdminOverviewData | null>(null);
   const [users, setUsers] = useState<UserWithAccounts[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [pendingDeposits, setPendingDeposits] = useState<Transaction[]>([]);
+  const [pendingZelleTransfers, setPendingZelleTransfers] = useState<ZelleTransfer[]>([]);
+  const [processingZelleId, setProcessingZelleId] = useState<string | null>(null);
   const [cardApplications, setCardApplications] = useState<CardApplication[]>([]);
   const [verificationApplicants, setVerificationApplicants] = useState<VerificationApplicant[]>([]);
   const [verificationStatusEdits, setVerificationStatusEdits] = useState<Record<string, { status: VerificationApplicant['verification_status']; reason: string }>>({});
@@ -125,6 +127,11 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
   const [selectedGrantDocument, setSelectedGrantDocument] = useState<GrantApplication | null>(null);
 
   const activeToken = token || getStoredAuthToken();
+  const pendingWireTransfers = pendingDeposits.filter((transaction) =>
+    String(transaction.type).toLowerCase() === 'transfer_out'
+    && !String(transaction.category || '').toLowerCase().includes('zelle')
+    && transaction.description.toLowerCase().includes('domestic wire')
+  );
 
   const fetchOverview = async () => {
     try {
@@ -227,6 +234,21 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
     } catch (err: any) {
       console.error(err);
       setError(err.message);
+    }
+  };
+
+  const fetchPendingZelleTransfers = async () => {
+    try {
+      const response = await fetch('/api/transfers/pending', {
+        headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {},
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to load pending Zelle transfers.');
+      setPendingZelleTransfers(Array.isArray(data.transfers) ? data.transfers : []);
+    } catch (err) {
+      console.error('Failed to load pending Zelle transfers:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load pending Zelle transfers.');
     }
   };
 
@@ -483,6 +505,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
     fetchAuditLogs();
     fetchTransactions();
     fetchPendingDeposits();
+    fetchPendingZelleTransfers();
     fetchCardApplications();
     fetchVerificationApplicants();
     fetchIssuedCards();
@@ -736,6 +759,50 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
     }
   };
 
+  const handleReviewZelleTransfer = async (transfer: ZelleTransfer, decision: 'approve' | 'reject') => {
+    const rejectionReason = decision === 'reject'
+      ? window.prompt(`Enter a rejection reason for ${transfer.recipientName}'s Zelle transfer:`)?.trim() || ''
+      : '';
+    if (decision === 'reject' && !rejectionReason) return;
+    if (decision === 'reject' && rejectionReason.length > 500) {
+      setError('Rejection reasons must be 500 characters or fewer.');
+      return;
+    }
+
+    setProcessingZelleId(transfer.id);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const response = await fetch(
+        `/api/transfers/admin/${encodeURIComponent(transfer.id)}/${decision}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify({ rejectionReason }),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || `Unable to ${decision} Zelle transfer.`);
+      setSuccessMsg(`Zelle transfer ${decision === 'approve' ? 'approved and completed' : 'rejected'} for ${transfer.userName || 'member'}.`);
+      await Promise.all([
+        fetchPendingZelleTransfers(),
+        fetchOverview(),
+        fetchUsers(),
+        fetchTransactions(),
+        fetchAuditLogs(),
+      ]);
+      window.setTimeout(() => setSuccessMsg(null), 6000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Unable to ${decision} Zelle transfer.`);
+    } finally {
+      setProcessingZelleId(null);
+    }
+  };
+
   const formatUSD = (val: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -858,6 +925,20 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                 }`}
               >
                 Pending Transactions ({pendingDeposits.length})
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('zelle');
+                  void fetchPendingZelleTransfers();
+                  void fetchPendingDeposits();
+                }}
+                className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
+                  activeTab === 'zelle'
+                    ? 'bg-[#D6A832] text-white'
+                    : 'text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Zelle & Wire Pending Transfers ({pendingZelleTransfers.length + pendingWireTransfers.length})
               </button>
               <button
                 onClick={() => {
@@ -1338,6 +1419,91 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'zelle' && (
+          <section className="p-4 sm:p-5">
+            <div className="mb-5 flex flex-col gap-3 border-b border-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#173B70]">Zelle & Wire Pending Transfers</h3>
+                <p className="mt-1 text-xs text-gray-500">Review Zelle requests. Funds are reserved until approval or rejection.</p>
+              </div>
+              <button type="button" onClick={() => { void fetchPendingZelleTransfers(); }} disabled={processingZelleId !== null} className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                <RefreshCw className={`h-3.5 w-3.5 ${processingZelleId ? 'animate-spin' : ''}`} /> Refresh Queue
+              </button>
+            </div>
+            {pendingZelleTransfers.length === 0 ? (
+              <div className="rounded border border-gray-200 bg-gray-50 py-12 text-center">
+                <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-emerald-600" />
+                <p className="text-sm font-semibold text-gray-700">No pending Zelle transfers</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded border border-gray-200">
+                <table className="w-full min-w-[760px] text-left text-xs">
+                  <thead className="border-b border-gray-200 bg-[#F8F9FA] text-[10px] font-bold uppercase tracking-wider text-gray-600">
+                    <tr>
+                      <th className="px-3 py-3">Member</th>
+                      <th className="px-3 py-3">Recipient</th>
+                      <th className="px-3 py-3">Identifier</th>
+                      <th className="px-3 py-3">Account</th>
+                      <th className="px-3 py-3 text-right">Amount</th>
+                      <th className="px-3 py-3">Submitted</th>
+                      <th className="px-3 py-3 text-right">Decision</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {pendingZelleTransfers.map((transfer) => (
+                      <tr key={transfer.id} className="align-top hover:bg-slate-50">
+                        <td className="px-3 py-3">
+                          <div className="font-semibold text-gray-900">{transfer.userName || 'Member'}</div>
+                          <div className="text-[11px] text-gray-500">{transfer.userEmail || '—'}</div>
+                        </td>
+                        <td className="px-3 py-3 font-medium text-gray-900">{transfer.recipientName}</td>
+                        <td className="px-3 py-3 text-gray-600">{transfer.recipientIdentifier}</td>
+                        <td className="px-3 py-3 text-gray-600">{transfer.accountName || 'Checking'} · •••• {transfer.accountNumber?.slice(-4) || '—'}</td>
+                        <td className="px-3 py-3 text-right font-mono font-bold text-gray-900">{formatUSD(transfer.amount)}</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-gray-600">{new Date(transfer.createdAt).toLocaleString()}</td>
+                        <td className="px-3 py-3 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button type="button" onClick={() => { void handleReviewZelleTransfer(transfer, 'reject'); }} disabled={processingZelleId === transfer.id} className="rounded border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-50">Reject</button>
+                            <button type="button" onClick={() => { void handleReviewZelleTransfer(transfer, 'approve'); }} disabled={processingZelleId === transfer.id} className="inline-flex items-center gap-1 rounded bg-emerald-700 px-2.5 py-1.5 text-xs font-bold text-white disabled:opacity-50">
+                              {processingZelleId === transfer.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />} Approve Transfer
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="mt-8 border-t border-gray-200 pt-5">
+              <h4 className="text-sm font-bold text-slate-900">Pending Wire Transfers</h4>
+              <p className="mt-1 text-xs text-gray-500">Outgoing wires remain reserved until the review decision is recorded.</p>
+              {pendingWireTransfers.length === 0 ? (
+                <p className="mt-3 rounded border border-gray-200 bg-gray-50 px-3 py-5 text-center text-xs text-gray-600">No pending wire transfers.</p>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  {pendingWireTransfers.map((transaction) => (
+                    <article key={transaction.id} className="flex flex-col gap-3 rounded border border-gray-200 p-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-gray-900">{(transaction as any).user_name || 'Member'} · {transaction.recipient_name || 'Recipient'}</p>
+                        <p className="mt-1 truncate text-xs text-gray-600">{formatTransactionDescription(transaction.description)} · {transaction.recipient_account || 'No recipient account'}</p>
+                        <p className="mt-1 text-xs font-bold text-slate-800">{formatUSD(transaction.amount + (transaction.transfer_fee || 0) + (transaction.transfer_tax || 0))} · {transaction.date}</p>
+                      </div>
+                      <div className="w-full space-y-2 sm:w-64">
+                        <textarea rows={2} maxLength={500} required aria-label={`Review reason for wire transaction ${transaction.id}`} placeholder="Required decision reason" value={transactionReviewReasons[transaction.id] || ''} onChange={(event) => setTransactionReviewReasons((current) => ({ ...current, [transaction.id]: event.target.value }))} className="w-full rounded border border-slate-200 p-2 text-xs" />
+                        <div className="flex justify-end gap-2">
+                          <button type="button" onClick={() => { void handleReviewTransaction(transaction, 'reject'); }} disabled={approvingDepositId === transaction.id} className="rounded border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 disabled:opacity-50">Reject</button>
+                          <button type="button" onClick={() => { void handleReviewTransaction(transaction, 'approve'); }} disabled={approvingDepositId === transaction.id} className="rounded bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">{approvingDepositId === transaction.id ? 'Processing…' : 'Approve Transfer'}</button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
         )}
 
         {activeTab === 'cards' && (

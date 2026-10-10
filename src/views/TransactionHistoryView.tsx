@@ -41,6 +41,7 @@ const getTransactionPresentation = (transaction: Transaction): TransactionPresen
   const description = formatTransactionDescription(transaction.description);
   const normalizedDescription = description.toLowerCase();
   const normalizedCategory = transaction.category?.toLowerCase() || '';
+  const isZelle = normalizedCategory.includes('zelle');
   const isGrant = normalizedCategory.includes('grant')
     || transaction.id.startsWith('tx_grant_')
     || normalizedDescription.includes('grant');
@@ -65,6 +66,17 @@ const getTransactionPresentation = (transaction: Transaction): TransactionPresen
     };
   }
   if (isTransferOut) {
+    if (isZelle) {
+      return {
+        title: `Zelle Transfer to ${transaction.recipient_name?.trim() || 'Recipient'}`,
+        typeLabel: 'Zelle Transfer',
+        subtitle: transaction.recipient_account || 'Pending recipient transfer',
+        isIncoming: false,
+        amountClassName: 'font-semibold text-slate-900',
+        Icon: ArrowUpRight,
+        iconClassName: 'bg-slate-100 text-slate-700',
+      };
+    }
     return {
       title: `Domestic Wire Transfer Out to ${transaction.recipient_name?.trim() || 'Recipient'}`,
       typeLabel: 'Transfer Out',

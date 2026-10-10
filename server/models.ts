@@ -123,6 +123,22 @@ const transactionSchema = new Schema({
   created_at: { type: Number, required: true },
 }, { versionKey: false, bufferCommands: false });
 
+const transferSchema = new Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  userId: { type: String, required: true, index: true },
+  sourceAccountId: { type: String, required: true, index: true },
+  transferType: { type: String, required: true, enum: ['ZELLE'], index: true },
+  recipientIdentifier: { type: String, required: true, trim: true, maxlength: 254 },
+  recipientName: { type: String, required: true, trim: true, maxlength: 120 },
+  amount: { type: Number, required: true, min: 0.01 },
+  status: { type: String, required: true, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING', index: true },
+  rejectionReason: { type: String, default: '', trim: true, maxlength: 500 },
+  transactionId: { type: String, required: true, unique: true, index: true },
+  createdAt: { type: Date, required: true, default: Date.now, index: true },
+  processedAt: { type: Date },
+}, { versionKey: false, bufferCommands: false });
+transferSchema.index({ transferType: 1, status: 1, createdAt: -1 });
+
 const verificationCodeSchema = new Schema({
   id: { type: String, required: true, unique: true, index: true },
   user_id: { type: String, required: true, index: true },
@@ -165,6 +181,7 @@ notificationSchema.index({ userId: 1, createdAt: -1 });
 export const User = (mongoose.models.User || mongoose.model('User', userSchema)) as mongoose.Model<any>;
 export const Account = (mongoose.models.Account || mongoose.model('Account', accountSchema)) as mongoose.Model<any>;
 export const Transaction = (mongoose.models.Transaction || mongoose.model('Transaction', transactionSchema)) as mongoose.Model<any>;
+export const Transfer = (mongoose.models.Transfer || mongoose.model('Transfer', transferSchema)) as mongoose.Model<any>;
 export const VerificationCode = (mongoose.models.VerificationCode || mongoose.model('VerificationCode', verificationCodeSchema)) as mongoose.Model<any>;
 export const AuditLog = (mongoose.models.AuditLog || mongoose.model('AuditLog', auditLogSchema)) as mongoose.Model<any>;
 export const CardApplication = (mongoose.models.CardApplication || mongoose.model('CardApplication', cardApplicationSchema)) as mongoose.Model<any>;
