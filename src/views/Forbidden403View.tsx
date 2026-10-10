@@ -38,15 +38,15 @@ export const Forbidden403View: React.FC<Forbidden403ViewProps> = ({ onRedirectTo
           </div>
 
           <h1 className="text-2xl font-bold text-[#173B70] font-serif mb-2">
-            Administrator Authorization Required
+            Member Services Authorization Required
           </h1>
 
           <p className="text-xs text-gray-600 leading-relaxed mb-6">
-            Access to administrative tools in this plaform is restricted to accounts with administrator permissions. Your request has been denied.
+            Access to these tools is restricted to authorized Member Services specialists. Your request has been denied.
           </p>
 
           <div className="p-3 bg-gray-50 border border-gray-200 rounded-xs text-xs text-gray-500 mb-6 font-mono">
-            Error Code: SEC_403_ADMIN_ISOLATION_ENFORCED
+            Error Code: SEC_403_MEMBER_SERVICES_ACCESS_REQUIRED
           </div>
 
           <div className="text-xs text-gray-500 mb-4">

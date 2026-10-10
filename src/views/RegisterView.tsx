@@ -225,7 +225,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     Enrollment under review
                   </h3>
                   <p className="mt-2 text-sm text-gray-700">
-                    Thank you, {successData.full_name}. Your enrollment is being reviewed. Dashboard access will be available after approval.
+                    Thank you, {successData.full_name}. Your enrollment is being reviewed by authorized Member Services specialists. Dashboard access will be available after review.
                   </p>
                 </div>
                 <div className="rounded-sm border border-blue-200 bg-blue-50 p-4 text-left text-sm leading-6 text-blue-950">
@@ -240,7 +240,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 </div>
                 <button
                   type="button"
-                  onClick={() => onNavigateToLogin('Your enrollment is awaiting administrator review.')}
+                  onClick={() => onNavigateToLogin('Your enrollment is under review by Member Services.')}
                   className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-sm bg-[#173B70] px-4 py-3 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#245B9E]"
                 >
                   Return to Sign In
@@ -477,7 +477,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         setSampleFile(file);
                       }}
                     />
-                    {sampleFile && <p className="mt-1 text-[11px] text-gray-500">Selected file: {Math.ceil(sampleFile.size / 1024)} KB. The image will be stored for administrator review.</p>}
+                    {sampleFile && <p className="mt-1 text-[11px] text-gray-500">Selected file: {Math.ceil(sampleFile.size / 1024)} KB. The image will be stored for review by authorized Member Services specialists.</p>}
                   </div>
                 </div>
                 )}
@@ -547,4 +547,3 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     </div>
   );
 };
-

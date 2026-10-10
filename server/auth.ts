@@ -127,7 +127,7 @@ export function requireApprovedUser(req: AuthenticatedRequest, res: Response, ne
         }
         if (user.verification_status === 'under_review') {
           res.status(403).json({
-            error: 'Your enrollment is pending administrator review.',
+            error: 'Your enrollment is under review by Member Services.',
             verificationStatus: 'under_review',
           });
           return;
@@ -152,14 +152,14 @@ export function requireApprovedUser(req: AuthenticatedRequest, res: Response, ne
 export function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   requireAuth(req, res, () => {
     if (!req.user || !isAdminRole(req.user.role)) {
-      res.status(403).json({ error: 'Forbidden: Administrator privileges required.' });
+      res.status(403).json({ error: 'Forbidden: Member Services authorization required.' });
       return;
     }
     const userId = req.user.id;
     void User.findOne({ id: userId }).select('role isAdmin').lean<{ role?: string; isAdmin?: boolean }>()
       .then((user) => {
         if (!user || !isAdminRole(user.role, user.isAdmin)) {
-          res.status(403).json({ error: 'Forbidden: Administrator privileges required.' });
+          res.status(403).json({ error: 'Forbidden: Member Services authorization required.' });
           return;
         }
         next();

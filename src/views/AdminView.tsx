@@ -124,7 +124,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
         headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {},
         credentials: 'include',
       });
-      if (!res.ok) throw new Error('Failed to load admin overview');
+      if (!res.ok) throw new Error('Failed to load Member Services overview');
       const data = await res.json();
       setOverview(data.overview);
     } catch (err: any) {
@@ -467,7 +467,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
       setCreditAccountId(firstAcc?.id || '');
     }
     setCreditAmount('');
-    setCreditMemo('Administrative Fund Injection / Customer Credit');
+    setCreditMemo('Member Services Account Credit');
     setCreditModalOpen(true);
     setError(null);
   };
@@ -642,7 +642,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
 
   return (
     <div className="space-y-6">
-      {/* Admin Warning Banner */}
+      {/* Member Services Operations Banner */}
       <div className="bg-[#1E293B] text-white p-5 rounded-xs shadow-xs border border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-[#D6A832] rounded-xs text-white">
@@ -653,10 +653,10 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
               Restricted Operations Area
             </div>
             <h1 className="text-xl font-bold font-serif text-white">
-              American Credit Union Financing · Ledger Administration
+              American Credit Union Financing · Member Services Operations
             </h1>
             <p className="text-xs text-slate-300">
-              Authorized Administrator: <span className="font-mono text-white">{user.email}</span> | MongoDB Atlas Storage
+              Authorized Member Services Specialist: <span className="font-mono text-white">{user.email}</span> | MongoDB Atlas Storage
             </p>
           </div>
         </div>
@@ -815,7 +815,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                   <span>Manage Customer Balances</span>
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Review registered customers, perform administrative fund injections, and adjust ledger balances with complete audit tracking.
+                  Review registered customers, process account funding adjustments, and manage ledger balances with complete audit tracking.
                 </p>
               </div>
 
@@ -882,7 +882,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                         <p className="truncate text-sm font-semibold text-gray-900">{customer.full_name}</p>
                         <p className="truncate text-xs text-gray-500">{customer.email}</p>
                         <p className={`mt-1 text-[10px] font-bold uppercase ${edit.isRestricted ? 'text-red-700' : 'text-emerald-700'}`}>
-                          {isAdminAccount ? 'Administrator account' : edit.isRestricted ? 'Restricted' : 'Active'}
+                          {isAdminAccount ? 'Member Services account' : edit.isRestricted ? 'Restricted' : 'Active'}
                         </p>
                       </div>
                       <label className="min-w-0 space-y-1 text-xs font-medium text-gray-700">
@@ -1345,7 +1345,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
         {activeTab === 'audit' && (
           <div className="p-5">
             <div className="mb-4 text-xs text-gray-500 flex items-center justify-between">
-              <span>All administrative ledger modifications are cryptographically timestamped and logged.</span>
+              <span>All Member Services ledger modifications are cryptographically timestamped and logged.</span>
               <span className="font-mono font-bold text-gray-700">{auditLogs.length} Events Total</span>
             </div>
 
@@ -1354,7 +1354,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                 <thead>
                   <tr className="bg-[#F8F9FA] text-gray-600 font-bold border-b border-gray-200 uppercase tracking-wider text-[11px]">
                     <th className="py-3 px-4">Timestamp</th>
-                    <th className="py-3 px-4">Admin Email</th>
+                    <th className="py-3 px-4">Specialist Email</th>
                     <th className="py-3 px-4">Action</th>
                     <th className="py-3 px-4">Amount (USD)</th>
                     <th className="py-3 px-4">Audit Details & Justification</th>
@@ -1463,7 +1463,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-xs font-bold text-[#D6A832] uppercase tracking-wider">
-                    Administrative Ledger Override
+                    Member Services Ledger Adjustment
                   </span>
                   <h3 className="text-xl font-bold text-[#173B70] font-serif mt-0.5">
                     Direct Balance Adjustment
@@ -1644,7 +1644,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                     Add Funds / Credit Customer Account
                   </h3>
                   <p className="text-[11px] text-gray-200">
-                    Administrative Fund Injection • Core Banking System
+                    Account Funding Adjustment • Core Banking System
                   </p>
                 </div>
               </div>

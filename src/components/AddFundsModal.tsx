@@ -237,7 +237,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
 
               <div className="bg-emerald-50 border border-emerald-200 rounded-sm p-3 flex items-start gap-2 text-[11px] text-emerald-900">
                 <ShieldCheck className="w-4 h-4 text-[#173B70] shrink-0 mt-0.5" />
-                <span>You can track this request in your transaction activity. An administrator must review it before the account balance changes.</span>
+                <span>You can track this request in your transaction activity. Member Services must review it before the account balance changes.</span>
               </div>
 
               <div className="pt-2">

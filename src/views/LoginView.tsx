@@ -99,7 +99,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
         setResendCooldown(30);
       } else if (data.token && data.user) {
         if (adminOnly && data.user.role !== 'admin') {
-          throw new Error('This sign-in is restricted to authorized administrators.');
+          throw new Error('This sign-in is restricted to authorized Member Services specialists.');
         }
         setStoredAuthToken(data.token);
         onLoginSuccess(data.user, data.token);
@@ -148,7 +148,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
         setStoredAuthToken(data.token);
       }
       if (adminOnly && data.user?.role !== 'admin') {
-        throw new Error('This sign-in is restricted to authorized administrators.');
+        throw new Error('This sign-in is restricted to authorized Member Services specialists.');
       }
 
       onLoginSuccess(data.user, data.token);
@@ -215,11 +215,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
             {step === 'credentials' ? (
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-[#173B70] mb-1 font-serif tracking-tight">
-                  {adminOnly ? 'Core Ledger Administrator Sign-In' : 'Log In to Online Banking'}
+                  {adminOnly ? 'Core Ledger Member Services Sign-In' : 'Log In to Online Banking'}
                 </h1>
                 <p className="text-xs text-gray-500 mb-6">
                   {adminOnly
-                    ? 'Authorized personnel only. Enter your administrator credentials to continue.'
+                    ? 'Authorized Member Services specialists only. Enter your Member Services credentials to continue.'
                     : 'Please enter your User ID and Passcode to securely access your accounts.'}
                 </p>
 
@@ -244,7 +244,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     </div>
                     <p className="mt-1">
                       {verificationStatus === 'under_review'
-                        ? 'Administrator review is still pending. Dashboard access will be available after approval.'
+                        ? 'Your enrollment is under review by Member Services. Dashboard access will be available after review.'
                         : 'Your enrollment was not approved.'}
                     </p>
                     {verificationStatus === 'rejected' && verificationReason && (
