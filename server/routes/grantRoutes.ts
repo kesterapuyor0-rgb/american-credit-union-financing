@@ -136,12 +136,14 @@ router.get('/admin/all', requireAdmin, async (_req: AuthenticatedRequest, res: R
 
 router.put('/admin/:id/status', requireAdmin, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { status, adminNotes, approvedAmount } = req.body || {};
+    const { status, adminNotes, rejectionReason, approvedAmount } = req.body || {};
     const notes = typeof adminNotes === 'string' ? adminNotes.trim() : '';
+    const reason = typeof rejectionReason === 'string' ? rejectionReason.trim() : '';
     const amount = Number(approvedAmount);
     if (!GRANT_STATUSES.has(status) || notes.length > 1000
+      || (status === 'REJECTED' && (!reason || reason.length > 1000))
       || (status === 'APPROVED' && (!Number.isFinite(amount) || amount <= 0))) {
-      res.status(400).json({ error: 'Provide a valid grant status, approval amount, and review notes.' });
+      res.status(400).json({ error: 'Provide a valid grant status, rejection reason, approval amount, and review notes.' });
       return;
     }
 
@@ -165,6 +167,7 @@ router.put('/admin/:id/status', requireAdmin, async (req: AuthenticatedRequest, 
           reviewedBy: req.user!.id,
         };
         if (status === 'APPROVED') fields.approvedAmount = amount;
+        if (status === 'REJECTED') fields.rejectionReason = reason;
         updatedGrant = await Grant.findOneAndUpdate(
           { id: grant.id, status: { $in: ['PENDING REVIEW', 'UNDER COMMITTEE EVALUATION'] } },
           { $set: fields },
@@ -178,7 +181,7 @@ router.put('/admin/:id/status', requireAdmin, async (req: AuthenticatedRequest, 
           action: `GRANT_${status.replaceAll(' ', '_')}`,
           target_user_id: grant.userId,
           amount: status === 'APPROVED' ? amount : grant.requestedAmount,
-          details: `${status} grant ${grant.id} for ${grant.businessName}. ${notes || 'No additional notes.'}`,
+          details: `${status} grant ${grant.id} for ${grant.businessName}. ${status === 'REJECTED' ? reason : notes || 'No additional notes.'}`,
           ip_address: req.ip || '127.0.0.1',
           created_at: new Date().toISOString(),
         }], { session });

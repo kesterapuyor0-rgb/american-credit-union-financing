@@ -76,6 +76,7 @@ export interface GrantApplication {
   documentBase64?: string;
   status: GrantStatus;
   adminNotes?: string;
+  rejectionReason?: string;
   submittedAt: string;
   reviewedAt?: string;
   disbursedAt?: string;

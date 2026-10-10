@@ -265,6 +265,23 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
 
   const updateGrantStatus = async (application: GrantApplication, status: GrantReviewDecision) => {
     const approvedAmount = Number(grantAwards[application.id]);
+    let rejectionReason = '';
+    if (status === 'REJECTED') {
+      const enteredReason = window.prompt(
+        'Please enter the reason this grant application was not approved.',
+        application.rejectionReason || '',
+      );
+      if (enteredReason === null) return;
+      rejectionReason = enteredReason.trim();
+      if (!rejectionReason) {
+        setError('Enter a rejection reason before rejecting the grant application.');
+        return;
+      }
+      if (rejectionReason.length > 1000) {
+        setError('The rejection reason must be 1,000 characters or fewer.');
+        return;
+      }
+    }
     if (status === 'APPROVED' && (!Number.isFinite(approvedAmount) || approvedAmount <= 0 || approvedAmount > application.requestedAmount)) {
       setError('Enter an award amount greater than $0 and no more than the requested amount.');
       return;
@@ -284,6 +301,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
           status,
           approvedAmount: status === 'APPROVED' ? approvedAmount : undefined,
           adminNotes: grantNotes[application.id] || '',
+          rejectionReason: status === 'REJECTED' ? rejectionReason : undefined,
         }),
       });
       const data = await res.json();
@@ -1507,7 +1525,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
                                 </button>
                               </div>
                             )}
-                            {application.status === 'REJECTED' && <p className="mt-2 whitespace-pre-wrap text-rose-800">{application.adminNotes || 'No additional feedback provided.'}</p>}
+                            {application.status === 'REJECTED' && <p className="mt-2 whitespace-pre-wrap text-rose-800">{application.rejectionReason || application.adminNotes || 'No additional feedback provided.'}</p>}
                             {canReview && (
                               <div className="mt-3 space-y-2">
                                 <label className="block text-[11px] font-semibold text-slate-700">

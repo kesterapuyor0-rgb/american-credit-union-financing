@@ -161,7 +161,7 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
     return ['PENDING', 'PENDING REVIEW', 'UNDER REVIEW', 'UNDER COMMITTEE EVALUATION', 'APPROVED'].includes(status);
   };
   const activeApplication = applications.find(isActiveApplication);
-  const wasPreviouslyRejected = applications.some((application) =>
+  const latestRejectedApplication = applications.find((application) =>
     application.status.toUpperCase().replace(/[_-]+/g, ' ').trim() === 'REJECTED'
   );
 
@@ -265,10 +265,11 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
         </div>
       </header>
 
-      {wasPreviouslyRejected && (
-        <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-          Your previous grant application was not approved. You may submit a new application below.
-        </p>
+      {latestRejectedApplication && (
+        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-950">
+          <p className="font-semibold">Application Not Approved: {latestRejectedApplication.rejectionReason || 'No specific reason was provided.'}</p>
+          <p className="mt-1">You may submit a new application below.</p>
+        </div>
       )}
       {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</p>}
 
