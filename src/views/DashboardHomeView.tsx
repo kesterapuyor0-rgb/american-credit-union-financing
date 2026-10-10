@@ -1,6 +1,5 @@
 import React, { useMemo, useState, ChangeEvent, useEffect } from 'react';
 import { User, BankAccount, Transaction, BankCard, CardApplication } from '../types';
-import { AddFundsModal } from '../components/AddFundsModal';
 import { getAuthHeaders } from '../utils/api';
 import { formatTransactionDescription } from '../utils/transactionFormatting';
 import {
@@ -30,7 +29,6 @@ const CARD_COLOR_CLASSES: Record<NonNullable<BankCard['cardColor']>, string> = {
 
 export interface DashboardHomeViewProps {
   user: User;
-  token?: string;
   accounts: BankAccount[];
   transactions: Transaction[];
   onRefresh: () => void;
@@ -42,7 +40,6 @@ export interface DashboardHomeViewProps {
 
 export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   user,
-  token,
   accounts,
   transactions,
   onRefresh,
@@ -55,7 +52,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [pictureMessage, setPictureMessage] = useState('');
-  const [depositOpen, setDepositOpen] = useState(false);
   const [receiveCopied, setReceiveCopied] = useState(false);
   const [cards, setCards] = useState<BankCard[]>([]);
   const [cardApplications, setCardApplications] = useState<CardApplication[]>([]);
@@ -99,7 +95,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         setCards(Array.isArray(cardsData.cards) ? cardsData.cards.filter((card: BankCard) => card.status === 'Active') : []);
         setCardApplications(Array.isArray(applicationsData.applications) ? applicationsData.applications : []);
       } catch (error) {
-        setCardMessage(error instanceof Error ? error.message : 'Unable to load card information.');
+        console.error('Unable to refresh card information:', error);
       }
     };
     void loadCards();
@@ -256,26 +252,22 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         </div>
       </section>
 
-      <section aria-label="Quick actions" className="grid grid-cols-2 gap-3 sm:grid-cols-5 sm:gap-5">
-        <button type="button" onClick={() => setDepositOpen(true)} className="flex flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
-          <span className="grid h-14 w-14 place-items-center rounded-full border border-slate-200 bg-white shadow-sm"><Plus className="h-5 w-5" /></span>
-          Top Up
+      <section aria-label="Quick actions" className="grid grid-cols-4 gap-2">
+        <button type="button" onClick={handleReceive} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14">{receiveCopied ? <Check className="h-5 w-5" /> : <ArrowDownLeft className="h-5 w-5" />}</span>
+          <span className="leading-tight">{receiveCopied ? 'Copied' : 'Receive'}</span>
         </button>
-        <button type="button" onClick={() => onNavigateToTransfer(activeAccount?.id)} className="flex flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
-          <span className="grid h-14 w-14 place-items-center rounded-full border border-slate-200 bg-white shadow-sm"><ArrowUpRight className="h-5 w-5" /></span>
-          Send
+        <button type="button" onClick={() => onNavigateToTransfer(activeAccount?.id)} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><ArrowUpRight className="h-5 w-5" /></span>
+          <span className="leading-tight">Transfer</span>
         </button>
-        <button type="button" onClick={handleReceive} className="flex flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
-          <span className="grid h-14 w-14 place-items-center rounded-full border border-slate-200 bg-white shadow-sm">{receiveCopied ? <Check className="h-5 w-5" /> : <ArrowDownLeft className="h-5 w-5" />}</span>
-          {receiveCopied ? 'Copied' : 'Receive'}
+        <button type="button" onClick={() => onNavigateToTab('grants')} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-teal-800">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><HandCoins className="h-5 w-5" /></span>
+          <span className="leading-tight">Grants</span>
         </button>
-        <button type="button" onClick={() => onNavigateToTab('profile')} className="flex flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
-          <span className="grid h-14 w-14 place-items-center rounded-full border border-slate-200 bg-white shadow-sm"><CircleEllipsis className="h-5 w-5" /></span>
-          More
-        </button>
-        <button type="button" onClick={() => onNavigateToTab('grants')} className="flex flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
-          <span className="grid h-14 w-14 place-items-center rounded-full border border-slate-200 bg-white text-teal-800 shadow-sm"><HandCoins className="h-5 w-5" /></span>
-          Grants & Business Support
+        <button type="button" onClick={() => onNavigateToTab('profile')} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><CircleEllipsis className="h-5 w-5" /></span>
+          <span className="leading-tight">More</span>
         </button>
       </section>
       </>}
@@ -382,7 +374,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               <div key={application.id} className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-800">{application.product_name}</p>
-                  {application.review_reason?.trim().toLowerCase() !== application.status.toLowerCase()
+                  {application.review_reason?.trim().toLowerCase() !== application.status.trim().toLowerCase()
                     && application.review_reason
                     && <p className="mt-1 text-xs text-slate-500">{application.review_reason}</p>}
                 </div>
@@ -439,7 +431,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         </section>
       )}
 
-      <AddFundsModal isOpen={depositOpen} onClose={() => setDepositOpen(false)} accounts={accounts} token={token} onSuccess={() => { onRefresh(); }} />
     </div>
   );
 };
