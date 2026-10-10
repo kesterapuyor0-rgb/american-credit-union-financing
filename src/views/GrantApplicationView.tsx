@@ -1,4 +1,4 @@
-import React, { ChangeEvent, FormEvent, useEffect, useState } from 'react';
+import React, { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, CircleAlert, Clock3, HandCoins, RefreshCw, Upload } from 'lucide-react';
 import { GrantApplication, User } from '../types';
 import { GrantStatusBadge, normalizeGrantStatus } from '../components/GrantStatusBadge';
@@ -13,6 +13,7 @@ const GRANT_CATEGORIES = [
 
 interface GrantApplicationViewProps {
   user: User;
+  onRefresh: () => Promise<void>;
 }
 
 interface GrantFormData {
@@ -30,8 +31,9 @@ interface GrantDocument {
   contentType: string;
 }
 
-export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user }) => {
+export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user, onRefresh }) => {
   const [applications, setApplications] = useState<GrantApplication[]>([]);
+  const lastKnownStatuses = useRef<Map<string, string>>(new Map());
   const [form, setForm] = useState<GrantFormData>({
     businessName: '',
     category: GRANT_CATEGORIES[0],
@@ -58,7 +60,17 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Unable to load grant applications.');
-      setApplications(Array.isArray(data.applications) ? data.applications : []);
+      const nextApplications: GrantApplication[] = Array.isArray(data.applications) ? data.applications : [];
+      const newlyDisbursed = nextApplications.some((application) =>
+        normalizeGrantStatus(application.status) === 'DISBURSED'
+        && lastKnownStatuses.current.get(application.id) !== 'DISBURSED'
+      );
+      lastKnownStatuses.current = new Map(nextApplications.map((application) => [
+        application.id,
+        normalizeGrantStatus(application.status),
+      ]));
+      setApplications(nextApplications);
+      if (newlyDisbursed) await onRefresh();
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load grant applications.');
     } finally {
@@ -68,7 +80,7 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
 
   useEffect(() => {
     void loadApplications();
-    const refreshTimer = window.setInterval(() => void loadApplications(false), 30_000);
+    const refreshTimer = window.setInterval(() => void loadApplications(false), 10_000);
     return () => window.clearInterval(refreshTimer);
   }, [user.id]);
 
@@ -231,10 +243,15 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
                 <h2 className="font-semibold">Official grant award notice</h2>
                 <p className="mt-1">
                   Your application has been approved for {formatMoney(activeApplication.approvedAmount || 0)}.
-                  {status === 'DISBURSED'
-                    ? ` Funds were disbursed on ${activeApplication.disbursedAt ? new Date(activeApplication.disbursedAt).toLocaleDateString() : 'the date shown in your account activity'}.${activeApplication.transactionId ? ` Transaction reference: ${activeApplication.transactionId}.` : ''}`
-                    : activeApplication.adminNotes ? ` ${activeApplication.adminNotes}` : ' The award is approved and awaiting disbursement.'}
+                  {status === 'DISBURSED' ? (
+                    <> Funds were disbursed on {activeApplication.disbursedAt ? new Date(activeApplication.disbursedAt).toLocaleDateString() : 'the date shown in your account activity'}.{activeApplication.transactionId ? ` Transaction reference: ${activeApplication.transactionId}.` : ''}</>
+                  ) : (
+                    <> {activeApplication.adminNotes ? `${activeApplication.adminNotes} ` : ''}Grant Approved! Your funds are currently scheduled for processing. Grant disbursements typically take 3 to 5 business days to post to your primary account.<span className="mt-2 block font-semibold">Expected Posting: 3–5 Business Days</span></>
+                  )}
                 </p>
+                {status === 'DISBURSED' && (
+                  <p className="mt-2 font-semibold">Grant Funds Successfully Disbursed to Advantage Plus Checking Account.</p>
+                )}
               </div>
             )}
 

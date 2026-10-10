@@ -366,7 +366,7 @@ export default function App() {
       case 'cards':
         return <CardsManagementView key="cards" {...dashboardProps} />;
       case 'grants':
-        return <GrantApplicationView key="grants" user={user} />;
+        return <GrantApplicationView key="grants" user={user} onRefresh={fetchUserData} />;
       case 'security':
         return <SecurityView key="security" user={user} />;
       default:

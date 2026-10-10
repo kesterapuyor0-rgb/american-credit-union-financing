@@ -1,5 +1,5 @@
 import React from 'react';
-import { Banknote, CheckCircle2, CircleAlert, Clock3, RefreshCw } from 'lucide-react';
+import { CalendarClock, CheckCircle2, CircleAlert, Clock3, RefreshCw } from 'lucide-react';
 import { GrantStatus } from '../types';
 
 const GRANT_STATUS_PRESENTATION: Record<GrantStatus, {
@@ -18,14 +18,14 @@ const GRANT_STATUS_PRESENTATION: Record<GrantStatus, {
     Icon: RefreshCw,
   },
   APPROVED: {
-    label: 'APPROVED',
-    className: 'border-green-200 bg-green-50 text-green-900',
-    Icon: CheckCircle2,
+    label: 'APPROVED (PENDING DISBURSEMENT)',
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+    Icon: CalendarClock,
   },
   DISBURSED: {
     label: 'FUNDS DISBURSED',
     className: 'border-emerald-200 bg-emerald-50 text-emerald-900',
-    Icon: Banknote,
+    Icon: CheckCircle2,
   },
   REJECTED: {
     label: 'NOT APPROVED',

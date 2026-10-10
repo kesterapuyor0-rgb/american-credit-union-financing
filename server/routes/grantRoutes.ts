@@ -231,14 +231,18 @@ router.post('/admin/:id/disburse', requireAdmin, async (req: AuthenticatedReques
       if (!grant || !Number.isFinite(grant.approvedAmount) || grant.approvedAmount <= 0) {
         throw new Error('Only approved grants with a valid award can be disbursed.');
       }
-      const accounts = await Account.find({ user_id: grant.userId, status: 'Active' })
+      const accounts = await Account.find({
+        user_id: grant.userId,
+        account_type: 'Checking',
+        status: 'Active',
+      })
         .session(session).lean<any[]>();
       accounts.sort((left, right) => {
-        const rank = (account: any) => account.account_type === 'Checking' ? 0 : account.account_type === 'Savings' ? 1 : 2;
-        return rank(left) - rank(right) || Number(left.created_at) - Number(right.created_at);
+        const primaryRank = (account: any) => account.nickname === 'Advantage Plus Checking' ? 0 : 1;
+        return primaryRank(left) - primaryRank(right) || Number(left.created_at) - Number(right.created_at);
       });
       const account = accounts[0];
-      if (!account) throw new Error('The applicant has no active account to receive the grant.');
+      if (!account) throw new Error('The applicant has no active checking account to receive the grant.');
 
       const transactionId = `tx_grant_${randomUUID()}`;
       const now = new Date();
@@ -261,10 +265,10 @@ router.post('/admin/:id/disburse', requireAdmin, async (req: AuthenticatedReques
         id: transactionId,
         user_id: grant.userId,
         account_id: account.id,
-        type: 'deposit',
+        type: 'transfer_in',
         amount: grant.approvedAmount,
         currency: 'USD',
-        description: 'Community Micro-Grant Award',
+        description: 'Community & Business Micro-Grant Disbursement',
         recipient_name: grant.businessName,
         status: 'Completed',
         category: 'Grant',
