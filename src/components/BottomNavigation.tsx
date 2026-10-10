@@ -1,7 +1,7 @@
 import React from 'react';
-import { ArrowLeftRight, CreditCard, Home, Clock3, UserRound } from 'lucide-react';
+import { ArrowLeftRight, CreditCard, Home, Clock3, UserRound, HandCoins } from 'lucide-react';
 
-export type CustomerTab = 'home' | 'history' | 'transfer' | 'profile' | 'cards';
+export type CustomerTab = 'home' | 'history' | 'transfer' | 'profile' | 'cards' | 'grants';
 
 interface BottomNavigationProps {
   activeTab: string;
@@ -19,7 +19,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab, o
     className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pt-2 shadow-[0_-4px_16px_rgba(15,23,42,0.06)] backdrop-blur sm:hidden"
     style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.5rem)' }}
   >
-    <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
+    <div className="mx-auto grid max-w-lg grid-cols-6 gap-1">
       <button type="button" onClick={() => onNavigate('home')} className={itemClass(activeTab === 'home')} aria-current={activeTab === 'home' ? 'page' : undefined}>
         <Home aria-hidden="true" className="h-5 w-5 shrink-0" /><span className="whitespace-nowrap">Home</span>
       </button>
@@ -34,6 +34,9 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab, o
       </button>
       <button type="button" onClick={() => onNavigate('cards')} className={itemClass(activeTab === 'cards')} aria-current={activeTab === 'cards' ? 'page' : undefined}>
         <CreditCard aria-hidden="true" className="h-5 w-5 shrink-0" /><span className="whitespace-nowrap">Cards</span>
+      </button>
+      <button type="button" onClick={() => onNavigate('grants')} className={itemClass(activeTab === 'grants')} aria-current={activeTab === 'grants' ? 'page' : undefined}>
+        <HandCoins aria-hidden="true" className="h-5 w-5 shrink-0" /><span className="whitespace-nowrap">Grants</span>
       </button>
     </div>
   </nav>

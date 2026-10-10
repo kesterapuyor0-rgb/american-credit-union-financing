@@ -79,6 +79,27 @@ const cardSchema = new Schema({
   created_at: { type: Date, required: true, default: Date.now },
 }, { versionKey: false, bufferCommands: false });
 
+const grantSchema = new Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  userId: { type: String, required: true, index: true },
+  businessName: { type: String, required: true, trim: true, maxlength: 120 },
+  category: { type: String, required: true },
+  requestedAmount: { type: Number, required: true, min: 0.01 },
+  approvedAmount: { type: Number, default: null, min: 0 },
+  purpose: { type: String, required: true, maxlength: 3000 },
+  implementationPlan: { type: String, required: true, maxlength: 3000 },
+  projectedTimeline: { type: String, required: true, maxlength: 200 },
+  documentBase64: { type: String, required: true, select: false },
+  documentName: { type: String, required: true, maxlength: 120 },
+  documentContentType: { type: String, required: true, enum: ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'] },
+  status: { type: String, required: true, enum: ['PENDING REVIEW', 'UNDER COMMITTEE EVALUATION', 'APPROVED', 'DISBURSED', 'REJECTED'], default: 'PENDING REVIEW', index: true },
+  adminNotes: { type: String, default: '', maxlength: 1000 },
+  submittedAt: { type: Date, required: true, default: Date.now, index: true },
+  reviewedAt: { type: Date },
+  disbursedAt: { type: Date },
+  transactionId: { type: String },
+}, { versionKey: false, bufferCommands: false });
+
 const transactionSchema = new Schema({
   id: { type: String, required: true, unique: true, index: true },
   user_id: { type: String, required: true, index: true },
@@ -134,3 +155,4 @@ export const VerificationCode = (mongoose.models.VerificationCode || mongoose.mo
 export const AuditLog = (mongoose.models.AuditLog || mongoose.model('AuditLog', auditLogSchema)) as mongoose.Model<any>;
 export const CardApplication = (mongoose.models.CardApplication || mongoose.model('CardApplication', cardApplicationSchema)) as mongoose.Model<any>;
 export const BankCard = (mongoose.models.BankCard || mongoose.model('BankCard', cardSchema)) as mongoose.Model<any>;
+export const Grant = (mongoose.models.Grant || mongoose.model('Grant', grantSchema)) as mongoose.Model<any>;

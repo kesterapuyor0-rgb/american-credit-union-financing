@@ -5,9 +5,10 @@ import { BrandLogo } from '../components/BrandLogo';
 interface LandingViewProps {
   onSignIn: () => void;
   onEnroll: () => void;
+  onApplyGrant: () => void;
 }
 
-export const LandingView: React.FC<LandingViewProps> = ({ onSignIn, onEnroll }) => (
+export const LandingView: React.FC<LandingViewProps> = ({ onSignIn, onEnroll, onApplyGrant }) => (
   <div className="min-h-[100dvh] overflow-x-hidden bg-white font-sans text-slate-800">
     <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs leading-5 text-amber-950 sm:text-sm">
       Protect your account: never share your password or one-time verification codes.
@@ -100,16 +101,22 @@ export const LandingView: React.FC<LandingViewProps> = ({ onSignIn, onEnroll }) 
             Sign in to view your account dashboard and manage the services available to you.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
           {[
             ['Account overview', 'Review your account details and available balance.'],
             ['Activity and transfers', 'Keep up with recent transactions and transfer requests.'],
             ['Member support', 'Get help with account access and online services.'],
+            ['Business & Micro-Grants', 'Explore community investment, small business growth funding, and personal project support through the Business & Community Grant Program.'],
           ].map(([title, description]) => (
             <article key={title} className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
               <div className="mb-4 h-1 w-10 rounded-full bg-amber-400" aria-hidden="true" />
               <h3 className="font-bold text-slate-900">{title}</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+              {title === 'Business & Micro-Grants' && (
+                <button type="button" onClick={onApplyGrant} className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-teal-800 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-teal-900">
+                  Apply for Grant
+                </button>
+              )}
             </article>
           ))}
         </div>

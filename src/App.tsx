@@ -12,6 +12,7 @@ import { RegisterView } from './views/RegisterView';
 import { EnrollmentStatusView } from './views/EnrollmentStatusView';
 import { LandingView } from './views/LandingView';
 import { ProfileView } from './views/ProfileView';
+import { GrantApplicationView } from './views/GrantApplicationView';
 import { ProfileModal } from './components/ProfileModal';
 import { RefreshCw } from 'lucide-react';
 import { CardsManagementView, DashboardHomeView } from './views/DashboardHomeView';
@@ -30,6 +31,7 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [restrictionSupportOpen, setRestrictionSupportOpen] = useState(false);
   const [registerNotice, setRegisterNotice] = useState<string | null>(null);
+  const [grantApplicationRequested, setGrantApplicationRequested] = useState(false);
 
   // Role guarding & current route tracking
   const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname);
@@ -190,7 +192,9 @@ export default function App() {
       navigateTo('/admin');
     } else {
       navigateTo('/dashboard');
-      setActiveTab('home');
+      setActiveTab(grantApplicationRequested ? 'grants' : 'home');
+      setGrantApplicationRequested(false);
+      setRegisterNotice(null);
     }
   };
 
@@ -242,6 +246,11 @@ export default function App() {
         <LandingView
           onSignIn={() => navigateTo('/login')}
           onEnroll={() => navigateTo('/register')}
+          onApplyGrant={() => {
+            setGrantApplicationRequested(true);
+            setRegisterNotice('Sign in to access the Business & Community Grant Program application.');
+            navigateTo('/login');
+          }}
         />
       );
     }
@@ -356,6 +365,8 @@ export default function App() {
         />;
       case 'cards':
         return <CardsManagementView key="cards" {...dashboardProps} />;
+      case 'grants':
+        return <GrantApplicationView key="grants" user={user} />;
       case 'security':
         return <SecurityView key="security" user={user} />;
       default:

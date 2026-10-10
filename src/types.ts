@@ -54,6 +54,36 @@ export interface Transaction {
   account_number?: string;
 }
 
+export type GrantStatus =
+  | 'PENDING REVIEW'
+  | 'UNDER COMMITTEE EVALUATION'
+  | 'APPROVED'
+  | 'DISBURSED'
+  | 'REJECTED';
+
+export interface GrantApplication {
+  id: string;
+  userId: string;
+  businessName: string;
+  category: string;
+  requestedAmount: number;
+  approvedAmount?: number | null;
+  purpose: string;
+  implementationPlan: string;
+  projectedTimeline: string;
+  documentName: string;
+  documentContentType: string;
+  documentBase64?: string;
+  status: GrantStatus;
+  adminNotes?: string;
+  submittedAt: string;
+  reviewedAt?: string;
+  disbursedAt?: string;
+  transactionId?: string;
+  applicantName?: string;
+  applicantEmail?: string;
+}
+
 export interface BankCard {
   id: string;
   user_id: string;

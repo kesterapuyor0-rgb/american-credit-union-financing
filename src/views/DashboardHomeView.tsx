@@ -12,6 +12,7 @@ import {
   CreditCard,
   Eye,
   EyeOff,
+  HandCoins,
   Plus,
 } from 'lucide-react';
 
@@ -255,7 +256,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         </div>
       </section>
 
-      <section aria-label="Quick actions" className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
+      <section aria-label="Quick actions" className="grid grid-cols-2 gap-3 sm:grid-cols-5 sm:gap-5">
         <button type="button" onClick={() => setDepositOpen(true)} className="flex flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
           <span className="grid h-14 w-14 place-items-center rounded-full border border-slate-200 bg-white shadow-sm"><Plus className="h-5 w-5" /></span>
           Top Up
@@ -271,6 +272,10 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         <button type="button" onClick={() => onNavigateToTab('profile')} className="flex flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
           <span className="grid h-14 w-14 place-items-center rounded-full border border-slate-200 bg-white shadow-sm"><CircleEllipsis className="h-5 w-5" /></span>
           More
+        </button>
+        <button type="button" onClick={() => onNavigateToTab('grants')} className="flex flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
+          <span className="grid h-14 w-14 place-items-center rounded-full border border-slate-200 bg-white text-teal-800 shadow-sm"><HandCoins className="h-5 w-5" /></span>
+          Grants & Business Support
         </button>
       </section>
       </>}

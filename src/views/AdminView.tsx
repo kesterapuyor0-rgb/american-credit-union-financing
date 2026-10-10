@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, AuditLog, AdminOverviewData, UserWithAccounts, BankAccount, Transaction, CardApplication, BankCard } from '../types';
+import { User, AuditLog, AdminOverviewData, UserWithAccounts, BankAccount, Transaction, CardApplication, BankCard, GrantApplication } from '../types';
 import { getStoredAuthToken } from '../utils/api';
 import { formatTransactionDescription } from '../utils/transactionFormatting';
 import {
@@ -18,7 +18,8 @@ import {
   Lock,
   ArrowDownCircle,
   ArrowUpCircle,
-  LogOut
+  LogOut,
+  FileText,
 } from 'lucide-react';
 
 interface AdminViewProps {
@@ -47,6 +48,7 @@ interface VerificationApplicant {
 }
 
 const CARD_COLOR_OPTIONS = ['emerald', 'navy', 'crimson', 'gold'] as const;
+type GrantReviewDecision = 'UNDER COMMITTEE EVALUATION' | 'APPROVED' | 'REJECTED';
 
 const getVerificationDocumentUrl = (
   document?: User['verificationDocument'],
@@ -69,7 +71,7 @@ const getVerificationDocumentUrl = (
 };
 
 export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) => {
-const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications' | 'cards' | 'audit' | 'transactions'>('users');
+const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications' | 'cards' | 'audit' | 'transactions' | 'grants'>('users');
   const [overview, setOverview] = useState<AdminOverviewData | null>(null);
   const [users, setUsers] = useState<UserWithAccounts[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -115,6 +117,11 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
   const [creditAmount, setCreditAmount] = useState('');
   const [creditMemo, setCreditMemo] = useState('');
   const [submittingCredit, setSubmittingCredit] = useState(false);
+  const [grantApplications, setGrantApplications] = useState<GrantApplication[]>([]);
+  const [grantNotes, setGrantNotes] = useState<Record<string, string>>({});
+  const [grantAwards, setGrantAwards] = useState<Record<string, string>>({});
+  const [savingGrantId, setSavingGrantId] = useState<string | null>(null);
+  const [selectedGrantDocument, setSelectedGrantDocument] = useState<GrantApplication | null>(null);
 
   const activeToken = token || getStoredAuthToken();
 
@@ -233,6 +240,84 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
       setCardApplications(Array.isArray(data.applications) ? data.applications : []);
     } catch (err: any) {
       setError(err.message || 'Failed to load card applications.');
+    }
+  };
+
+  const fetchGrantApplications = async () => {
+    try {
+      const res = await fetch('/api/grants/admin/all', {
+        headers: activeToken ? { Authorization: 'Bearer ' + activeToken } : {},
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load grant applications.');
+      const applications: GrantApplication[] = Array.isArray(data.applications) ? data.applications : [];
+      setGrantApplications(applications);
+      setGrantNotes(Object.fromEntries(applications.map((application) => [application.id, application.adminNotes || ''])));
+      setGrantAwards(Object.fromEntries(applications.map((application) => [
+        application.id,
+        String(application.approvedAmount ?? application.requestedAmount),
+      ])));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load grant applications.');
+    }
+  };
+
+  const updateGrantStatus = async (application: GrantApplication, status: GrantReviewDecision) => {
+    const approvedAmount = Number(grantAwards[application.id]);
+    if (status === 'APPROVED' && (!Number.isFinite(approvedAmount) || approvedAmount <= 0 || approvedAmount > application.requestedAmount)) {
+      setError('Enter an award amount greater than $0 and no more than the requested amount.');
+      return;
+    }
+    setSavingGrantId(application.id);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await fetch('/api/grants/admin/' + encodeURIComponent(application.id) + '/status', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: 'Bearer ' + activeToken } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          status,
+          approvedAmount: status === 'APPROVED' ? approvedAmount : undefined,
+          adminNotes: grantNotes[application.id] || '',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to update grant application.');
+      setGrantApplications((current) => current.map((item) =>
+        item.id === application.id ? { ...item, ...data.application } : item
+      ));
+      setSuccessMsg(application.businessName + ' grant status updated to ' + status + '.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update grant application.');
+    } finally {
+      setSavingGrantId(null);
+    }
+  };
+
+  const disburseGrant = async (application: GrantApplication) => {
+    if (!window.confirm('Disburse ' + formatUSD(application.approvedAmount || 0) + ' to ' + (application.applicantName || 'this member') + '? This will credit their primary active account.')) return;
+    setSavingGrantId(application.id);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await fetch('/api/grants/admin/' + encodeURIComponent(application.id) + '/disburse', {
+        method: 'POST',
+        headers: activeToken ? { Authorization: 'Bearer ' + activeToken } : {},
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to disburse grant funds.');
+      setSuccessMsg(formatUSD(data.amount) + ' grant award disbursed to ' + (application.applicantName || 'the member') + '.');
+      await Promise.all([fetchGrantApplications(), fetchUsers(), fetchTransactions()]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to disburse grant funds.');
+    } finally {
+      setSavingGrantId(null);
     }
   };
 
@@ -731,7 +816,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
       {/* Admin Tabs */}
       <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
         <div className="border-b border-gray-200 bg-[#F8F9FA] px-4 py-2 flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2 text-xs font-semibold">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
             <button
               onClick={() => setActiveTab('users')}
               className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
@@ -780,6 +865,19 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
               }`}
             >
               Card applications ({cardApplications.filter((application) => application.status === 'Pending').length})
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('grants');
+                void fetchGrantApplications();
+              }}
+              className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
+                activeTab === 'grants'
+                  ? 'bg-[#173B70] text-white'
+                  : 'text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Grant Applications ({grantApplications.filter((application) => ['PENDING REVIEW', 'UNDER COMMITTEE EVALUATION'].includes(application.status)).length} pending)
             </button>
             <button
               onClick={() => setActiveTab('audit')}
@@ -1341,6 +1439,103 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
           </section>
         )}
 
+        {activeTab === 'grants' && (
+          <section className="p-4 sm:p-5">
+            <div className="mb-5 flex flex-col gap-3 border-b border-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#173B70]">Business & Community Grant Applications</h3>
+                <p className="mt-1 text-xs text-gray-600">Review member proposals, record committee decisions, and disburse approved awards to the member’s primary active account.</p>
+              </div>
+              <button type="button" onClick={() => void fetchGrantApplications()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                <RefreshCw className="h-3.5 w-3.5" /> Refresh applications
+              </button>
+            </div>
+            {grantApplications.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">No grant applications have been submitted.</div>
+            ) : (
+              <div className="w-full overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full min-w-[1050px] text-left text-xs">
+                  <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-600">
+                    <tr>
+                      <th className="px-4 py-3">Applicant</th>
+                      <th className="px-4 py-3">Business / Project</th>
+                      <th className="px-4 py-3">Requested</th>
+                      <th className="px-4 py-3">Date Submitted</th>
+                      <th className="px-4 py-3">Supporting Document</th>
+                      <th className="px-4 py-3">Current Status & Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {grantApplications.map((application) => {
+                      const canReview = ['PENDING REVIEW', 'UNDER COMMITTEE EVALUATION'].includes(application.status);
+                      return (
+                        <tr key={application.id} className="align-top">
+                          <td className="px-4 py-4">
+                            <p className="font-semibold text-slate-900">{application.applicantName || 'Member'}</p>
+                            <p className="mt-1 text-slate-500">{application.applicantEmail}</p>
+                          </td>
+                          <td className="max-w-sm px-4 py-4">
+                            <p className="font-semibold text-slate-900">{application.businessName}</p>
+                            <p className="mt-1 text-slate-500">{application.category}</p>
+                            <details className="mt-2">
+                              <summary className="cursor-pointer font-semibold text-teal-800">Application details</summary>
+                              <div className="mt-2 space-y-2 whitespace-pre-wrap leading-5 text-slate-600">
+                                <p><span className="font-semibold">Purpose / impact:</span> {application.purpose}</p>
+                                <p><span className="font-semibold">Timeline:</span> {application.projectedTimeline}</p>
+                                <p><span className="font-semibold">Implementation:</span> {application.implementationPlan}</p>
+                              </div>
+                            </details>
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-900">{formatUSD(application.requestedAmount)}</td>
+                          <td className="whitespace-nowrap px-4 py-4 text-slate-600">{new Date(application.submittedAt).toLocaleDateString()}</td>
+                          <td className="px-4 py-4">
+                            {application.documentBase64 ? (
+                              <button type="button" onClick={() => setSelectedGrantDocument(application)} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-2 font-semibold text-teal-800 hover:bg-teal-50">
+                                <FileText className="h-3.5 w-3.5" /> Preview proposal
+                              </button>
+                            ) : <span className="text-slate-500">Document unavailable</span>}
+                            <p className="mt-1 max-w-40 break-all text-[10px] text-slate-500">{application.documentName}</p>
+                          </td>
+                          <td className="w-[390px] px-4 py-4">
+                            <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold text-slate-800">{application.status}</span>
+                            {application.status === 'DISBURSED' && <p className="mt-2 text-emerald-800">Award disbursed: {formatUSD(application.approvedAmount || 0)}</p>}
+                            {application.status === 'APPROVED' && (
+                              <div className="mt-2 space-y-2">
+                                <p className="text-emerald-800">Approved award: {formatUSD(application.approvedAmount || 0)}</p>
+                                <button type="button" disabled={savingGrantId === application.id} onClick={() => void disburseGrant(application)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">
+                                  {savingGrantId === application.id ? 'Processing…' : 'Disburse Funds'}
+                                </button>
+                              </div>
+                            )}
+                            {application.status === 'REJECTED' && <p className="mt-2 whitespace-pre-wrap text-rose-800">{application.adminNotes || 'No additional feedback provided.'}</p>}
+                            {canReview && (
+                              <div className="mt-3 space-y-2">
+                                <label className="block text-[11px] font-semibold text-slate-700">
+                                  Committee notes / member feedback
+                                  <textarea rows={2} maxLength={1000} value={grantNotes[application.id] || ''} onChange={(event) => setGrantNotes((current) => ({ ...current, [application.id]: event.target.value }))} className="mt-1 w-full rounded-md border border-slate-200 p-2 text-xs" />
+                                </label>
+                                <label className="block text-[11px] font-semibold text-slate-700">
+                                  Approved award (USD, up to {formatUSD(application.requestedAmount)})
+                                  <input type="number" min="0.01" max={application.requestedAmount} step="0.01" value={grantAwards[application.id] || ''} onChange={(event) => setGrantAwards((current) => ({ ...current, [application.id]: event.target.value }))} className="mt-1 min-h-9 w-full rounded-md border border-slate-200 px-2 text-xs" />
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                  <button type="button" disabled={savingGrantId === application.id} onClick={() => void updateGrantStatus(application, 'UNDER COMMITTEE EVALUATION')} className="rounded-md border border-blue-200 px-2.5 py-2 font-semibold text-blue-800 hover:bg-blue-50 disabled:opacity-50">Send to committee</button>
+                                  <button type="button" disabled={savingGrantId === application.id} onClick={() => void updateGrantStatus(application, 'APPROVED')} className="rounded-md bg-emerald-700 px-2.5 py-2 font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">Approve</button>
+                                  <button type="button" disabled={savingGrantId === application.id} onClick={() => void updateGrantStatus(application, 'REJECTED')} className="rounded-md border border-rose-200 px-2.5 py-2 font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">Reject</button>
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
         {/* TAB 3: AUDIT LOGS */}
         {activeTab === 'audit' && (
           <div className="p-5">
@@ -1452,6 +1647,21 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'verifications'
           </div>
         )}
       </div>
+
+      {selectedGrantDocument?.documentBase64 && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 sm:p-6">
+          <section role="dialog" aria-modal="true" aria-labelledby="grant-document-heading" className="flex h-[90dvh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+              <div className="min-w-0">
+                <h2 id="grant-document-heading" className="truncate font-semibold text-slate-900">{selectedGrantDocument.documentName}</h2>
+                <p className="text-xs text-slate-500">{selectedGrantDocument.documentContentType}</p>
+              </div>
+              <button type="button" onClick={() => setSelectedGrantDocument(null)} className="min-h-10 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Close preview</button>
+            </div>
+            <iframe title={`Preview of ${selectedGrantDocument.documentName}`} src={selectedGrantDocument.documentBase64} className="min-h-0 flex-1 bg-slate-100" />
+          </section>
+        </div>
+      )}
 
       {/* Balance Adjustment Modal */}
       {adjustModalOpen && selectedAccount && (
