@@ -11,6 +11,7 @@ import adminRoutes from './server/routes/adminRoutes.js';
 import verifyRoutes from './server/routes/verifyRoutes.js';
 import accountRoutes from './server/routes/accountRoutes.js';
 import grantRoutes from './server/routes/grantRoutes.js';
+import notificationRoutes from './server/routes/notificationRoutes.js';
 
 dotenv.config({ path: '.env.local' });
 dotenv.config();
@@ -32,6 +33,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/transfers', transferRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/grants', grantRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.get('/admin', (req: Request, res: Response, next: NextFunction) => {

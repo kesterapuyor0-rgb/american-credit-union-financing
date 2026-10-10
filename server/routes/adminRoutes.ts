@@ -6,6 +6,7 @@ import { User, Account, Transaction, AuditLog, BankCard, CardApplication } from 
 import { errorMessage, requireDatabase } from '../db.js';
 import { requireAdmin, AuthenticatedRequest, isAdminRole } from '../auth.js';
 import { maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
+import { createNotification } from '../notifications.js';
 
 const router = Router();
 
@@ -133,6 +134,31 @@ const reviewPendingTransaction = async (
         ip_address: req.ip || '127.0.0.1',
         created_at: new Date().toISOString(),
       }], { session });
+      const transactionType = String(transaction.type || '').toLowerCase();
+      const isTransfer = transactionType === 'transfer_out' || transactionType === 'transfer_in';
+      const isDeposit = transactionType === 'deposit';
+      const notificationAmount = transactionType === 'transfer_out'
+        ? transferDebitAmount(transaction)
+        : Math.abs(Number(transaction.amount) || 0);
+      const notificationName = transaction.recipient_name || 'your account';
+      await createNotification({
+        userId: transaction.user_id,
+        title: isDeposit
+          ? `Deposit ${decision === 'approve' ? 'Approved' : 'Rejected'}`
+          : isTransfer
+            ? `Transfer ${decision === 'approve' ? 'Approved' : 'Rejected'}`
+            : `Transaction ${decision === 'approve' ? 'Approved' : 'Rejected'}`,
+        message: isDeposit
+          ? decision === 'approve'
+            ? `$${notificationAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD has been credited to your account.`
+            : `Your $${notificationAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD deposit was not approved.`
+          : isTransfer
+            ? `$${notificationAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD ${decision === 'approve' ? 'to' : 'for'} ${notificationName} was ${decision === 'approve' ? 'approved' : 'not approved'}.${reason ? ` ${reason}` : ''}`
+            : `Your ${transactionType.replace(/_/g, ' ')} of $${notificationAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD was ${decision === 'approve' ? 'approved' : 'not approved'}.${reason ? ` ${reason}` : ''}`,
+        type: isDeposit ? 'deposit' : isTransfer ? 'transfer' : 'activity',
+        category: isDeposit ? 'deposit' : isTransfer ? 'transfer' : 'activity',
+        link: 'history',
+      }, session);
       response = { transactionId: transaction.id, status: nextStatus, relatedTransactionId: related?.id || null };
     });
     return response;
@@ -645,6 +671,16 @@ router.post('/balance-adjustment', async (req: AuthenticatedRequest, res: Respon
         date: today,
         created_at: Date.now(),
       }], { session });
+      if (action === 'credit') {
+        await createNotification({
+          userId: account.user_id,
+          title: 'Account Credit Posted',
+          message: `$${parsedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD was credited to your account.`,
+          type: 'deposit',
+          category: 'deposit',
+          link: 'history',
+        }, session);
+      }
 
       await AuditLog.create([{
         id: `log_${randomUUID()}`,
@@ -896,6 +932,18 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
       details: `Admin fund injection of $${parsedAmount.toFixed(2)} to ${targetUser?.full_name || 'customer'} (Acct: ${account.account_number}). Memo: ${memoText}`,
       ip_address: req.ip || '127.0.0.1', created_at: new Date().toISOString(),
     });
+    try {
+      await createNotification({
+        userId: account.user_id,
+        title: 'Account Credit Posted',
+        message: `$${parsedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD was credited to your account.`,
+        type: 'deposit',
+        category: 'deposit',
+        link: 'history',
+      });
+    } catch (notificationError) {
+      console.error('Unable to record account credit notification:', notificationError);
+    }
 
     res.json({
       success: true,

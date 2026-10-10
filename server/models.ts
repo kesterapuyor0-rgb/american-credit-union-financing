@@ -149,6 +149,19 @@ const auditLogSchema = new Schema({
   created_at: { type: Schema.Types.Mixed, required: true },
 }, { versionKey: false, bufferCommands: false });
 
+const notificationSchema = new Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  userId: { type: String, required: true, index: true },
+  title: { type: String, required: true, maxlength: 160 },
+  message: { type: String, required: true, maxlength: 500 },
+  type: { type: String, required: true, maxlength: 40 },
+  category: { type: String, required: true, maxlength: 40 },
+  isRead: { type: Boolean, required: true, default: false, index: true },
+  link: { type: String, required: true, enum: ['home', 'transfer', 'grants', 'history', 'security'] },
+  createdAt: { type: Date, required: true, default: Date.now, index: true },
+}, { versionKey: false, bufferCommands: false });
+notificationSchema.index({ userId: 1, createdAt: -1 });
+
 export const User = (mongoose.models.User || mongoose.model('User', userSchema)) as mongoose.Model<any>;
 export const Account = (mongoose.models.Account || mongoose.model('Account', accountSchema)) as mongoose.Model<any>;
 export const Transaction = (mongoose.models.Transaction || mongoose.model('Transaction', transactionSchema)) as mongoose.Model<any>;
@@ -157,3 +170,4 @@ export const AuditLog = (mongoose.models.AuditLog || mongoose.model('AuditLog', 
 export const CardApplication = (mongoose.models.CardApplication || mongoose.model('CardApplication', cardApplicationSchema)) as mongoose.Model<any>;
 export const BankCard = (mongoose.models.BankCard || mongoose.model('BankCard', cardSchema)) as mongoose.Model<any>;
 export const Grant = (mongoose.models.Grant || mongoose.model('Grant', grantSchema)) as mongoose.Model<any>;
+export const Notification = (mongoose.models.Notification || mongoose.model('Notification', notificationSchema)) as mongoose.Model<any>;

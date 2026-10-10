@@ -385,7 +385,6 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         isAdminView={false}
-        transactions={transactions}
       />
 
       <main id="customer-view" role="tabpanel" tabIndex={-1} aria-label={`${activeTab} view`} className="max-w-7xl mx-auto w-full px-4 sm:px-8 pt-6 pb-6 sm:py-6 flex-1">

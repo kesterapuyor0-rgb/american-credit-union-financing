@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { timingSafeEqual } from 'crypto';
 import { User, Account, VerificationCode, AuditLog } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
+import { createNotification } from '../notifications.js';
 import {
   signAuthToken,
   signTemp2FAToken,
@@ -236,6 +237,20 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
       full_name: user.full_name,
       phone: user.phone,
     });
+    if (normalizedRole === 'user') {
+      try {
+        await createNotification({
+          userId: user.id,
+          title: 'Sign-in Detected',
+          message: `A successful sign-in to your account was detected on ${new Date().toISOString().slice(0, 10)}.`,
+          type: 'security',
+          category: 'security',
+          link: 'security',
+        });
+      } catch (notificationError) {
+        console.error('Unable to record successful sign-in notification:', notificationError);
+      }
+    }
 
     // Set HTTP-only cookie
     res.cookie('boa_token', authToken, {

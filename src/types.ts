@@ -54,6 +54,18 @@ export interface Transaction {
   account_number?: string;
 }
 
+export interface BankingNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: string;
+  category: string;
+  isRead: boolean;
+  link: 'home' | 'transfer' | 'grants' | 'history' | 'security';
+  createdAt: string;
+}
+
 export type GrantStatus =
   | 'PENDING_REVIEW'
   | 'UNDER_COMMITTEE_REVIEW'

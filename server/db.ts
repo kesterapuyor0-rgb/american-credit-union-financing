@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { NextFunction, Request, Response } from 'express';
-import { User, Account, Transaction, VerificationCode, AuditLog, CardApplication, BankCard } from './models.js';
+import { User, Account, Transaction, VerificationCode, AuditLog, CardApplication, BankCard, Grant, Notification } from './models.js';
 
 let connectionPromise: Promise<typeof mongoose> | null = null;
 
@@ -23,7 +23,7 @@ export async function connectDatabase(): Promise<typeof mongoose> {
     }).then(async (connection) => {
       await Promise.all([
         User.init(), Account.init(), Transaction.init(), VerificationCode.init(), AuditLog.init(),
-        CardApplication.init(), BankCard.init(),
+        CardApplication.init(), BankCard.init(), Grant.init(), Notification.init(),
       ]);
       const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
       const adminPassword = process.env.ADMIN_PASSWORD;

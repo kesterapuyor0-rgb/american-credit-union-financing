@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { Account, AuditLog, Grant, Transaction, User } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { AuthenticatedRequest, requireAdmin, requireApprovedUser } from '../auth.js';
+import { createNotification } from '../notifications.js';
 
 const router = Router();
 const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024;
@@ -84,21 +85,37 @@ router.post('/apply', requireApprovedUser, async (req: AuthenticatedRequest, res
     }
 
     const id = `grant_${randomUUID()}`;
-    const grant = await Grant.create({
-      id,
-      userId: req.user!.id,
-      businessName: cleanBusinessName,
-      category,
-      requestedAmount: amount,
-      purpose: cleanPurpose,
-      implementationPlan: cleanPlan,
-      projectedTimeline: cleanTimeline,
-      documentBase64,
-      documentName: cleanDocumentName,
-      documentContentType,
-      status: 'PENDING_REVIEW',
-      submittedAt: new Date(),
-    });
+    const session = await mongoose.startSession();
+    let grant: any;
+    try {
+      await session.withTransaction(async () => {
+        [grant] = await Grant.create([{
+          id,
+          userId: req.user!.id,
+          businessName: cleanBusinessName,
+          category,
+          requestedAmount: amount,
+          purpose: cleanPurpose,
+          implementationPlan: cleanPlan,
+          projectedTimeline: cleanTimeline,
+          documentBase64,
+          documentName: cleanDocumentName,
+          documentContentType,
+          status: 'PENDING_REVIEW',
+          submittedAt: new Date(),
+        }], { session });
+        await createNotification({
+          userId: req.user!.id,
+          title: 'Grant Application Submitted',
+          message: `Your $${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD request for ${cleanBusinessName} is pending review.`,
+          type: 'grant',
+          category: 'grant',
+          link: 'grants',
+        }, session);
+      });
+    } finally {
+      await session.endSession();
+    }
 
     res.status(201).json({
       application: {
@@ -208,6 +225,22 @@ router.put('/admin/:id/status', requireAdmin, async (req: AuthenticatedRequest, 
           ip_address: req.ip || '127.0.0.1',
           created_at: new Date().toISOString(),
         }], { session });
+        await createNotification({
+          userId: grant.userId,
+          title: status === 'UNDER_COMMITTEE_REVIEW'
+            ? 'Grant Under Review'
+            : status === 'APPROVED'
+              ? 'Grant Approved'
+              : 'Grant Application Update',
+          message: status === 'UNDER_COMMITTEE_REVIEW'
+            ? `Your grant request for ${grant.businessName} is now under committee review.`
+            : status === 'APPROVED'
+              ? `Your grant of $${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD is approved. Disbursements typically take 3 to 5 business days to post.`
+              : `Your grant application was not approved: ${reason}`,
+          type: 'grant',
+          category: 'grant',
+          link: 'grants',
+        }, session);
       });
       res.json({ application: updatedGrant });
     } catch (err) {
@@ -287,6 +320,14 @@ router.post('/admin/:id/disburse', requireAdmin, async (req: AuthenticatedReques
         ip_address: req.ip || '127.0.0.1',
         created_at: now.toISOString(),
       }], { session });
+      await createNotification({
+        userId: grant.userId,
+        title: 'Grant Funds Disbursed',
+        message: `$${grant.approvedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD was credited to your checking account.`,
+        type: 'grant',
+        category: 'grant',
+        link: 'grants',
+      }, session);
       result = { applicationId: grant.id, transactionId, amount: grant.approvedAmount };
     });
     res.json({ success: true, ...result });

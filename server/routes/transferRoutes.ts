@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { Account, Transaction, VerificationCode } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { requireApprovedUser, AuthenticatedRequest, generateOTP } from '../auth.js';
+import { createNotification } from '../notifications.js';
 
 const router = Router();
 router.use(requireDatabase);
@@ -229,6 +230,14 @@ router.post('/confirm', requireApprovedUser, async (req: AuthenticatedRequest, r
         }, { $inc: { held_balance: amount + totalCharges } }, { new: true, session }).lean<any>();
         if (!reservedSource) throw new Error('Insufficient available balance to reserve this transfer.');
         await Transaction.create(pendingRows, { session });
+        await createNotification({
+          userId,
+          title: 'Transfer Pending Review',
+          message: `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD to ${recipientName} is pending review.`,
+          type: 'transfer',
+          category: 'transfer',
+          link: 'history',
+        }, session);
       });
     } finally {
       await session.endSession();
