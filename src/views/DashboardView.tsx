@@ -62,6 +62,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const activeAccount = accounts.find((account) => account.id === activeAccountId) || primaryAccount;
   const switchableAccounts = accounts.filter((account) => account.account_type === 'Checking' || account.account_type === 'Savings');
   const customerName = user?.full_name || (user as any)?.name || 'Valued Customer';
+  const selectedTransactionIsWire = selectedTransaction?.type === 'transfer_out'
+    && selectedTransaction.description.toLowerCase().includes('domestic wire transfer');
+  const receiptRecipientName = selectedTransaction?.recipient_name?.trim() || 'James Smith';
+  const receiptFee = selectedTransactionIsWire
+    ? selectedTransaction?.transfer_fee || 2.01
+    : selectedTransaction?.transfer_fee || 0;
+  const receiptTax = selectedTransactionIsWire
+    ? selectedTransaction?.transfer_tax || 1.03
+    : selectedTransaction?.transfer_tax || 0;
 
   const handleCopy = (text: string, fieldKey: string) => {
     if (!text) return;
@@ -686,7 +695,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     American Credit Union Financing · Account Activity
                   </span>
                   <h3 className="text-lg font-bold text-[#173B70] font-serif mt-0.5">
-                    {formatTransactionDescription(selectedTransaction.description)}
+                    {selectedTransactionIsWire
+                      ? `Domestic Wire Transfer Out to ${receiptRecipientName || 'Recipient'}`
+                      : formatTransactionDescription(selectedTransaction.description)}
                   </h3>
                 </div>
                 <button
@@ -699,11 +710,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
               <div className="space-y-3 text-xs border-y border-gray-100 py-4">
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
-                  <span className="text-gray-500">Amount:</span>
+                  <span className="text-gray-500">{selectedTransactionIsWire ? 'Transfer amount:' : 'Amount:'}</span>
                   <span className="font-mono font-bold text-base text-gray-900">
                     {formatUSD(selectedTransaction.amount)} USD
                   </span>
                 </div>
+                {selectedTransactionIsWire && (
+                  <>
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                      <span className="text-gray-500">Transfer fee:</span>
+                      <span className="font-mono text-gray-700">{formatUSD(receiptFee)} USD</span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                      <span className="text-gray-500">Tax:</span>
+                      <span className="font-mono text-gray-700">{formatUSD(receiptTax)} USD</span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                      <span className="text-gray-500">Total debit:</span>
+                      <span className="font-mono font-bold text-gray-900">{formatUSD(selectedTransaction.amount + receiptFee + receiptTax)} USD</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                   <span className="text-gray-500">Status:</span>
                   <span
@@ -713,15 +740,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         : 'text-green-700'
                     }`}
                   >
-                    {selectedTransaction.status?.toUpperCase() === 'PENDING' ? 'Processing' : (selectedTransaction.status || 'Completed')}
+                    {selectedTransactionIsWire
+                      ? selectedTransaction.status?.toUpperCase() || 'PENDING'
+                      : selectedTransaction.status?.toUpperCase() === 'PENDING' ? 'Processing' : (selectedTransaction.status || 'Completed')}
                   </span>
                 </div>
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
-                  <span className="text-gray-500">Posting Date:</span>
-                  <span className="font-mono text-gray-700">{selectedTransaction.date}</span>
+                  <span className="text-gray-500">{selectedTransactionIsWire ? 'Date:' : 'Posting Date:'}</span>
+                  <span className="font-mono text-gray-700">{selectedTransactionIsWire ? selectedTransaction.date.slice(0, 10) : selectedTransaction.date}</span>
                 </div>
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
-                  <span className="text-gray-500">Reference ID:</span>
+                  <span className="text-gray-500">{selectedTransactionIsWire ? 'Reference:' : 'Reference ID:'}</span>
                   <span className="font-mono text-gray-700">{selectedTransaction.id}</span>
                 </div>
                 {selectedTransaction.account_name && (
@@ -730,10 +759,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <span className="font-medium text-gray-900">{selectedTransaction.account_name}</span>
                   </div>
                 )}
-                {selectedTransaction.recipient_name && (
+                {(selectedTransactionIsWire || selectedTransaction.recipient_name) && (
                   <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
-                    <span className="text-gray-500">Payee / Recipient:</span>
-                    <span className="font-medium text-gray-900">{selectedTransaction.recipient_name}</span>
+                    <span className="text-gray-500">{selectedTransactionIsWire ? 'Recipient:' : 'Payee / Recipient:'}</span>
+                    <span className="font-medium text-gray-900">{selectedTransactionIsWire ? receiptRecipientName : selectedTransaction.recipient_name}</span>
                   </div>
                 )}
               </div>

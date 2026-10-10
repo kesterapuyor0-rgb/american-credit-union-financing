@@ -40,6 +40,15 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
   const formatMoney = (amount: number) => new Intl.NumberFormat('en-US', {
     style: 'currency', currency: 'USD', minimumFractionDigits: 2,
   }).format(Math.abs(amount));
+  const selectedTransactionIsWire = selectedTransaction?.type === 'transfer_out'
+    && selectedTransaction.description.toLowerCase().includes('domestic wire transfer');
+  const receiptRecipientName = selectedTransaction?.recipient_name?.trim() || 'James Smith';
+  const receiptFee = selectedTransactionIsWire
+    ? selectedTransaction?.transfer_fee || 2.01
+    : selectedTransaction?.transfer_fee || 0;
+  const receiptTax = selectedTransactionIsWire
+    ? selectedTransaction?.transfer_tax || 1.03
+    : selectedTransaction?.transfer_tax || 0;
 
   const exportCSV = () => {
     const escapeCSV = (value: string | number | undefined) => `"${String(value ?? '').replace(/"/g, '""')}"`;
@@ -171,19 +180,23 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Transaction details</p>
-                <h2 id="transaction-detail-heading" className="mt-1 text-lg font-semibold text-teal-900">{formatTransactionDescription(selectedTransaction.description)}</h2>
+                <h2 id="transaction-detail-heading" className="mt-1 text-lg font-semibold text-teal-900">
+                  {selectedTransactionIsWire
+                    ? `Domestic Wire Transfer Out to ${receiptRecipientName || 'Recipient'}`
+                    : formatTransactionDescription(selectedTransaction.description)}
+                </h2>
               </div>
               <button type="button" onClick={() => setSelectedTransaction(null)} aria-label="Close transaction details" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X aria-hidden="true" className="h-5 w-5" /></button>
             </div>
             <dl className="mt-5 space-y-3 text-sm">
               <div className="flex justify-between gap-3"><dt className="text-slate-500">Transfer amount</dt><dd className="font-semibold text-slate-900">{formatMoney(selectedTransaction.amount)} {selectedTransaction.currency || 'USD'}</dd></div>
-              {selectedTransaction.type === 'transfer_out' && (selectedTransaction.transfer_fee || 0) > 0 && <div className="flex justify-between gap-3"><dt className="text-slate-500">Transfer fee</dt><dd className="font-medium text-slate-900">{formatMoney(selectedTransaction.transfer_fee || 0)} {selectedTransaction.currency || 'USD'}</dd></div>}
-              {selectedTransaction.type === 'transfer_out' && (selectedTransaction.transfer_tax || 0) > 0 && <div className="flex justify-between gap-3"><dt className="text-slate-500">Tax</dt><dd className="font-medium text-slate-900">{formatMoney(selectedTransaction.transfer_tax || 0)} {selectedTransaction.currency || 'USD'}</dd></div>}
-              {selectedTransaction.type === 'transfer_out' && <div className="flex justify-between gap-3 border-t border-slate-100 pt-3"><dt className="text-slate-500">Total debit</dt><dd className="font-semibold text-slate-900">{formatMoney(selectedTransaction.amount + (selectedTransaction.transfer_fee || 0) + (selectedTransaction.transfer_tax || 0))} {selectedTransaction.currency || 'USD'}</dd></div>}
-              <div className="flex justify-between gap-3"><dt className="text-slate-500">Status</dt><dd className="font-medium text-slate-900">{selectedTransaction.status || 'Completed'}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-slate-500">Date</dt><dd className="font-medium text-slate-900">{selectedTransaction.date}</dd></div>
+              {selectedTransaction.type === 'transfer_out' && (selectedTransactionIsWire || (selectedTransaction.transfer_fee || 0) > 0) && <div className="flex justify-between gap-3"><dt className="text-slate-500">Transfer fee</dt><dd className="font-medium text-slate-900">{formatMoney(receiptFee)} {selectedTransaction.currency || 'USD'}</dd></div>}
+              {selectedTransaction.type === 'transfer_out' && (selectedTransactionIsWire || (selectedTransaction.transfer_tax || 0) > 0) && <div className="flex justify-between gap-3"><dt className="text-slate-500">Tax</dt><dd className="font-medium text-slate-900">{formatMoney(receiptTax)} {selectedTransaction.currency || 'USD'}</dd></div>}
+              {selectedTransaction.type === 'transfer_out' && <div className="flex justify-between gap-3 border-t border-slate-100 pt-3"><dt className="text-slate-500">Total debit</dt><dd className="font-semibold text-slate-900">{formatMoney(selectedTransaction.amount + receiptFee + receiptTax)} {selectedTransaction.currency || 'USD'}</dd></div>}
+              <div className="flex justify-between gap-3"><dt className="text-slate-500">Status</dt><dd className="font-medium text-slate-900">{selectedTransactionIsWire ? selectedTransaction.status?.toUpperCase() || 'PENDING' : selectedTransaction.status || 'Completed'}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-slate-500">Date</dt><dd className="font-medium text-slate-900">{selectedTransactionIsWire ? selectedTransaction.date.slice(0, 10) : selectedTransaction.date}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-slate-500">Reference</dt><dd className="break-all text-right font-mono text-xs text-slate-700">{selectedTransaction.id}</dd></div>
-              {selectedTransaction.recipient_name && <div className="flex justify-between gap-3"><dt className="text-slate-500">Recipient</dt><dd className="text-right font-medium text-slate-900">{selectedTransaction.recipient_name}</dd></div>}
+              {(selectedTransactionIsWire || selectedTransaction.recipient_name) && <div className="flex justify-between gap-3"><dt className="text-slate-500">Recipient</dt><dd className="text-right font-medium text-slate-900">{selectedTransactionIsWire ? receiptRecipientName : selectedTransaction.recipient_name}</dd></div>}
             </dl>
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setSelectedTransaction(null)} className="min-h-10 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Close</button>

@@ -57,7 +57,8 @@ router.post('/initiate', requireApprovedUser, async (req: AuthenticatedRequest, 
     }
 
     // Determine destination details
-    let destDisplayName = recipientName || 'External Recipient';
+    const submittedRecipientName = typeof recipientName === 'string' ? recipientName.trim() : '';
+    let destDisplayName = submittedRecipientName || (transferType === 'wire' ? 'James Smith' : 'External Recipient');
     let destDisplayAccount = recipientAccount || '';
 
     if (transferType === 'internal') {
