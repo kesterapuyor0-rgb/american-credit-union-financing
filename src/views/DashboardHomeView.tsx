@@ -5,6 +5,7 @@ import { formatTransactionDescription } from '../utils/transactionFormatting';
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  Banknote,
   Check,
   ChevronRight,
   CircleEllipsis,
@@ -13,6 +14,7 @@ import {
   Eye,
   EyeOff,
   HandCoins,
+  Landmark,
   Plus,
   X,
 } from 'lucide-react';
@@ -54,7 +56,9 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [pictureMessage, setPictureMessage] = useState('');
-  const [cryptoVaultOpen, setCryptoVaultOpen] = useState(false);
+  const [receiveModalOpen, setReceiveModalOpen] = useState(false);
+  const [receiveAccountId, setReceiveAccountId] = useState('');
+  const [receiveCopyState, setReceiveCopyState] = useState<'idle' | 'copied' | 'shared' | 'error'>('idle');
   const [cryptoVaultLoading, setCryptoVaultLoading] = useState(false);
   const [cryptoVaultError, setCryptoVaultError] = useState('');
   const [cryptoWallets, setCryptoWallets] = useState<{ bitcoin: string; usdt: string; usdtNetwork: string }>({
@@ -62,8 +66,8 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     usdt: '',
     usdtNetwork: '',
   });
-  const [selectedCryptoAsset, setSelectedCryptoAsset] = useState<'bitcoin' | 'usdt'>('bitcoin');
-  const [copiedCryptoAsset, setCopiedCryptoAsset] = useState('');
+  const [selectedCryptoNetwork, setSelectedCryptoNetwork] = useState<'BTC' | 'TRC-20' | 'ERC-20'>('BTC');
+  const [copiedCryptoNetwork, setCopiedCryptoNetwork] = useState('');
   const [cards, setCards] = useState<BankCard[]>([]);
   const [cardApplications, setCardApplications] = useState<CardApplication[]>([]);
   const [applyForCard, setApplyForCard] = useState(false);
@@ -80,6 +84,11 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   );
   const defaultAccount = checkingAndSavings.find((account) => account.account_type === 'Checking') || checkingAndSavings[0] || accounts[0];
   const activeAccount = accounts.find((account) => account.id === activeAccountId) || defaultAccount;
+  const receiveAccounts = checkingAndSavings.filter((account) => account.status === 'Active');
+  const receiveAccount = receiveAccounts.find((account) => account.id === receiveAccountId)
+    || receiveAccounts.find((account) => account.id === activeAccount?.id)
+    || receiveAccounts.find((account) => account.account_type === 'Checking')
+    || receiveAccounts[0];
   const legacyCards = accounts.filter((account) => account.account_type === 'Credit Card');
   const recentTransactions = useMemo(() => transactions.slice(0, 3), [transactions]);
 
@@ -113,6 +122,36 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     const refreshTimer = window.setInterval(() => void loadCards(), 30_000);
     return () => window.clearInterval(refreshTimer);
   }, [user.id]);
+
+  useEffect(() => {
+    if (showCardsOnly) return;
+    let cancelled = false;
+    const loadCryptoWallets = async () => {
+      setCryptoVaultLoading(true);
+      setCryptoVaultError('');
+      try {
+        const response = await fetch('/api/user/wallets', {
+          headers: getAuthHeaders(),
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Unable to load your assigned crypto deposit addresses.');
+        if (!cancelled) {
+          setCryptoWallets({
+            bitcoin: data.wallets?.bitcoin || '',
+            usdt: data.wallets?.usdt || '',
+            usdtNetwork: data.wallets?.usdtNetwork || '',
+          });
+        }
+      } catch (error) {
+        if (!cancelled) setCryptoVaultError(error instanceof Error ? error.message : 'Unable to load your assigned crypto deposit addresses.');
+      } finally {
+        if (!cancelled) setCryptoVaultLoading(false);
+      }
+    };
+    void loadCryptoWallets();
+    return () => { cancelled = true; };
+  }, [showCardsOnly, user.id]);
 
   const formatMoney = (amount: number) => new Intl.NumberFormat('en-US', {
     style: 'currency', currency: 'USD', minimumFractionDigits: 2,
@@ -158,36 +197,59 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const handleReceive = async () => {
-    setCryptoVaultOpen(true);
-    setCryptoVaultLoading(true);
-    setCryptoVaultError('');
+  const handleReceive = () => {
+    setReceiveAccountId(receiveAccount?.id || '');
+    setReceiveCopyState('idle');
+    setReceiveModalOpen(true);
+  };
+
+  const getBankDepositDetails = () => {
+    if (!receiveAccount) return '';
+    return [
+      'American Credit Union Financing — Direct Deposit Instructions',
+      `Account type: ${receiveAccount.account_type}`,
+      `Account name: ${receiveAccount.nickname}`,
+      `Routing number: ${receiveAccount.routing_number}`,
+      `Account number: ${receiveAccount.account_number}`,
+      'Deposit method: ACH (U.S. domestic transfers)',
+    ].join('\n');
+  };
+
+  const copyBankDepositDetails = async () => {
+    if (!receiveAccount) return;
+    const details = getBankDepositDetails();
     try {
-      const response = await fetch('/api/user/wallets', {
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Unable to load your deposit wallet addresses.');
-      setCryptoWallets({
-        bitcoin: data.wallets?.bitcoin || '',
-        usdt: data.wallets?.usdt || '',
-        usdtNetwork: data.wallets?.usdtNetwork || '',
-      });
+      if (navigator.share) {
+        await navigator.share({ title: 'Direct deposit instructions', text: details });
+        setReceiveCopyState('shared');
+      } else {
+        await navigator.clipboard.writeText(details);
+        setReceiveCopyState('copied');
+      }
     } catch (error) {
-      setCryptoVaultError(error instanceof Error ? error.message : 'Unable to load your deposit wallet addresses.');
-    } finally {
-      setCryptoVaultLoading(false);
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setReceiveCopyState('idle');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(details);
+        setReceiveCopyState('copied');
+      } catch {
+        setReceiveCopyState('error');
+      }
     }
   };
 
-  const copyCryptoAddress = async (asset: 'bitcoin' | 'usdt') => {
-    const address = cryptoWallets[asset];
+  const selectedCryptoAddress = selectedCryptoNetwork === 'BTC'
+    ? cryptoWallets.bitcoin
+    : cryptoWallets.usdtNetwork === selectedCryptoNetwork ? cryptoWallets.usdt : '';
+  const copyCryptoAddress = async () => {
+    const address = selectedCryptoAddress;
     if (!address) return;
     try {
       await navigator.clipboard.writeText(address);
-      setCopiedCryptoAsset(asset);
-      window.setTimeout(() => setCopiedCryptoAsset(''), 1800);
+      setCopiedCryptoNetwork(selectedCryptoNetwork);
+      window.setTimeout(() => setCopiedCryptoNetwork(''), 1800);
     } catch {
       setCryptoVaultError('Clipboard access is unavailable. Select and copy the address manually.');
     }
@@ -304,6 +366,72 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><CircleEllipsis className="h-5 w-5" /></span>
           <span className="leading-tight">More</span>
         </button>
+      </section>
+
+      <section aria-labelledby="crypto-vault-heading" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Digital assets</p>
+            <h2 id="crypto-vault-heading" className="mt-1 text-lg font-semibold text-slate-900">Crypto Vault</h2>
+            <p className="mt-1 text-sm text-slate-600">View your assigned crypto deposit address. Digital assets are separate from your checking and savings balances.</p>
+          </div>
+          <span className="inline-flex w-fit items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
+            <Banknote aria-hidden="true" className="h-4 w-4" /> Deposit addresses
+          </span>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-2" role="group" aria-label="Select crypto network">
+          {(['BTC', 'TRC-20', 'ERC-20'] as const).map((network) => (
+            <button
+              key={network}
+              type="button"
+              aria-pressed={selectedCryptoNetwork === network}
+              onClick={() => { setSelectedCryptoNetwork(network); setCryptoVaultError(''); }}
+              className={`min-h-11 rounded-lg border px-2 py-2 text-xs font-semibold sm:text-sm ${selectedCryptoNetwork === network ? 'border-teal-700 bg-teal-50 text-teal-900' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+            >
+              {network === 'BTC' ? 'BTC Mainnet' : `USDT ${network}`}
+            </button>
+          ))}
+        </div>
+
+        {cryptoVaultLoading ? (
+          <p role="status" className="mt-4 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Loading assigned deposit addresses…</p>
+        ) : cryptoVaultError ? (
+          <p role="alert" className="mt-4 break-words rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{cryptoVaultError}</p>
+        ) : (
+          <div className="mt-4 grid gap-4 sm:grid-cols-[minmax(0,1fr)_9rem] sm:items-center">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-semibold text-slate-800">{selectedCryptoNetwork === 'BTC' ? 'Bitcoin (BTC)' : `Tether (USDT) · ${selectedCryptoNetwork}`}</h3>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{selectedCryptoNetwork === 'BTC' ? 'Bitcoin Mainnet' : selectedCryptoNetwork}</span>
+              </div>
+              {selectedCryptoAddress ? (
+                <>
+                  <p className="mt-3 break-all rounded-lg border border-slate-200 bg-slate-50 p-3 font-mono text-xs leading-5 text-slate-900">{selectedCryptoAddress}</p>
+                  <button type="button" onClick={() => void copyCryptoAddress()} className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900 sm:w-auto">
+                    {copiedCryptoNetwork === selectedCryptoNetwork ? <Check aria-hidden="true" className="h-4 w-4" /> : <Copy aria-hidden="true" className="h-4 w-4" />}
+                    {copiedCryptoNetwork === selectedCryptoNetwork ? 'Address copied' : 'Copy address'}
+                  </button>
+                </>
+              ) : (
+                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  {selectedCryptoNetwork === 'BTC'
+                    ? 'A Bitcoin deposit address has not been assigned. Contact Member Services before sending funds.'
+                    : cryptoWallets.usdt
+                      ? `Your USDT address is assigned to ${cryptoWallets.usdtNetwork}. No address is assigned for ${selectedCryptoNetwork}; select the assigned network.`
+                      : `A USDT ${selectedCryptoNetwork} address has not been assigned. Contact Member Services before sending funds.`}
+                </p>
+              )}
+              <p className="mt-3 text-xs leading-5 text-slate-500">Only send {selectedCryptoNetwork === 'BTC' ? 'BTC on Bitcoin Mainnet' : `USDT on ${selectedCryptoNetwork}`} to a matching address. Sending another asset or using a different network may result in permanent loss.</p>
+            </div>
+            <div className="grid aspect-square w-36 place-items-center justify-self-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-center text-xs text-slate-500 sm:w-36" aria-label="QR code placeholder">
+              <div className="px-3">
+                <Landmark aria-hidden="true" className="mx-auto mb-2 h-8 w-8 text-slate-400" />
+                QR code placeholder
+              </div>
+            </div>
+          </div>
+        )}
       </section>
       </>}
 
@@ -466,52 +594,49 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         </section>
       )}
 
-      {cryptoVaultOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4" role="presentation" onClick={() => setCryptoVaultOpen(false)}>
-          <section role="dialog" aria-modal="true" aria-labelledby="crypto-vault-title" onClick={(event) => event.stopPropagation()} className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
+      {receiveModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4" role="presentation" onClick={() => setReceiveModalOpen(false)}>
+          <section role="dialog" aria-modal="true" aria-labelledby="bank-receive-title" onClick={(event) => event.stopPropagation()} className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Deposit details</p>
-                <h2 id="crypto-vault-title" className="mt-1 text-xl font-bold text-slate-900">Crypto Deposit Wallets</h2>
-                <p className="mt-1 text-sm text-slate-600">Use only the address and network shown for your selected asset.</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Bank deposit details</p>
+                <h2 id="bank-receive-title" className="mt-1 text-xl font-bold text-slate-900">Receive a bank deposit</h2>
+                <p className="mt-1 text-sm text-slate-600">Share these instructions with the person or institution sending your domestic ACH deposit.</p>
               </div>
-              <button type="button" onClick={() => setCryptoVaultOpen(false)} aria-label="Close crypto deposit wallets" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X aria-hidden="true" className="h-5 w-5" /></button>
+              <button type="button" onClick={() => setReceiveModalOpen(false)} aria-label="Close bank deposit details" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X aria-hidden="true" className="h-5 w-5" /></button>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => setSelectedCryptoAsset('bitcoin')} className={`min-h-11 rounded-lg border px-3 py-2 text-sm font-semibold ${selectedCryptoAsset === 'bitcoin' ? 'border-amber-500 bg-amber-50 text-amber-900' : 'border-slate-200 text-slate-600'}`}>Bitcoin (BTC)</button>
-              <button type="button" onClick={() => setSelectedCryptoAsset('usdt')} className={`min-h-11 rounded-lg border px-3 py-2 text-sm font-semibold ${selectedCryptoAsset === 'usdt' ? 'border-emerald-600 bg-emerald-50 text-emerald-900' : 'border-slate-200 text-slate-600'}`}>Tether (USDT)</button>
-            </div>
+            {receiveAccounts.length > 1 && (
+              <label className="mt-5 block text-sm font-medium text-slate-700">
+                Deposit to
+                <select value={receiveAccount?.id || ''} onChange={(event) => { setReceiveAccountId(event.target.value); setReceiveCopyState('idle'); }} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                  {receiveAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>{account.account_type} · {account.nickname} · ending {account.account_number.slice(-4)}</option>
+                  ))}
+                </select>
+              </label>
+            )}
 
-            {cryptoVaultLoading ? (
-              <p role="status" className="mt-4 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Loading your assigned deposit address…</p>
-            ) : cryptoVaultError ? (
-              <p role="alert" className="mt-4 break-words rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{cryptoVaultError}</p>
-            ) : (() => {
-              const address = cryptoWallets[selectedCryptoAsset];
-              const symbol = selectedCryptoAsset === 'bitcoin' ? 'BTC' : 'USDT';
-              const network = selectedCryptoAsset === 'bitcoin' ? 'Bitcoin' : cryptoWallets.usdtNetwork || 'USDT network not specified';
-              return (
-                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-semibold text-slate-800">{symbol} deposit address</span>
-                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600">{network}</span>
-                  </div>
-                  {address ? (
-                    <>
-                      <p className="mt-3 break-all rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs leading-5 text-slate-900">{address}</p>
-                      <button type="button" onClick={() => void copyCryptoAddress(selectedCryptoAsset)} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900">
-                        {copiedCryptoAsset === selectedCryptoAsset ? <Check aria-hidden="true" className="h-4 w-4" /> : <Copy aria-hidden="true" className="h-4 w-4" />}
-                        {copiedCryptoAsset === selectedCryptoAsset ? 'Address copied' : 'Copy deposit address'}
-                      </button>
-                    </>
-                  ) : (
-                    <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">A deposit address has not been assigned for {symbol}. Contact Member Services before sending funds.</p>
-                  )}
-                  <p className="mt-3 text-xs leading-5 text-slate-500">Only send {symbol}{selectedCryptoAsset === 'usdt' ? ` on ${network}` : ''} to this address. Transfers sent using a different asset or network may be unrecoverable.</p>
+            {receiveAccount ? (
+              <>
+                <dl className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200 px-4">
+                  <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Account type</dt><dd className="font-semibold text-slate-900">{receiveAccount.account_type} · {receiveAccount.nickname}</dd></div>
+                  <div className="flex items-start justify-between gap-3 py-3 text-sm"><dt className="shrink-0 text-slate-500">Routing number</dt><dd className="break-all text-right font-mono font-semibold text-slate-900">{receiveAccount.routing_number}</dd></div>
+                  <div className="flex items-start justify-between gap-3 py-3 text-sm"><dt className="shrink-0 text-slate-500">Account number</dt><dd className="break-all text-right font-mono font-semibold text-slate-900">{receiveAccount.account_number}</dd></div>
+                  <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Deposit method</dt><dd className="text-right font-medium text-slate-900">ACH · Domestic U.S.</dd></div>
+                </dl>
+                <div className="mt-4 rounded-lg bg-blue-50 p-3 text-xs leading-5 text-blue-900">
+                  Provide the routing and account numbers above to your payroll provider or bank. Use the account type shown if the sender requests it. For incoming wire instructions or international transfers, contact Member Services for the applicable details.
                 </div>
-              );
-            })()}
+                <button type="button" onClick={() => void copyBankDepositDetails()} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900">
+                  {receiveCopyState === 'copied' || receiveCopyState === 'shared' ? <Check aria-hidden="true" className="h-4 w-4" /> : <Copy aria-hidden="true" className="h-4 w-4" />}
+                  {receiveCopyState === 'copied' ? 'Deposit details copied' : receiveCopyState === 'shared' ? 'Deposit details shared' : navigator.share ? 'Share deposit details' : 'Copy deposit details'}
+                </button>
+                {receiveCopyState === 'error' && <p role="alert" className="mt-2 text-xs text-rose-700">Clipboard access is unavailable. You can copy the account details above manually.</p>}
+              </>
+            ) : (
+              <p role="status" className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">No active checking or savings account is available for deposits.</p>
+            )}
           </section>
         </div>
       )}
