@@ -93,12 +93,12 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ user }) => {
 
       {/* Security Best Practices Notice */}
       <div className="bg-amber-50 border border-amber-200 rounded-xs p-4 text-xs text-amber-900 flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
-        <div>
-          <span className="font-bold block mb-0.5">Account safety reminder</span>
-          <span>
-            Never share your password or sign-in codes. This application will not call or text you to request credentials.
-          </span>
+        <AlertCircle aria-hidden="true" className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-700" />
+        <div className="min-w-0">
+          <h2 className="mb-1 font-bold leading-5">SECURITY ADVISORY</h2>
+          <p className="leading-5">
+            American Credit Union will never request your password, one-time passcode (OTP), or sensitive account credentials via phone, SMS, or email. Protect your account by keeping your login details strictly confidential.
+          </p>
         </div>
       </div>
     </div>
