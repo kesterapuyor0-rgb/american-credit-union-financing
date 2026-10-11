@@ -120,6 +120,7 @@ export default function App() {
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState('');
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyAccountId, setHistoryAccountId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [initialTransferSourceId, setInitialTransferSourceId] = useState<string | undefined>();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -472,6 +473,10 @@ export default function App() {
       onRefresh: fetchUserData,
       onNavigateToTransfer: handleNavigateToTransfer,
       onNavigateToTab: setActiveTab,
+      onNavigateToAccountTransactions: (accountId: string) => {
+        setHistoryAccountId(accountId);
+        setActiveTab('history');
+      },
       onProfilePictureChange: (profilePicture: string) => setUser((current) => current ? { ...current, profilePicture } : current),
     };
 
@@ -484,6 +489,9 @@ export default function App() {
           user={user}
           transactions={transactions}
           loading={historyLoading}
+          accountId={historyAccountId}
+          accountName={accounts.find((account) => account.id === historyAccountId)?.nickname}
+          onClearAccountFilter={() => setHistoryAccountId(null)}
           onRefresh={() => { void fetchTransactionHistory(); }}
           onNavigateToTransfer={handleNavigateToTransfer}
         />;

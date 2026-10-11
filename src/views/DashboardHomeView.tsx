@@ -43,6 +43,7 @@ export interface DashboardHomeViewProps {
   onRefresh: () => void;
   onNavigateToTransfer: (fromAccountId?: string) => void;
   onNavigateToTab: (tab: string) => void;
+  onNavigateToAccountTransactions: (accountId: string) => void;
   onProfilePictureChange: (profilePicture: string) => void;
   showCardsOnly?: boolean;
 }
@@ -57,6 +58,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   onRefresh,
   onNavigateToTransfer,
   onNavigateToTab,
+  onNavigateToAccountTransactions,
   onProfilePictureChange,
   showCardsOnly = false,
 }) => {
@@ -65,7 +67,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [pictureMessage, setPictureMessage] = useState('');
   const [receiveModalOpen, setReceiveModalOpen] = useState(false);
-  const [detailsAccountId, setDetailsAccountId] = useState('');
   const [investmentViewOpen, setInvestmentViewOpen] = useState(false);
   const [investmentRefreshKey, setInvestmentRefreshKey] = useState(0);
   const [investmentSummary, setInvestmentSummary] = useState<{
@@ -123,7 +124,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     : accountFilter === 'Investments'
       ? []
       : orderedCheckingAndSavings.filter((account) => account.account_type === accountFilter);
-  const detailsAccount = accounts.find((account) => account.id === detailsAccountId);
   const legacyCards = accounts.filter((account) => account.account_type === 'Credit Card' && account.status === 'Active');
   const recentTransactions = useMemo(() => transactions.slice(0, 3), [transactions]);
 
@@ -448,42 +448,37 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             ))}
           </div>
         ) : accountFilter === 'Investments' ? null : visibleAccounts.length > 0 ? (
-          <div className="space-y-3">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             {visibleAccounts.map((account) => {
               const available = Math.max(0, account.available_balance ?? account.balance - (account.held_balance || 0));
               const apy = Math.max(0, Number(account.interest_rate) || 0) * 100;
               return (
-                <article key={account.id} className={`rounded-2xl border p-4 shadow-sm sm:p-5 ${account.account_type === 'Savings' ? 'border-emerald-200 bg-gradient-to-br from-white to-emerald-50' : 'border-slate-200 bg-white'}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{account.account_type}</p>
-                      <h3 className="mt-1 truncate font-semibold text-slate-900">{account.nickname}</h3>
-                      <p className="mt-1 text-xs text-slate-500">Account ending in •••• {account.account_number.slice(-4)}</p>
-                    </div>
-                    {account.account_type === 'Savings' && (
-                      <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                        {apy.toFixed(2)}% APY
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-6 text-xs text-slate-500">Available balance</p>
-                  <p className="mt-1 text-2xl font-bold tracking-tight text-slate-950">
-                    {balanceVisible ? formatMoney(available) : '••••••'}
-                  </p>
-                  {account.account_type === 'Savings' && (
-                    <p className="mt-1 text-xs text-slate-500">
-                      Interest earned: {balanceVisible ? formatMoney(Number(account.accrued_interest) || 0) : '••••'}
-                    </p>
-                  )}
-                  <div className="mt-5 flex gap-2 border-t border-slate-200/80 pt-3">
-                    <button type="button" onClick={() => onNavigateToTransfer(account.id)} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-teal-800 px-3 text-sm font-semibold text-white hover:bg-teal-900">
-                      <ArrowUpRight aria-hidden="true" className="h-4 w-4" /> Transfer
-                    </button>
-                    <button type="button" onClick={() => setDetailsAccountId(account.id)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                      <Eye aria-hidden="true" className="h-4 w-4" /> Details
-                    </button>
-                  </div>
-                </article>
+                <button
+                  key={account.id}
+                  type="button"
+                  onClick={() => onNavigateToAccountTransactions(account.id)}
+                  aria-label={`${account.nickname}, available balance ${balanceVisible ? formatMoney(available) : 'hidden'}. View account activity.`}
+                  className="flex min-h-[72px] w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-slate-50 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-700 sm:px-4"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate text-sm font-semibold text-slate-900">{account.nickname}</span>
+                      {account.account_type === 'Savings' && (
+                        <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                          {apy.toFixed(2)}% APY
+                        </span>
+                      )}
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs text-slate-500">•••• {account.account_number.slice(-4)}</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="text-right text-sm font-bold tabular-nums text-slate-950">
+                      {balanceVisible ? formatMoney(available) : '••••••'}
+                      <span className="block text-[10px] font-normal text-slate-500">Available</span>
+                    </span>
+                    <ChevronRight aria-hidden="true" className="h-4 w-4 text-slate-400" />
+                  </span>
+                </button>
               );
             })}
           </div>
@@ -503,56 +498,34 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           )
         )}
         {(accountFilter === 'All Accounts' || accountFilter === 'Investments') && (
-          <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex min-w-0 items-start gap-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-800"><BriefcaseBusiness aria-hidden="true" className="h-5 w-5" /></span>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Investments · paper-trading simulation</p>
-                  <h3 className="mt-1 font-semibold text-slate-900">Investment Portfolio</h3>
-                  <p className="mt-1 text-xs text-slate-500">Daily simulated P/L: {investmentSummaryLoading ? 'Loading…' : `${(investmentSummary?.dailyChangePercent || 0) > 0 ? '+' : ''}${(investmentSummary?.dailyChangePercent || 0).toFixed(2)}% (${formatMoney(investmentSummary?.dailyChangeValue || 0)})`}</p>
-                </div>
-              </div>
-              <p className="text-right text-lg font-bold tabular-nums text-slate-950">
-                {investmentSummaryLoading ? 'Loading…' : formatMoney(investmentSummary?.totalValue || 0)}
-                <span className="block text-[11px] font-normal text-slate-500">simulated value</span>
-              </p>
-            </div>
-            {investmentSummaryError && (
-              <p role="status" className="mt-3 text-sm text-amber-800">{investmentSummaryError}</p>
-            )}
-            {!investmentSummaryLoading && investmentSummary && investmentSummary.positions.length > 0 && (
-              <div className="mt-4 divide-y divide-slate-100 border-t border-slate-100">
-                {investmentSummary.positions.map((position) => (
-                  <div key={position.symbol} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-900">
-                        {position.name} <span className="font-mono text-xs text-slate-500">{position.symbol}</span>
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {position.quantity.toLocaleString('en-US', { maximumFractionDigits: 6 })} units · average cost {formatMoney(position.averageCost)}
-                      </p>
-                    </div>
-                    <p className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">
-                      {balanceVisible ? formatMoney(position.marketValue) : '••••••'}
-                      <span className="block text-right text-[10px] font-normal text-slate-500">
-                        demo price {formatMoney(position.demoPrice)}
-                      </span>
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-            {!investmentSummaryLoading && investmentSummary?.positions.length === 0 && (
-              <p className="mt-4 border-t border-slate-100 pt-3 text-sm text-slate-500">
-                No simulated holdings yet. Explore the catalog to record a paper-trading order.
-              </p>
-            )}
-            <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs leading-5 text-slate-600">Securities products are not FDIC insured, are not bank guaranteed, and may lose value. This is not a brokerage service; no real orders are placed.</p>
-              <button type="button" onClick={() => setInvestmentViewOpen(true)} className="min-h-10 shrink-0 rounded-lg bg-teal-800 px-4 text-sm font-semibold text-white hover:bg-teal-900">Open investments</button>
-            </div>
-          </article>
+          <button
+            type="button"
+            onClick={() => setInvestmentViewOpen(true)}
+            aria-label={`Investment Portfolio, ${investmentSummaryLoading ? 'loading value' : investmentSummaryError ? 'value unavailable' : balanceVisible ? formatMoney(investmentSummary?.totalValue || 0) : 'value hidden'}. Open portfolio details.`}
+            className="flex min-h-[72px] w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 sm:px-4"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-slate-900">Investment Portfolio</span>
+              <span className="mt-0.5 block truncate text-xs text-slate-500">
+                {investmentSummaryError
+                  ? 'Portfolio summary unavailable'
+                  : investmentSummaryLoading
+                  ? 'Loading daily P/L…'
+                  : `Daily P/L: ${(investmentSummary?.dailyChangeValue || 0) > 0 ? '+' : ''}${formatMoney(investmentSummary?.dailyChangeValue || 0)} · Paper-trading`}
+              </span>
+              <span className="block truncate text-[10px] leading-4 text-slate-500">Not FDIC insured · No bank guarantee · May lose value</span>
+            </span>
+            <span className="flex shrink-0 items-center gap-2">
+              <span className="text-right text-sm font-bold tabular-nums text-slate-950">
+                {investmentSummaryLoading || investmentSummaryError ? '—' : balanceVisible ? formatMoney(investmentSummary?.totalValue || 0) : '••••••'}
+                <span className="block text-[10px] font-normal text-slate-500">Portfolio value</span>
+              </span>
+              <ChevronRight aria-hidden="true" className="h-4 w-4 text-slate-400" />
+            </span>
+          </button>
+        )}
+        {(accountFilter === 'All Accounts' || accountFilter === 'Investments') && investmentSummaryError && (
+          <p role="status" className="text-xs text-amber-800">{investmentSummaryError}</p>
         )}
       </section>
       {dashboardError && !dashboardLoading && (
@@ -739,31 +712,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         </section>
       )}
 
-      {detailsAccount && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4" role="presentation" onClick={() => setDetailsAccountId('')}>
-          <section role="dialog" aria-modal="true" aria-labelledby="account-details-title" onClick={(event) => event.stopPropagation()} className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">{detailsAccount.account_type} account</p>
-                <h2 id="account-details-title" className="mt-1 text-xl font-bold text-slate-900">{detailsAccount.nickname}</h2>
-              </div>
-              <button type="button" onClick={() => setDetailsAccountId('')} aria-label="Close account details" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
-            </div>
-            <dl className="mt-5 divide-y divide-slate-100 rounded-xl border border-slate-200 px-4">
-              <div className="flex justify-between gap-4 py-3 text-sm"><dt className="text-slate-500">Account number</dt><dd className="break-all text-right font-mono font-medium text-slate-900">{detailsAccount.account_number}</dd></div>
-              <div className="flex justify-between gap-4 py-3 text-sm"><dt className="text-slate-500">Routing number</dt><dd className="font-mono font-medium text-slate-900">{detailsAccount.routing_number || 'Unavailable offline'}</dd></div>
-              <div className="flex justify-between gap-4 py-3 text-sm"><dt className="text-slate-500">Available balance</dt><dd className="font-semibold text-slate-900">{formatMoney(Math.max(0, detailsAccount.available_balance ?? detailsAccount.balance - (detailsAccount.held_balance || 0)))}</dd></div>
-              {detailsAccount.account_type === 'Savings' && (
-                <>
-                  <div className="flex justify-between gap-4 py-3 text-sm"><dt className="text-slate-500">APY</dt><dd className="font-semibold text-emerald-800">{((Number(detailsAccount.interest_rate) || 0) * 100).toFixed(2)}%</dd></div>
-                  <div className="flex justify-between gap-4 py-3 text-sm"><dt className="text-slate-500">Accrued interest</dt><dd className="font-semibold text-slate-900">{formatMoney(Number(detailsAccount.accrued_interest) || 0)}</dd></div>
-                </>
-              )}
-            </dl>
-          </section>
-        </div>
-      )}
-
       {receiveModalOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4" role="presentation" onClick={() => setReceiveModalOpen(false)}>
           <section role="dialog" aria-modal="true" aria-labelledby="crypto-receive-title" onClick={(event) => event.stopPropagation()} className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
@@ -816,16 +764,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                 ))}
               </div>
             )}
-            {investmentViewOpen && (
-              <InvestmentView
-                onClose={() => setInvestmentViewOpen(false)}
-                onPurchaseComplete={() => {
-                  setInvestmentRefreshKey((key) => key + 1);
-                  onRefresh();
-                }}
-              />
-            )}
-
             <div className="mt-4 rounded-xl border border-slate-200 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-semibold text-slate-900">
@@ -874,6 +812,16 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             )}
           </section>
         </div>
+      )}
+
+      {investmentViewOpen && (
+        <InvestmentView
+          onClose={() => setInvestmentViewOpen(false)}
+          onPurchaseComplete={() => {
+            setInvestmentRefreshKey((key) => key + 1);
+            onRefresh();
+          }}
+        />
       )}
 
     </div>

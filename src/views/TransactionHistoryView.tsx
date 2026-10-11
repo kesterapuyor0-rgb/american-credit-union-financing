@@ -25,6 +25,9 @@ interface TransactionHistoryViewProps {
   loading: boolean;
   onRefresh: () => void;
   onNavigateToTransfer: (fromAccountId?: string) => void;
+  accountId?: string | null;
+  accountName?: string;
+  onClearAccountFilter?: () => void;
 }
 
 interface TransactionPresentation {
@@ -166,6 +169,9 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
   loading,
   onRefresh,
   onNavigateToTransfer,
+  accountId,
+  accountName,
+  onClearAccountFilter,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -177,9 +183,13 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
     onRefreshRef.current = onRefresh;
   }, [onRefresh]);
 
+  const accountTransactions = useMemo(
+    () => accountId ? transactions.filter((transaction) => transaction.account_id === accountId) : transactions,
+    [transactions, accountId],
+  );
   const filteredTransactions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return [...transactions].sort((left, right) => {
+    return [...accountTransactions].sort((left, right) => {
       const byDate = new Date(right.date).getTime() - new Date(left.date).getTime();
       return byDate || right.created_at - left.created_at;
     }).filter((transaction) => {
@@ -198,7 +208,7 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
       ].filter(Boolean).join(' ').toLowerCase();
       return matchesStatus && (!query || searchableText.includes(query));
     });
-  }, [transactions, searchQuery, statusFilter]);
+  }, [accountTransactions, searchQuery, statusFilter]);
 
   useEffect(() => {
     const refreshTransactions = async () => {
@@ -272,10 +282,17 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
       <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Account activity</p>
-          <h1 id="transaction-history-heading" className="mt-1 text-2xl font-bold tracking-tight text-teal-900">Transaction History</h1>
+          <h1 id="transaction-history-heading" className="mt-1 text-2xl font-bold tracking-tight text-teal-900">
+            {accountName ? `${accountName} Activity` : 'Transaction History'}
+          </h1>
           <p className="mt-1 text-sm text-slate-600">Activity for {user.full_name}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {accountId && onClearAccountFilter && (
+            <button type="button" onClick={onClearAccountFilter} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              All accounts
+            </button>
+          )}
           <button type="button" onClick={onRefresh} disabled={loading} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">
             <RefreshCw aria-hidden="true" className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
@@ -312,8 +329,8 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-1 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-          <h2 className="font-semibold text-slate-900">All transactions</h2>
-          <span className="text-xs text-slate-500">Showing {filteredTransactions.length} of {transactions.length}</span>
+          <h2 className="font-semibold text-slate-900">{accountName ? `${accountName} transactions` : 'All transactions'}</h2>
+          <span className="text-xs text-slate-500">Showing {filteredTransactions.length} of {accountTransactions.length}</span>
         </div>
         {filteredTransactions.length === 0 ? (
           <div className="px-5 py-12 text-center">
