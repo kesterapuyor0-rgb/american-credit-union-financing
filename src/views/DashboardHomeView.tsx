@@ -33,7 +33,10 @@ const CARD_COLOR_CLASSES: Record<NonNullable<BankCard['cardColor']>, string> = {
 export interface DashboardHomeViewProps {
   user: User;
   accounts: BankAccount[];
+  cards: BankCard[];
   transactions: Transaction[];
+  dashboardLoading: boolean;
+  dashboardError?: string;
   onRefresh: () => void;
   onNavigateToTransfer: (fromAccountId?: string) => void;
   onNavigateToTab: (tab: string) => void;
@@ -44,7 +47,10 @@ export interface DashboardHomeViewProps {
 export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   user,
   accounts,
+  cards,
   transactions,
+  dashboardLoading,
+  dashboardError = '',
   onRefresh,
   onNavigateToTransfer,
   onNavigateToTab,
@@ -66,7 +72,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   });
   const [selectedCryptoNetwork, setSelectedCryptoNetwork] = useState<'BTC' | 'TRC-20' | 'ERC-20'>('BTC');
   const [copiedCryptoNetwork, setCopiedCryptoNetwork] = useState('');
-  const [cards, setCards] = useState<BankCard[]>([]);
   const [cardApplications, setCardApplications] = useState<CardApplication[]>([]);
   const [applyForCard, setApplyForCard] = useState(false);
   const [cardType, setCardType] = useState<'Debit' | 'Credit'>('Debit');
@@ -97,23 +102,22 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   }, []);
 
   useEffect(() => {
-    const loadCards = async () => {
+    let cancelled = false;
+    const loadCardApplications = async () => {
       try {
-        const [cardsResponse, applicationsResponse] = await Promise.all([
-          fetch('/api/user/cards', { headers: getAuthHeaders(), credentials: 'include' }),
-          fetch('/api/user/card-applications', { headers: getAuthHeaders(), credentials: 'include' }),
-        ]);
-        if (!cardsResponse.ok || !applicationsResponse.ok) throw new Error('Unable to load card information.');
-        const [cardsData, applicationsData] = await Promise.all([cardsResponse.json(), applicationsResponse.json()]);
-        setCards(Array.isArray(cardsData.cards) ? cardsData.cards.filter((card: BankCard) => card.status === 'Active') : []);
-        setCardApplications(Array.isArray(applicationsData.applications) ? applicationsData.applications : []);
+        const response = await fetch('/api/user/card-applications', { headers: getAuthHeaders(), credentials: 'include' });
+        if (!response.ok) throw new Error('Unable to load card application information.');
+        const data = await response.json();
+        if (!cancelled) setCardApplications(Array.isArray(data.applications) ? data.applications : []);
       } catch (error) {
-        console.error('Unable to refresh card information:', error);
+        console.error('Unable to load card application information:', error);
       }
     };
-    void loadCards();
-    const refreshTimer = window.setInterval(() => void loadCards(), 30_000);
-    return () => window.clearInterval(refreshTimer);
+    const timer = window.setTimeout(() => void loadCardApplications(), 1000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [user.id]);
 
   useEffect(() => {
@@ -275,6 +279,21 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         </div>
       </header>
 
+      {dashboardLoading ? (
+        <section aria-label="Loading primary account" className="rounded-3xl border border-teal-100 bg-white p-5 shadow-sm sm:p-7" aria-busy="true">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
+              <div className="h-4 w-28 animate-pulse rounded bg-slate-100" />
+            </div>
+            <div className="h-10 w-28 animate-pulse rounded-xl bg-slate-100" />
+          </div>
+          <div className="mt-8 space-y-2">
+            <div className="h-4 w-36 animate-pulse rounded bg-slate-100" />
+            <div className="h-10 w-48 animate-pulse rounded bg-slate-200 sm:h-11" />
+          </div>
+        </section>
+      ) : (
       <section aria-label="Primary account" className="rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-emerald-50 p-5 shadow-sm sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -308,6 +327,10 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           </p>
         </div>
       </section>
+      )}
+      {dashboardError && !dashboardLoading && (
+        <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{dashboardError}</p>
+      )}
 
       <section aria-label="Quick actions" className="grid grid-cols-4 gap-2">
         <button type="button" onClick={handleReceive} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
@@ -380,7 +403,11 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             </div>
           </form>
         )}
-        {(cards.length > 0 || legacyCards.length > 0) ? (
+        {dashboardLoading ? (
+          <div className="grid justify-items-center gap-4 sm:grid-cols-2" aria-label="Loading active cards" aria-busy="true">
+            <div className="aspect-[1.586/1] w-full max-w-md animate-pulse rounded-2xl bg-slate-200" />
+          </div>
+        ) : (cards.length > 0 || legacyCards.length > 0) ? (
           <div className="grid justify-items-center gap-4 sm:grid-cols-2">
             {cards.map((card) => (
               <article key={card.id} className={`relative isolate flex aspect-[1.586/1] w-full max-w-md flex-col justify-between gap-2 overflow-hidden rounded-2xl p-3.5 text-white shadow-lg sm:p-4 ${CARD_COLOR_CLASSES[card.cardColor || 'emerald']}`}>
@@ -444,13 +471,26 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         {cardMessage && <p role="status" className="text-xs text-slate-600">{cardMessage}</p>}
       </section>
 
-      {!showCardsOnly && recentTransactions.length > 0 && (
+      {!showCardsOnly && (recentTransactions.length > 0 || dashboardLoading) && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">Recent Activity</h2>
             <button type="button" onClick={() => onNavigateToTab('history')} className="text-sm font-medium text-slate-600 hover:text-slate-900">See all</button>
           </div>
-          <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white px-3 sm:px-4">
+          {dashboardLoading ? (
+            <div className="space-y-4 rounded-2xl border border-slate-200 bg-white px-3 py-4 sm:px-4" aria-label="Loading recent activity" aria-busy="true">
+              {[0, 1, 2].map((item) => (
+                <div key={item} className="flex items-center gap-3">
+                  <div className="h-8 w-8 animate-pulse rounded-full bg-slate-100" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-2/3 animate-pulse rounded bg-slate-200" />
+                    <div className="h-3 w-1/3 animate-pulse rounded bg-slate-100" />
+                  </div>
+                  <div className="h-4 w-20 animate-pulse rounded bg-slate-100" />
+                </div>
+              ))}
+            </div>
+          ) : <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white px-3 sm:px-4">
             {recentTransactions.map((transaction) => {
               const category = transaction.category?.toLowerCase() || '';
               const description = formatTransactionDescription(transaction.description).toLowerCase();
@@ -487,7 +527,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                 </div>
               );
             })}
-          </div>
+          </div>}
         </section>
       )}
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, BankAccount, Transaction, UserSummary } from './types';
+import { User, BankAccount, BankCard, Transaction, UserSummary } from './types';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { LoginView } from './views/LoginView';
@@ -19,19 +19,124 @@ import { CardsManagementView, DashboardHomeView } from './views/DashboardHomeVie
 import { BottomNavigation } from './components/BottomNavigation';
 import { getStoredAuthToken, setStoredAuthToken, clearStoredAuthToken } from './utils/api';
 
+interface DashboardPayload {
+  accounts: BankAccount[];
+  cardsSummary: { activeCount: number; cards: BankCard[] };
+  recentTransactions: Transaction[];
+  summary: UserSummary;
+}
+
+interface CachedDashboard extends DashboardPayload {
+  cachedAt: number;
+}
+
+const dashboardCacheKey = (userId: string) => `dashboard-summary:v1:${userId}`;
+
+function readDashboardCache(userId: string): DashboardPayload | null {
+  try {
+    const cached = localStorage.getItem(dashboardCacheKey(userId));
+    if (!cached) return null;
+    const parsed = JSON.parse(cached) as CachedDashboard;
+    if (
+      !Number.isFinite(parsed.cachedAt)
+      || Date.now() - parsed.cachedAt > 7 * 24 * 60 * 60 * 1000
+      || !Array.isArray(parsed.accounts)
+      || !Array.isArray(parsed.cardsSummary?.cards)
+      || !Array.isArray(parsed.recentTransactions)
+    ) return null;
+    return parsed;
+  } catch (error) {
+    console.warn('Unable to read cached dashboard summary:', error);
+    return null;
+  }
+}
+
+function writeDashboardCache(userId: string, payload: DashboardPayload): void {
+  try {
+    const safeAccounts = payload.accounts.map((account) => {
+      const { routing_number: _routingNumber, ...safeAccount } = account;
+      return {
+        ...safeAccount,
+        account_number: account.account_number ? `•••• ${account.account_number.slice(-4)}` : '',
+        routing_number: '',
+      };
+    });
+    const safeCards = payload.cardsSummary.cards.map((card) => ({
+      id: card.id,
+      user_id: card.user_id,
+      account_id: card.account_id,
+      card_type: card.card_type,
+      network: card.network,
+      cardColor: card.cardColor,
+      product_name: card.product_name,
+      last4: card.last4,
+      masked_number: card.masked_number,
+      linked_account_name: card.linked_account_name,
+      linked_account_available: card.linked_account_available,
+      currency: card.currency,
+      status: card.status,
+      credit_limit: card.credit_limit,
+      created_at: card.created_at,
+    }));
+    const safeTransactions = payload.recentTransactions.map((transaction) => ({
+      id: transaction.id,
+      user_id: transaction.user_id,
+      account_id: transaction.account_id,
+      type: transaction.type,
+      amount: transaction.amount,
+      amount_usd: transaction.amount_usd,
+      transfer_fee: transaction.transfer_fee,
+      transfer_tax: transaction.transfer_tax,
+      currency: transaction.currency,
+      description: transaction.description,
+      formatted_amount: transaction.formatted_amount,
+      status: transaction.status,
+      category: transaction.category,
+      date: transaction.date,
+      created_at: transaction.created_at,
+    }));
+    localStorage.setItem(dashboardCacheKey(userId), JSON.stringify({
+      accounts: safeAccounts,
+      cardsSummary: { activeCount: safeCards.length, cards: safeCards },
+      recentTransactions: safeTransactions,
+      summary: payload.summary,
+      cachedAt: Date.now(),
+    } satisfies CachedDashboard));
+  } catch (error) {
+    console.warn('Unable to cache dashboard summary:', error);
+  }
+}
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string>(() => getStoredAuthToken());
   const [activeTab, setActiveTab] = useState<string>('home');
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [cards, setCards] = useState<BankCard[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<UserSummary | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState('');
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [initialTransferSourceId, setInitialTransferSourceId] = useState<string | undefined>();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [restrictionSupportOpen, setRestrictionSupportOpen] = useState(false);
   const [registerNotice, setRegisterNotice] = useState<string | null>(null);
   const [grantApplicationRequested, setGrantApplicationRequested] = useState(false);
+
+  const hydrateDashboardCache = (userId: string) => {
+    const cached = readDashboardCache(userId);
+    if (!cached) {
+      setDashboardLoading(true);
+      return;
+    }
+    setAccounts(cached.accounts);
+    setCards(cached.cardsSummary.cards);
+    setTransactions(cached.recentTransactions);
+    setSummary(cached.summary);
+    setDashboardLoading(false);
+  };
 
   // Role guarding & current route tracking
   const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname);
@@ -70,6 +175,7 @@ export default function App() {
 
         if (res.ok) {
           const data = await res.json();
+          if (data.user?.role === 'user') hydrateDashboardCache(data.user.id);
           setUser(data.user);
           if (storedToken) setToken(storedToken);
         } else {
@@ -91,32 +197,55 @@ export default function App() {
   const fetchUserData = async () => {
     if (!user || user.role === 'admin' || user.verification_status === 'under_review' || user.verification_status === 'rejected') return;
 
+    setDashboardError('');
     try {
       const storedToken = getStoredAuthToken();
       const authHeader = storedToken ? { Authorization: `Bearer ${storedToken}` } : {};
 
-      const [accountsRes, txRes, summaryRes] = await Promise.all([
-        fetch('/api/user/accounts', { headers: authHeader, credentials: 'include' }),
-        fetch('/api/user/transactions', { headers: authHeader, credentials: 'include' }),
-        fetch('/api/user/summary', { headers: authHeader, credentials: 'include' }),
-      ]);
-
-      if (accountsRes.ok) {
-        const accData = await accountsRes.json();
-        setAccounts(accData.accounts || []);
+      const response = await fetch('/api/dashboard/summary', { headers: authHeader, credentials: 'include' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to load your dashboard.');
+      if (!Array.isArray(data.accounts) || !Array.isArray(data.cardsSummary?.cards)) {
+        throw new Error('The dashboard response was incomplete.');
       }
-
-      if (txRes.ok) {
-        const txData = await txRes.json();
-        setTransactions(txData.transactions || []);
-      }
-
-      if (summaryRes.ok) {
-        const sumData = await summaryRes.json();
-        setSummary(sumData);
-      }
+      const payload: DashboardPayload = {
+        accounts: data.accounts,
+        cardsSummary: data.cardsSummary,
+        recentTransactions: Array.isArray(data.recentTransactions) ? data.recentTransactions : [],
+        summary: data.summary,
+      };
+      setAccounts(payload.accounts);
+      setCards(payload.cardsSummary.cards);
+      setTransactions(payload.recentTransactions);
+      setSummary(payload.summary);
+      setDashboardError('');
+      writeDashboardCache(user.id, payload);
     } catch (err) {
       console.error('Error loading banking data:', err);
+      setDashboardError(err instanceof Error ? err.message : 'Unable to load your dashboard.');
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  const fetchTransactionHistory = async () => {
+    if (!user || user.role !== 'user') return;
+    setHistoryLoading(true);
+    try {
+      const storedToken = getStoredAuthToken();
+      const authHeader = storedToken ? { Authorization: `Bearer ${storedToken}` } : {};
+      const response = await fetch('/api/user/transactions?limit=100', {
+        headers: authHeader,
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to load transaction history.');
+      setTransactions(Array.isArray(data.transactions) ? data.transactions : []);
+    } catch (err) {
+      console.error('Error loading transaction history:', err);
+      setDashboardError(err instanceof Error ? err.message : 'Unable to load transaction history.');
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -125,6 +254,10 @@ export default function App() {
       fetchUserData();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (user?.role === 'user' && activeTab === 'history') void fetchTransactionHistory();
+  }, [user?.id, activeTab]);
 
   useEffect(() => {
     if (!user || user.role !== 'user' || user.verification_status !== 'under_review') return;
@@ -184,6 +317,7 @@ export default function App() {
   }, [currentPath, user]);
 
   const handleLoginSuccess = (loggedInUser: User, authToken: string) => {
+    if (loggedInUser.role === 'user') hydrateDashboardCache(loggedInUser.id);
     setUser(loggedInUser);
     setToken(authToken);
     setStoredAuthToken(authToken);
@@ -208,8 +342,11 @@ export default function App() {
     setUser(null);
     setToken('');
     setAccounts([]);
+    setCards([]);
     setTransactions([]);
     setSummary(null);
+    setDashboardLoading(true);
+    setDashboardError('');
     setForbiddenAccess(false);
     navigateTo('/');
   };
@@ -326,7 +463,10 @@ export default function App() {
       user,
       token,
       accounts,
+      cards,
       transactions,
+      dashboardLoading,
+      dashboardError,
       onRefresh: fetchUserData,
       onNavigateToTransfer: handleNavigateToTransfer,
       onNavigateToTab: setActiveTab,
@@ -341,8 +481,8 @@ export default function App() {
           key="history"
           user={user}
           transactions={transactions}
-          loading={loading}
-          onRefresh={fetchUserData}
+          loading={historyLoading}
+          onRefresh={() => { void fetchTransactionHistory(); }}
           onNavigateToTransfer={handleNavigateToTransfer}
         />;
       case 'transfer':
