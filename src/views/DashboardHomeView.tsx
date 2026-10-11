@@ -13,7 +13,6 @@ import {
   Eye,
   EyeOff,
   HandCoins,
-  Landmark,
   Plus,
   X,
 } from 'lucide-react';
@@ -59,10 +58,12 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const [cryptoVaultLoading, setCryptoVaultLoading] = useState(false);
   const [cryptoVaultError, setCryptoVaultError] = useState('');
   const [cryptoCopyError, setCryptoCopyError] = useState('');
-  const [cryptoWallets, setCryptoWallets] = useState<{ bitcoin: string; usdt: string; usdtNetwork: string }>({
+  const [cryptoQrError, setCryptoQrError] = useState('');
+  const [cryptoQrCode, setCryptoQrCode] = useState('');
+  const [cryptoWallets, setCryptoWallets] = useState<{ bitcoin: string; usdtTrc20: string; usdtErc20: string }>({
     bitcoin: '',
-    usdt: '',
-    usdtNetwork: '',
+    usdtTrc20: '',
+    usdtErc20: '',
   });
   const [selectedCryptoNetwork, setSelectedCryptoNetwork] = useState<'BTC' | 'TRC-20' | 'ERC-20'>('BTC');
   const [copiedCryptoNetwork, setCopiedCryptoNetwork] = useState('');
@@ -132,8 +133,12 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         if (!cancelled) {
           setCryptoWallets({
             bitcoin: data.wallets?.bitcoin || '',
-            usdt: data.wallets?.usdt || '',
-            usdtNetwork: data.wallets?.usdtNetwork || '',
+            usdtTrc20: data.wallets?.usdtTrc20
+              || (data.wallets?.usdtNetwork === 'TRC-20' ? data.wallets?.usdt : '')
+              || '',
+            usdtErc20: data.wallets?.usdtErc20
+              || (data.wallets?.usdtNetwork === 'ERC-20' ? data.wallets?.usdt : '')
+              || '',
           });
         }
       } catch (error) {
@@ -193,12 +198,43 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const handleReceive = () => {
     setCryptoVaultError('');
     setCryptoCopyError('');
+    setCryptoQrError('');
+    setCryptoWallets({ bitcoin: '', usdtTrc20: '', usdtErc20: '' });
+    setCryptoVaultLoading(true);
     setReceiveModalOpen(true);
   };
 
   const selectedCryptoAddress = selectedCryptoNetwork === 'BTC'
     ? cryptoWallets.bitcoin
-    : cryptoWallets.usdtNetwork === selectedCryptoNetwork ? cryptoWallets.usdt : '';
+    : selectedCryptoNetwork === 'TRC-20' ? cryptoWallets.usdtTrc20 : cryptoWallets.usdtErc20;
+
+  useEffect(() => {
+    let cancelled = false;
+    setCryptoQrCode('');
+    setCryptoQrError('');
+    if (!receiveModalOpen || !selectedCryptoAddress) return () => { cancelled = true; };
+
+    const generateQrCode = async () => {
+      try {
+        const { default: QRCode } = await import('qrcode');
+        const dataUrl = await QRCode.toDataURL(selectedCryptoAddress, {
+          width: 220,
+          margin: 2,
+          errorCorrectionLevel: 'M',
+        });
+        if (!cancelled) setCryptoQrCode(dataUrl);
+      } catch (error: unknown) {
+        if (!cancelled) {
+          console.error('Unable to generate crypto deposit QR code:', error);
+          setCryptoQrError('QR code is temporarily unavailable. You can still copy the wallet address.');
+        }
+      }
+    };
+    void generateQrCode();
+
+    return () => { cancelled = true; };
+  }, [receiveModalOpen, selectedCryptoAddress]);
+
   const copyCryptoAddress = async () => {
     const address = selectedCryptoAddress;
     if (!address) return;
@@ -513,9 +549,9 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                 type="button"
                 aria-pressed={selectedCryptoNetwork !== 'BTC'}
                 onClick={() => {
-                  const assignedNetwork = cryptoWallets.usdtNetwork === 'TRC-20' || cryptoWallets.usdtNetwork === 'ERC-20'
-                    ? cryptoWallets.usdtNetwork
-                    : 'TRC-20';
+                  const assignedNetwork = cryptoWallets.usdtTrc20
+                    ? 'TRC-20'
+                    : cryptoWallets.usdtErc20 ? 'ERC-20' : 'TRC-20';
                   setSelectedCryptoNetwork(assignedNetwork);
                   setCryptoCopyError('');
                 }}
@@ -566,11 +602,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                 </>
               ) : (
                 <p role="status" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                  {selectedCryptoNetwork === 'BTC'
-                    ? 'A Bitcoin deposit address has not been assigned. Contact Member Services before sending funds.'
-                    : cryptoWallets.usdt
-                      ? `Your USDT address is assigned to ${cryptoWallets.usdtNetwork}. Select that network to use it.`
-                      : `A USDT ${selectedCryptoNetwork} address has not been assigned. Contact Member Services before sending funds.`}
+                  Digital vault address provisioning is in progress. Please contact Member Services for details.
                 </p>
               )}
               <p className="mt-3 text-xs leading-5 text-slate-500">
@@ -578,12 +610,15 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               </p>
             </div>
 
-            <div className="mx-auto mt-4 grid aspect-square w-36 place-items-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-center text-xs text-slate-500" aria-label="QR code placeholder">
-              <div className="px-3">
-                <Landmark aria-hidden="true" className="mx-auto mb-2 h-8 w-8 text-slate-400" />
-                QR code placeholder
+            {selectedCryptoAddress && (
+              <div className="mx-auto mt-4 grid aspect-square w-44 place-items-center rounded-xl border border-slate-200 bg-white p-3" aria-label={`${selectedCryptoNetwork} deposit QR code`}>
+                {cryptoQrCode
+                  ? <img src={cryptoQrCode} alt={`${selectedCryptoNetwork} wallet address QR code`} className="h-full w-full" />
+                  : cryptoQrError
+                    ? <p role="alert" className="text-center text-xs text-rose-700">{cryptoQrError}</p>
+                    : <p role="status" className="text-center text-xs text-slate-500">Generating QR code…</p>}
               </div>
-            </div>
+            )}
           </section>
         </div>
       )}

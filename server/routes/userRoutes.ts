@@ -13,7 +13,7 @@ router.use(requireDatabase);
 router.get('/wallets', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userWallets = await User.findOne({ id: req.user!.id })
-      .select('assigned_btc_address assigned_usdt_address usdt_network')
+      .select('assigned_btc_address assigned_usdt_address usdt_network assigned_usdt_trc20_address assigned_usdt_erc20_address')
       .lean<any>();
     if (!userWallets) {
       res.status(404).json({ error: 'User not found.' });
@@ -24,6 +24,12 @@ router.get('/wallets', requireApprovedUser, async (req: AuthenticatedRequest, re
         bitcoin: userWallets.assigned_btc_address || '',
         usdt: userWallets.assigned_usdt_address || '',
         usdtNetwork: userWallets.usdt_network || '',
+        usdtTrc20: userWallets.assigned_usdt_trc20_address
+          || (userWallets.usdt_network === 'TRC-20' ? userWallets.assigned_usdt_address : '')
+          || '',
+        usdtErc20: userWallets.assigned_usdt_erc20_address
+          || (userWallets.usdt_network === 'ERC-20' ? userWallets.assigned_usdt_address : '')
+          || '',
       },
     });
   } catch (err) {

@@ -17,6 +17,8 @@ export interface User {
   assigned_btc_address?: string;
   assigned_usdt_address?: string;
   usdt_network?: '' | 'TRC-20' | 'ERC-20';
+  assigned_usdt_trc20_address?: string;
+  assigned_usdt_erc20_address?: string;
   created_at?: string;
 }
 

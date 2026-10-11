@@ -17,6 +17,8 @@ const userSchema = new Schema({
   assigned_btc_address: { type: String, default: '', trim: true, maxlength: 100 },
   assigned_usdt_address: { type: String, default: '', trim: true, maxlength: 100 },
   usdt_network: { type: String, enum: ['', 'TRC-20', 'ERC-20'], default: '' },
+  assigned_usdt_trc20_address: { type: String, default: '', trim: true, maxlength: 100 },
+  assigned_usdt_erc20_address: { type: String, default: '', trim: true, maxlength: 100 },
   documentUrl: { type: String, default: '' },
   verification_status: { type: String, enum: ['under_review', 'approved', 'rejected'], default: 'under_review', index: true },
   verification_rejection_reason: { type: String, default: '', trim: true, maxlength: 500 },

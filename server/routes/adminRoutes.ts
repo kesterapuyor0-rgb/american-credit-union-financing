@@ -262,7 +262,7 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
       filter = { id: { $in: [...new Set([...matchingAccounts.map((a) => a.user_id), ...matchingUsers.map((u) => u.id)])] } };
     }
 
-    const users = await User.find(filter).select('id email full_name role isAdmin isRestricted restrictionReason phone verification_status verification_rejection_reason assigned_btc_address assigned_usdt_address usdt_network created_at').sort({ created_at: -1 }).lean<any[]>();
+    const users = await User.find(filter).select('id email full_name role isAdmin isRestricted restrictionReason phone verification_status verification_rejection_reason assigned_btc_address assigned_usdt_address usdt_network assigned_usdt_trc20_address assigned_usdt_erc20_address created_at').sort({ created_at: -1 }).lean<any[]>();
     const allAccounts = await Account.find({ user_id: { $in: users.map((u) => u.id) } }).sort({ account_type: 1 }).lean<any[]>();
     const accountsByUser = new Map<string, any[]>();
     for (const account of allAccounts) accountsByUser.set(account.user_id, [...(accountsByUser.get(account.user_id) || []), account]);
@@ -293,8 +293,16 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
 router.put('/users/:userId/wallets', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userId = String(req.params.userId || '').trim();
   const btcAddress = typeof req.body?.assigned_btc_address === 'string' ? req.body.assigned_btc_address.trim() : '';
-  const usdtAddress = typeof req.body?.assigned_usdt_address === 'string' ? req.body.assigned_usdt_address.trim() : '';
-  const usdtNetwork = String(req.body?.usdt_network || '').trim().toUpperCase();
+  const legacyUsdtAddress = typeof req.body?.assigned_usdt_address === 'string' ? req.body.assigned_usdt_address.trim() : '';
+  const legacyUsdtNetwork = String(req.body?.usdt_network || '').trim().toUpperCase();
+  const hasNetworkSpecificAddresses = Object.prototype.hasOwnProperty.call(req.body || {}, 'assigned_usdt_trc20_address')
+    || Object.prototype.hasOwnProperty.call(req.body || {}, 'assigned_usdt_erc20_address');
+  const usdtTrc20Address = typeof req.body?.assigned_usdt_trc20_address === 'string'
+    ? req.body.assigned_usdt_trc20_address.trim()
+    : !hasNetworkSpecificAddresses && legacyUsdtNetwork === 'TRC-20' ? legacyUsdtAddress : '';
+  const usdtErc20Address = typeof req.body?.assigned_usdt_erc20_address === 'string'
+    ? req.body.assigned_usdt_erc20_address.trim()
+    : !hasNetworkSpecificAddresses && legacyUsdtNetwork === 'ERC-20' ? legacyUsdtAddress : '';
 
   const btcBase58 = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/;
   const btcBech32 = /^bc1[ac-hj-np-z02-9]{11,71}$/;
@@ -314,15 +322,13 @@ router.put('/users/:userId/wallets', async (req: AuthenticatedRequest, res: Resp
     res.status(400).json({ error: 'Enter a valid Bitcoin mainnet address.' });
     return;
   }
-  if (!['', 'TRC-20', 'ERC-20'].includes(usdtNetwork)) {
+  if (!hasNetworkSpecificAddresses && !['', 'TRC-20', 'ERC-20'].includes(legacyUsdtNetwork)) {
     res.status(400).json({ error: 'USDT network must be TRC-20 or ERC-20.' });
     return;
   }
-  if (usdtAddress.length > 100
-    || (usdtAddress && (!usdtNetwork
-      || (usdtNetwork === 'TRC-20' ? !isValidTronAddress(usdtAddress) : !isValidEthereumAddress(usdtAddress))))
-    || (!usdtAddress && usdtNetwork)) {
-    res.status(400).json({ error: 'Enter a valid USDT address for the selected network, or clear both USDT fields.' });
+  if ((usdtTrc20Address.length > 100 || (usdtTrc20Address && !isValidTronAddress(usdtTrc20Address)))
+    || (usdtErc20Address.length > 100 || (usdtErc20Address && !isValidEthereumAddress(usdtErc20Address)))) {
+    res.status(400).json({ error: 'Enter a valid USDT address for each selected network.' });
     return;
   }
 
@@ -334,11 +340,13 @@ router.put('/users/:userId/wallets', async (req: AuthenticatedRequest, res: Resp
         { id: userId, role: { $ne: 'admin' }, isAdmin: { $ne: true } },
         { $set: {
           assigned_btc_address: btcAddress,
-          assigned_usdt_address: usdtAddress,
-          usdt_network: usdtAddress ? usdtNetwork : '',
+          assigned_usdt_trc20_address: usdtTrc20Address,
+          assigned_usdt_erc20_address: usdtErc20Address,
+          assigned_usdt_address: usdtTrc20Address || usdtErc20Address,
+          usdt_network: usdtTrc20Address ? 'TRC-20' : usdtErc20Address ? 'ERC-20' : '',
         } },
         { new: true, session },
-      ).select('id full_name email assigned_btc_address assigned_usdt_address usdt_network').lean<any>();
+      ).select('id full_name email assigned_btc_address assigned_usdt_address usdt_network assigned_usdt_trc20_address assigned_usdt_erc20_address').lean<any>();
       if (!updatedUser) throw new Error('Member not found.');
 
       await AuditLog.create([{
@@ -347,7 +355,7 @@ router.put('/users/:userId/wallets', async (req: AuthenticatedRequest, res: Resp
         admin_email: req.user!.email,
         action: 'ADMIN_CRYPTO_WALLETS_UPDATED',
         target_user_id: updatedUser.id,
-        details: `Updated assigned crypto deposit addresses for ${updatedUser.email}. BTC: ${btcAddress ? 'assigned' : 'cleared'}; USDT ${usdtAddress ? `(${usdtNetwork}) assigned` : 'cleared'}.`,
+        details: `Updated assigned crypto deposit addresses for ${updatedUser.email}. BTC: ${btcAddress ? 'assigned' : 'cleared'}; USDT TRC-20: ${usdtTrc20Address ? 'assigned' : 'cleared'}; USDT ERC-20: ${usdtErc20Address ? 'assigned' : 'cleared'}.`,
         ip_address: req.ip || '127.0.0.1',
         created_at: new Date().toISOString(),
       }], { session });
