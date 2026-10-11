@@ -60,7 +60,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   onProfilePictureChange,
   showCardsOnly = false,
 }) => {
-  const [accountFilter, setAccountFilter] = useState<'All Accounts' | 'Checking' | 'Savings'>('All Accounts');
+  const [accountFilter, setAccountFilter] = useState<'All Accounts' | 'Checking' | 'Savings' | 'Investments'>('All Accounts');
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [pictureMessage, setPictureMessage] = useState('');
@@ -105,10 +105,12 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     (total, account) => total + Math.max(0, account.available_balance ?? account.balance - (account.held_balance || 0)),
     0,
   );
+  const totalNetWorth = totalAccountBalance + (investmentSummary?.totalValue || 0);
   const visibleAccounts = accountFilter === 'All Accounts'
     ? checkingAndSavings
-    : checkingAndSavings.filter((account) => account.account_type === accountFilter);
-  const hasSavingsAccount = checkingAndSavings.some((account) => account.account_type === 'Savings');
+    : accountFilter === 'Investments'
+      ? []
+      : checkingAndSavings.filter((account) => account.account_type === accountFilter);
   const detailsAccount = accounts.find((account) => account.id === detailsAccountId);
   const legacyCards = accounts.filter((account) => account.account_type === 'Credit Card');
   const recentTransactions = useMemo(() => transactions.slice(0, 3), [transactions]);
@@ -352,35 +354,59 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
       <section aria-label="Total account balance" className="rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-emerald-50 p-5 shadow-sm sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total deposit balances</p>
-            <p className="mt-1 text-sm font-medium text-slate-800">Primary account: {primaryCheckingAccount?.nickname || 'Unavailable'}</p>
-            <p className="mt-1 text-sm tracking-wider text-slate-600">
-              {primaryCheckingAccount?.account_number ? `••••  ••••  ${primaryCheckingAccount.account_number.slice(-4)}` : 'Account unavailable'}
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Net Worth</p>
+            <p className="mt-1 text-sm text-slate-600">Checking, savings, and simulated investments</p>
           </div>
         </div>
         <div className="mt-8">
           <div className="flex items-center gap-2 text-sm text-slate-500">
-            <span>Total available balance</span>
+            <span>Combined balances</span>
             <button type="button" aria-label={balanceVisible ? 'Hide balance' : 'Show balance'} onClick={() => setBalanceVisible((visible) => !visible)} className="rounded p-1 text-slate-600 hover:bg-slate-100">
               {balanceVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             </button>
           </div>
           <p className="mt-1 break-all text-3xl font-bold tracking-tight text-teal-950 sm:text-4xl">
-            {balanceVisible ? formatMoney(totalAccountBalance) : '••••••'}
+            {!balanceVisible
+              ? '••••••'
+              : investmentSummaryLoading || investmentSummaryError
+                ? '—'
+                : formatMoney(totalNetWorth)}
           </p>
+          {investmentSummaryError && <p role="status" className="mt-2 text-xs text-amber-800">Investment valuation is unavailable; combined total is not shown.</p>}
         </div>
       </section>
       )}
-      <section aria-label="Checking and savings accounts" className="space-y-3">
+      <section aria-label="Quick actions" className="grid grid-cols-5 gap-2">
+        <button type="button" onClick={handleReceive} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><ArrowDownLeft className="h-5 w-5" /></span>
+          <span className="leading-tight">Receive</span>
+        </button>
+        <button type="button" onClick={() => onNavigateToTransfer(primaryCheckingAccount?.id)} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><ArrowUpRight className="h-5 w-5" /></span>
+          <span className="leading-tight">Transfer</span>
+        </button>
+        <button type="button" onClick={() => setInvestmentViewOpen(true)} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-teal-800">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-teal-200 bg-white text-teal-800 shadow-sm sm:h-14 sm:w-14"><BriefcaseBusiness className="h-5 w-5" /></span>
+          <span className="leading-tight">Invest</span>
+        </button>
+        <button type="button" onClick={() => onNavigateToTab('grants')} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-teal-800">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><HandCoins className="h-5 w-5" /></span>
+          <span className="leading-tight">Grants</span>
+        </button>
+        <button type="button" onClick={() => onNavigateToTab('profile')} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><CircleEllipsis className="h-5 w-5" /></span>
+          <span className="leading-tight">More</span>
+        </button>
+      </section>
+      <section aria-label="Accounts and investments" className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">My Accounts</h2>
-            <p className="text-sm text-slate-500">Checking and savings balances at a glance.</p>
+            <p className="text-sm text-slate-500">View your checking, savings, and simulated investment balances.</p>
           </div>
         </div>
         <div className="flex w-full gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1.5 sm:w-fit" role="group" aria-label="Filter accounts">
-          {(['All Accounts', 'Checking', 'Savings'] as const).map((filter) => (
+          {(['All Accounts', 'Checking', 'Savings', 'Investments'] as const).map((filter) => (
             <button
               key={filter}
               type="button"
@@ -393,7 +419,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           ))}
         </div>
         {dashboardLoading ? (
-          <div className="grid gap-3 sm:grid-cols-2" aria-label="Loading accounts" aria-busy="true">
+          <div className="space-y-3" aria-label="Loading accounts" aria-busy="true">
             {[0, 1].map((item) => (
               <div key={item} className="min-h-48 animate-pulse rounded-2xl border border-slate-200 bg-white p-5">
                 <div className="h-4 w-28 rounded bg-slate-200" />
@@ -404,7 +430,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             ))}
           </div>
         ) : visibleAccounts.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-3">
             {visibleAccounts.map((account) => {
               const available = Math.max(0, account.available_balance ?? account.balance - (account.held_balance || 0));
               const apy = Math.max(0, Number(account.interest_rate) || 0) * 100;
@@ -443,7 +469,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               );
             })}
           </div>
-        ) : (
+        ) : accountFilter === 'Investments' ? null : (
           accountFilter === 'Savings' && checkingAndSavings.some((account) => account.account_type === 'Checking') ? (
             <div className="rounded-2xl border border-dashed border-emerald-300 bg-white px-4 py-7 text-center">
               <p className="font-semibold text-slate-900">Your Savings account is being prepared</p>
@@ -458,62 +484,32 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             </div>
           )
         )}
+        {(accountFilter === 'All Accounts' || accountFilter === 'Investments') && (
+          <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-800"><BriefcaseBusiness aria-hidden="true" className="h-5 w-5" /></span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Investments · paper-trading simulation</p>
+                  <h3 className="mt-1 font-semibold text-slate-900">Simulated portfolio</h3>
+                  <p className="mt-1 text-xs text-slate-500">Daily simulated P/L: {investmentSummaryLoading ? 'Loading…' : `${(investmentSummary?.dailyChangePercent || 0) > 0 ? '+' : ''}${(investmentSummary?.dailyChangePercent || 0).toFixed(2)}% (${formatMoney(investmentSummary?.dailyChangeValue || 0)})`}</p>
+                </div>
+              </div>
+              <p className="text-right text-lg font-bold tabular-nums text-slate-950">
+                {investmentSummaryLoading ? 'Loading…' : formatMoney(investmentSummary?.totalValue || 0)}
+                <span className="block text-[11px] font-normal text-slate-500">simulated value</span>
+              </p>
+            </div>
+            <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs leading-5 text-slate-600">Securities products are not FDIC insured, are not bank guaranteed, and may lose value. This is not a brokerage service; no real orders are placed.</p>
+              <button type="button" onClick={() => setInvestmentViewOpen(true)} className="min-h-10 shrink-0 rounded-lg bg-teal-800 px-4 text-sm font-semibold text-white hover:bg-teal-900">Open investments</button>
+            </div>
+          </article>
+        )}
       </section>
       {dashboardError && !dashboardLoading && (
         <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{dashboardError}</p>
       )}
-
-      <section aria-label="Quick actions" className="grid grid-cols-5 gap-2">
-        <button type="button" onClick={handleReceive} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><ArrowDownLeft className="h-5 w-5" /></span>
-          <span className="leading-tight">Receive</span>
-        </button>
-        <button type="button" onClick={() => onNavigateToTransfer(primaryCheckingAccount?.id)} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><ArrowUpRight className="h-5 w-5" /></span>
-          <span className="leading-tight">Transfer</span>
-        </button>
-        <button type="button" onClick={() => onNavigateToTab('grants')} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-teal-800">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><HandCoins className="h-5 w-5" /></span>
-          <span className="leading-tight">Grants</span>
-        </button>
-        <button type="button" onClick={() => setInvestmentViewOpen(true)} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-teal-800">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-teal-200 bg-white text-teal-800 shadow-sm sm:h-14 sm:w-14"><BriefcaseBusiness className="h-5 w-5" /></span>
-          <span className="leading-tight">Invest</span>
-        </button>
-        <button type="button" onClick={() => onNavigateToTab('profile')} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><CircleEllipsis className="h-5 w-5" /></span>
-          <span className="leading-tight">More</span>
-        </button>
-      </section>
-
-      <section aria-label="Investment portfolio summary" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-800"><BriefcaseBusiness aria-hidden="true" className="h-5 w-5" /></span>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-teal-800">Paper-trading portfolio</p>
-              <h2 className="mt-1 text-base font-semibold text-slate-950">Investment summary</h2>
-              <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-2">
-                <div>
-                  <p className="text-[11px] text-slate-500">Simulated portfolio value</p>
-                  <p className="mt-0.5 text-xl font-bold tabular-nums text-slate-950">{investmentSummaryLoading ? 'Loading…' : formatMoney(investmentSummary?.totalValue || 0)}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-slate-500">Daily simulated P/L</p>
-                  <p className={`mt-0.5 text-sm font-bold tabular-nums ${(investmentSummary?.dailyChangePercent || 0) < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-                    {investmentSummaryLoading ? '—' : `${(investmentSummary?.dailyChangePercent || 0) > 0 ? '+' : ''}${(investmentSummary?.dailyChangePercent || 0).toFixed(2)}% (${formatMoney(investmentSummary?.dailyChangeValue || 0)})`}
-                  </p>
-                </div>
-              </div>
-              {investmentSummaryError && <p role="status" className="mt-2 text-xs text-rose-700">{investmentSummaryError}</p>}
-            </div>
-          </div>
-          <button type="button" onClick={() => setInvestmentViewOpen(true)} className="min-h-11 w-full shrink-0 rounded-lg bg-teal-800 px-4 text-sm font-semibold text-white hover:bg-teal-900 sm:w-auto">Open investments</button>
-        </div>
-        <p className="border-t border-slate-100 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600 sm:px-5">
-          Securities products are not FDIC insured, are not bank guaranteed, and may lose value. This area is a paper-trading simulation only; it does not provide brokerage services or place real orders.
-        </p>
-      </section>
 
       </>}
 
