@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { timingSafeEqual } from 'crypto';
+import { randomUUID, timingSafeEqual } from 'crypto';
 import { User, Account, VerificationCode, AuditLog } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { createNotification } from '../notifications.js';
@@ -492,7 +492,20 @@ router.post('/register', async (req, res): Promise<void> => {
     }
 
     const accountId = 'acc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    const savingsAccountId = `acc_${randomUUID()}`;
     const routingNumber = '026009593';
+    let savingsAccountNumber = '';
+    for (let attempt = 0; attempt < 25; attempt += 1) {
+      const candidate = `48${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`;
+      if (!(await Account.exists({ account_number: candidate }))) {
+        savingsAccountNumber = candidate;
+        break;
+      }
+    }
+    if (!savingsAccountNumber) {
+      res.status(503).json({ success: false, error: 'Could not reserve a unique savings account number. Please try again.' });
+      return;
+    }
 
     // 4. Create primary Advantage Plus Checking Account (with try/catch)
     try {
@@ -502,9 +515,17 @@ router.post('/register', async (req, res): Promise<void> => {
         balance: 0, currency: 'USD', routing_number: routingNumber,
         status: 'Active', created_at: createdAt,
       });
+      await Account.create({
+        id: savingsAccountId, user_id: userId, account_number: savingsAccountNumber,
+        account_type: 'Savings', nickname: 'Member Savings',
+        balance: 0, currency: 'USD', routing_number: routingNumber,
+        interest_rate: 0.015, accrued_interest: 0, last_interest_accrual_date: '',
+        status: 'Active', created_at: createdAt,
+      });
       await User.updateOne({ id: userId }, { $set: { account_number: accNum } });
     } catch (accErr: any) {
       console.error('MongoDB account insertion error:', accErr);
+      await Account.deleteMany({ user_id: userId });
       await User.deleteOne({ id: userId });
       res.status(500).json({
         success: false,

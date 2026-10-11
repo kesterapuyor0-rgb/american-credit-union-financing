@@ -286,11 +286,12 @@ router.post('/initiate', requireApprovedUser, async (req: AuthenticatedRequest, 
       return;
     }
 
-    const parsedAmount = parseFloat(amount);
+    const rawAmount = Number(amount);
+    const parsedAmount = Math.round(rawAmount * 100) / 100;
     const transferFee = transferType === 'wire' ? WIRE_TRANSFER_FEE : 0;
     const transferTax = transferType === 'wire' ? WIRE_TRANSFER_TAX : 0;
     const totalCharges = transferFee + transferTax;
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+    if (!Number.isFinite(rawAmount) || parsedAmount <= 0 || parsedAmount > 1_000_000) {
       res.status(400).json({ error: 'Please enter a valid transfer amount greater than $0.00 USD.' });
       return;
     }
@@ -300,6 +301,11 @@ router.post('/initiate', requireApprovedUser, async (req: AuthenticatedRequest, 
 
     if (!sourceAccount) {
       res.status(404).json({ error: 'Source account not found.' });
+      return;
+    }
+    if (transferType === 'internal'
+      && (!['Checking', 'Savings'].includes(sourceAccount.account_type) || sourceAccount.currency !== 'USD')) {
+      res.status(400).json({ error: 'Internal transfers require an active USD checking or savings account.' });
       return;
     }
 
@@ -317,7 +323,13 @@ router.post('/initiate', requireApprovedUser, async (req: AuthenticatedRequest, 
     let destDisplayAccount = recipientAccount || '';
 
     if (transferType === 'internal') {
-      const destAccount = await Account.findOne({ id: destinationAccountId, user_id: userId, status: 'Active' }).lean<any>();
+      const destAccount = await Account.findOne({
+        id: destinationAccountId,
+        user_id: userId,
+        account_type: { $in: ['Checking', 'Savings'] },
+        currency: 'USD',
+        status: 'Active',
+      }).lean<any>();
       if (!destAccount) {
         res.status(400).json({ error: 'Destination account not found.' });
         return;
@@ -416,6 +428,10 @@ router.post('/confirm', requireApprovedUser, async (req: AuthenticatedRequest, r
       memo,
       transferType,
     } = payload;
+    if (transferType === 'internal') {
+      res.status(400).json({ error: 'Internal transfers must be settled through the secure internal transfer endpoint.' });
+      return;
+    }
 
     // Check source account balance again
     const sourceAccount = await Account.findOne({ id: sourceAccountId, user_id: userId, status: 'Active' }).lean<any>();
@@ -512,6 +528,165 @@ router.post('/confirm', requireApprovedUser, async (req: AuthenticatedRequest, r
     console.error('Error confirming transfer:', err);
     const message = errorMessage(err, 'Transfer submission failed.');
     res.status(message.includes('authorization') || message.includes('Insufficient available balance') ? 409 : 500).json({ error: message });
+  }
+});
+
+// POST /api/transfers/internal
+// Settles an internal transfer only after validating and atomically claiming its existing OTP.
+router.post('/internal', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const verificationId = typeof req.body?.verificationId === 'string' ? req.body.verificationId.trim() : '';
+  const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+  if (!verificationId || !/^\d{6}$/.test(code)) {
+    res.status(400).json({ error: 'Verification ID and 6-digit authorization code are required.' });
+    return;
+  }
+
+  const userId = req.user!.id;
+  const session = await mongoose.startSession();
+  try {
+    let result: {
+      transactionId: string;
+      relatedTransactionId: string;
+      amount: number;
+      sourceBalance: number;
+      destinationBalance: number;
+      destinationName: string;
+    } | null = null;
+
+    await session.withTransaction(async () => {
+      const verification = await VerificationCode.findOneAndUpdate({
+        id: verificationId,
+        user_id: userId,
+        purpose: 'transfer',
+        code,
+        verified: false,
+        expires_at: { $gt: Date.now() },
+      }, { $set: { verified: true } }, { new: true, session }).lean<any>();
+      if (!verification) throw new Error('This transfer authorization has already been used or expired. Please start again.');
+
+      const payload = verification.metadata || {};
+      const sourceAccountId = String(payload.sourceAccountId || '');
+      const destinationAccountId = String(payload.destinationAccountId || '');
+      const amount = Number(payload.amount);
+      if (payload.transferType !== 'internal' || !sourceAccountId || !destinationAccountId
+        || sourceAccountId === destinationAccountId || !Number.isFinite(amount) || amount <= 0
+        || amount > 1_000_000 || Math.round(amount * 100) !== amount * 100
+        || Number(payload.transferFee) !== 0 || Number(payload.transferTax) !== 0) {
+        throw new Error('The verified transfer details are invalid. Please start a new transfer.');
+      }
+
+      const source = await Account.findOne({
+        id: sourceAccountId,
+        user_id: userId,
+        account_type: { $in: ['Checking', 'Savings'] },
+        currency: 'USD',
+        status: 'Active',
+      }).session(session).lean<any>();
+      const destination = await Account.findOne({
+        id: destinationAccountId,
+        user_id: userId,
+        account_type: { $in: ['Checking', 'Savings'] },
+        currency: 'USD',
+        status: 'Active',
+      }).session(session).lean<any>();
+      if (!source || !destination) {
+        throw new Error('Both accounts must be active USD checking or savings accounts owned by you.');
+      }
+
+      const debitedSource = await Account.findOneAndUpdate({
+        id: source.id,
+        user_id: userId,
+        account_type: { $in: ['Checking', 'Savings'] },
+        currency: 'USD',
+        status: 'Active',
+        $expr: {
+          $gte: [
+            { $subtract: [{ $ifNull: ['$balance', 0] }, { $ifNull: ['$held_balance', 0] }] },
+            amount,
+          ],
+        },
+      }, { $inc: { balance: -amount } }, { new: true, session }).lean<any>();
+      if (!debitedSource) throw new Error('Insufficient available balance to complete this transfer.');
+
+      const creditedDestination = await Account.findOneAndUpdate({
+        id: destination.id,
+        user_id: userId,
+        account_type: { $in: ['Checking', 'Savings'] },
+        currency: 'USD',
+        status: 'Active',
+      }, { $inc: { balance: amount } }, { new: true, session }).lean<any>();
+      if (!creditedDestination) throw new Error('The destination account is no longer active.');
+
+      const now = new Date();
+      const transactionId = `tx_internal_${randomUUID()}_out`;
+      const relatedTransactionId = `tx_internal_${randomUUID()}_in`;
+      const date = now.toISOString().slice(0, 10);
+      await Transaction.create([
+        {
+          id: transactionId,
+          user_id: userId,
+          account_id: source.id,
+          type: 'transfer_out',
+          amount,
+          currency: 'USD',
+          description: `Transfer to ${destination.nickname}`,
+          recipient_name: destination.nickname,
+          recipient_account: `...${destination.account_number.slice(-4)}`,
+          status: 'Completed',
+          category: 'Internal Transfer',
+          related_transaction_id: relatedTransactionId,
+          date,
+          created_at: now.getTime(),
+        },
+        {
+          id: relatedTransactionId,
+          user_id: userId,
+          account_id: destination.id,
+          type: 'transfer_in',
+          amount,
+          currency: 'USD',
+          description: `Transfer from ${source.nickname}`,
+          sender_name: source.nickname,
+          recipient_name: source.nickname,
+          recipient_account: `...${source.account_number.slice(-4)}`,
+          status: 'Completed',
+          category: 'Internal Transfer',
+          related_transaction_id: transactionId,
+          date,
+          created_at: now.getTime() + 1,
+        },
+      ], { session });
+      await createNotification({
+        userId,
+        title: 'Internal Transfer Completed',
+        message: `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD was transferred from ${source.nickname} to ${destination.nickname}.`,
+        type: 'transfer',
+        category: 'transfer',
+        link: 'history',
+      }, session);
+      result = {
+        transactionId,
+        relatedTransactionId,
+        amount,
+        sourceBalance: Math.max(0, debitedSource.balance - (debitedSource.held_balance || 0)),
+        destinationBalance: Math.max(0, creditedDestination.balance - (creditedDestination.held_balance || 0)),
+        destinationName: destination.nickname,
+      };
+    });
+
+    if (!result) throw new Error('The internal transfer could not be completed.');
+    res.json({
+      success: true,
+      ...result,
+      status: 'COMPLETED',
+      message: 'Your transfer has been completed.',
+    });
+  } catch (err) {
+    const message = errorMessage(err, 'Internal transfer failed.');
+    const status = message.includes('authorization') || message.includes('Insufficient available balance') ? 409 : 400;
+    res.status(status).json({ error: message });
+  } finally {
+    await session.endSession();
   }
 });
 

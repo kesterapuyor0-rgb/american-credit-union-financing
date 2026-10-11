@@ -34,3 +34,13 @@ The previous local `bank.sqlite` file is no longer read or modified, and its rec
 The two-step enrollment process collects a customer profile, a verification reference, and supporting document file details. The browser does not upload document contents; MongoDB stores the verification reference and selected-file metadata (filename, MIME type, and size). Customers should not enter a Social Security number or select an actual identity document, and should contact customer support to complete registration.
 
 New enrollments are saved in MongoDB with an `under_review` status. After submitting, customers are instructed to contact `americancreditunion.financing@gmail.com` to complete registration. Customers can sign in to see the account-under-review screen, but banking APIs and the dashboard remain unavailable until an administrator approves the account. The status screen refreshes periodically so an approval grants access without requiring another sign-in. Administrators can set customer enrollment statuses to `under_review`, `approved`, or `rejected` (a reason is required for rejection) under **Enrollment review**; changes are added to the audit log. Existing accounts without a verification status remain usable for backward compatibility.
+
+## Savings accounts and interest
+
+New registrations include a checking account and a 1.50% APY savings account. Provision savings accounts for existing members with:
+
+```sh
+npm run migrate:savings-accounts
+```
+
+The migration is safe to rerun. Daily interest is calculated in UTC, rounded to cents, compounded into each active USD savings balance, and recorded as a ledger transaction in the same MongoDB transaction. Set a strong `CRON_SECRET` in the deployment environment. Vercel invokes `/api/cron/savings-interest` daily at 00:05 UTC using its scheduled-cron bearer authorization; non-Vercel Node deployments use the in-process `node-cron` scheduler. MongoDB transactions require a replica set.

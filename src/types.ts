@@ -30,6 +30,9 @@ export interface BankAccount {
   nickname: string;
   balance: number;
   held_balance?: number;
+  interest_rate?: number;
+  accrued_interest?: number;
+  last_interest_accrual_date?: string;
   currency: string;
   routing_number: string;
   credit_limit?: number;

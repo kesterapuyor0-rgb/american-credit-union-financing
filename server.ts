@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import express, { NextFunction, Request, Response } from 'express';
 import path from 'path';
+import { timingSafeEqual } from 'crypto';
 import cookieParser from 'cookie-parser';
 import { verifyAuthToken } from './server/auth.js';
 import authRoutes from './server/routes/authRoutes.js';
@@ -13,6 +14,8 @@ import verifyRoutes from './server/routes/verifyRoutes.js';
 import accountRoutes from './server/routes/accountRoutes.js';
 import grantRoutes from './server/routes/grantRoutes.js';
 import notificationRoutes from './server/routes/notificationRoutes.js';
+import { accrueSavingsInterest, startSavingsInterestCron } from './server/savingsInterest.js';
+import { connectDatabase } from './server/db.js';
 
 dotenv.config({ path: '.env.local' });
 dotenv.config();
@@ -24,6 +27,30 @@ app.use(cookieParser());
 
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'American Credit Union Financing ', time: new Date().toISOString() });
+});
+
+app.get('/api/cron/savings-interest', async (req: Request, res: Response): Promise<void> => {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    res.status(503).json({ error: 'Savings interest cron secret is not configured.' });
+    return;
+  }
+  const authorization = req.header('authorization') || '';
+  const expected = Buffer.from(`Bearer ${secret}`);
+  const received = Buffer.from(authorization);
+  if (received.length !== expected.length || !timingSafeEqual(received, expected)) {
+    res.status(401).json({ error: 'Unauthorized cron request.' });
+    return;
+  }
+
+  try {
+    await connectDatabase();
+    const processedAccounts = await accrueSavingsInterest();
+    res.json({ success: true, processedAccounts });
+  } catch (error) {
+    console.error('Scheduled savings interest accrual failed:', error);
+    res.status(500).json({ error: 'Savings interest accrual failed.' });
+  }
 });
 
 app.use('/api/auth', authRoutes);
@@ -95,6 +122,7 @@ async function startServer(): Promise<void> {
 }
 
 if (process.env.VERCEL !== '1') {
+  startSavingsInterestCron();
   startServer().catch((err) => {
     console.error('Fatal error starting server:', err);
     process.exit(1);

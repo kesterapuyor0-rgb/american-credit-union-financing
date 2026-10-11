@@ -63,6 +63,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [pictureMessage, setPictureMessage] = useState('');
   const [receiveModalOpen, setReceiveModalOpen] = useState(false);
+  const [detailsAccountId, setDetailsAccountId] = useState('');
   const [cryptoVaultLoading, setCryptoVaultLoading] = useState(false);
   const [cryptoVaultError, setCryptoVaultError] = useState('');
   const [cryptoCopyError, setCryptoCopyError] = useState('');
@@ -84,10 +85,12 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const [greeting, setGreeting] = useState(() => getLocalGreeting());
 
   const checkingAndSavings = accounts.filter((account) =>
-    account.account_type === 'Checking' || account.account_type === 'Savings'
+    account.status === 'Active'
+    && (account.account_type === 'Checking' || account.account_type === 'Savings')
   );
   const defaultAccount = checkingAndSavings.find((account) => account.account_type === 'Checking') || checkingAndSavings[0] || accounts[0];
   const activeAccount = accounts.find((account) => account.id === activeAccountId) || defaultAccount;
+  const detailsAccount = accounts.find((account) => account.id === detailsAccountId);
   const legacyCards = accounts.filter((account) => account.account_type === 'Credit Card');
   const recentTransactions = useMemo(() => transactions.slice(0, 3), [transactions]);
 
@@ -331,6 +334,70 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         </div>
       </section>
       )}
+      <section aria-label="Checking and savings accounts" className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">My Accounts</h2>
+            <p className="text-sm text-slate-500">Checking and savings balances at a glance.</p>
+          </div>
+        </div>
+        {dashboardLoading ? (
+          <div className="grid gap-3 sm:grid-cols-2" aria-label="Loading accounts" aria-busy="true">
+            {[0, 1].map((item) => (
+              <div key={item} className="min-h-48 animate-pulse rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="h-4 w-28 rounded bg-slate-200" />
+                <div className="mt-3 h-3 w-40 rounded bg-slate-100" />
+                <div className="mt-8 h-8 w-36 rounded bg-slate-200" />
+                <div className="mt-6 h-10 rounded-lg bg-slate-100" />
+              </div>
+            ))}
+          </div>
+        ) : checkingAndSavings.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {checkingAndSavings.map((account) => {
+              const available = Math.max(0, account.available_balance ?? account.balance - (account.held_balance || 0));
+              const apy = Math.max(0, Number(account.interest_rate) || 0) * 100;
+              return (
+                <article key={account.id} className={`rounded-2xl border p-4 shadow-sm sm:p-5 ${account.account_type === 'Savings' ? 'border-emerald-200 bg-gradient-to-br from-white to-emerald-50' : 'border-slate-200 bg-white'}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{account.account_type}</p>
+                      <h3 className="mt-1 truncate font-semibold text-slate-900">{account.nickname}</h3>
+                      <p className="mt-1 text-xs text-slate-500">•••• {account.account_number.slice(-4)}</p>
+                    </div>
+                    {account.account_type === 'Savings' && (
+                      <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                        {apy.toFixed(2)}% APY
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-6 text-xs text-slate-500">Available balance</p>
+                  <p className="mt-1 text-2xl font-bold tracking-tight text-slate-950">
+                    {balanceVisible ? formatMoney(available) : '••••••'}
+                  </p>
+                  {account.account_type === 'Savings' && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Interest earned: {balanceVisible ? formatMoney(Number(account.accrued_interest) || 0) : '••••'}
+                    </p>
+                  )}
+                  <div className="mt-5 flex gap-2 border-t border-slate-200/80 pt-3">
+                    <button type="button" onClick={() => onNavigateToTransfer(account.id)} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-teal-800 px-3 text-sm font-semibold text-white hover:bg-teal-900">
+                      <ArrowUpRight aria-hidden="true" className="h-4 w-4" /> Transfer
+                    </button>
+                    <button type="button" onClick={() => setDetailsAccountId(account.id)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                      <Eye aria-hidden="true" className="h-4 w-4" /> Details
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-7 text-center text-sm text-slate-500">
+            No active checking or savings accounts are available.
+          </div>
+        )}
+      </section>
       {dashboardError && !dashboardLoading && (
         <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{dashboardError}</p>
       )}
@@ -532,6 +599,31 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             })}
           </div>}
         </section>
+      )}
+
+      {detailsAccount && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4" role="presentation" onClick={() => setDetailsAccountId('')}>
+          <section role="dialog" aria-modal="true" aria-labelledby="account-details-title" onClick={(event) => event.stopPropagation()} className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">{detailsAccount.account_type} account</p>
+                <h2 id="account-details-title" className="mt-1 text-xl font-bold text-slate-900">{detailsAccount.nickname}</h2>
+              </div>
+              <button type="button" onClick={() => setDetailsAccountId('')} aria-label="Close account details" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+            </div>
+            <dl className="mt-5 divide-y divide-slate-100 rounded-xl border border-slate-200 px-4">
+              <div className="flex justify-between gap-4 py-3 text-sm"><dt className="text-slate-500">Account number</dt><dd className="break-all text-right font-mono font-medium text-slate-900">{detailsAccount.account_number}</dd></div>
+              <div className="flex justify-between gap-4 py-3 text-sm"><dt className="text-slate-500">Routing number</dt><dd className="font-mono font-medium text-slate-900">{detailsAccount.routing_number || 'Unavailable offline'}</dd></div>
+              <div className="flex justify-between gap-4 py-3 text-sm"><dt className="text-slate-500">Available balance</dt><dd className="font-semibold text-slate-900">{formatMoney(Math.max(0, detailsAccount.available_balance ?? detailsAccount.balance - (detailsAccount.held_balance || 0)))}</dd></div>
+              {detailsAccount.account_type === 'Savings' && (
+                <>
+                  <div className="flex justify-between gap-4 py-3 text-sm"><dt className="text-slate-500">APY</dt><dd className="font-semibold text-emerald-800">{((Number(detailsAccount.interest_rate) || 0) * 100).toFixed(2)}%</dd></div>
+                  <div className="flex justify-between gap-4 py-3 text-sm"><dt className="text-slate-500">Accrued interest</dt><dd className="font-semibold text-slate-900">{formatMoney(Number(detailsAccount.accrued_interest) || 0)}</dd></div>
+                </>
+              )}
+            </dl>
+          </section>
+        </div>
       )}
 
       {receiveModalOpen && (

@@ -58,6 +58,9 @@ const accountSchema = new Schema({
   currency: { type: String, required: true, default: 'USD' },
   routing_number: { type: String, required: true },
   credit_limit: { type: Number, default: 0 },
+  interest_rate: { type: Number, min: 0, max: 1, default: 0 },
+  accrued_interest: { type: Number, min: 0, default: 0 },
+  last_interest_accrual_date: { type: String, default: '' },
   status: { type: String, required: true, default: 'Active' },
   created_at: { type: Schema.Types.Mixed, required: true },
 }, { versionKey: false, bufferCommands: false });

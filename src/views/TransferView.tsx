@@ -61,6 +61,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
   const [simulatedOtp, setSimulatedOtp] = useState('');
   const [completedTxId, setCompletedTxId] = useState('');
   const [newSourceBalance, setNewSourceBalance] = useState<number | null>(null);
+  const [newDestinationBalance, setNewDestinationBalance] = useState<number | null>(null);
   const [transferFee, setTransferFee] = useState(0);
   const [transferTax, setTransferTax] = useState(0);
 
@@ -69,6 +70,11 @@ export const TransferView: React.FC<TransferViewProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const selectedSourceAccount = accounts.find((a) => a.id === sourceAccountId);
+  const internalAccounts = accounts.filter((account) =>
+    account.status === 'Active'
+    && ['Checking', 'Savings'].includes(account.account_type)
+    && account.currency === 'USD'
+  );
   const getAvailableBalance = (account: BankAccount) => Math.max(0, account.available_balance ?? account.balance - (account.held_balance || 0));
   const estimatedCharges = transferType === 'wire' ? 3.04 : 0;
   const receiptRecipientName = submittedRecipientName
@@ -112,6 +118,10 @@ export const TransferView: React.FC<TransferViewProps> = ({
 
     if (transferType === 'internal' && sourceAccountId === destinationAccountId) {
       setError('Source and destination accounts must be different.');
+      return;
+    }
+    if (transferType === 'internal' && !internalAccounts.some((account) => account.id === destinationAccountId)) {
+      setError('Choose an active USD checking or savings account as the destination.');
       return;
     }
 
@@ -240,7 +250,8 @@ export const TransferView: React.FC<TransferViewProps> = ({
 
     try {
       const activeToken = token || getStoredAuthToken();
-      const res = await fetch('/api/transfers/confirm', {
+      const isInternalTransfer = transferType === 'internal';
+      const res = await fetch(isInternalTransfer ? '/api/transfers/internal' : '/api/transfers/confirm', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -262,7 +273,10 @@ export const TransferView: React.FC<TransferViewProps> = ({
         setSubmittedRecipientName(data.recipientName.trim());
       }
       setCompletedTxId(data.transactionId);
-      setNewSourceBalance(null);
+      setNewSourceBalance(Number.isFinite(Number(data.sourceBalance)) ? Number(data.sourceBalance) : null);
+      setNewDestinationBalance(Number.isFinite(Number(data.destinationBalance)) ? Number(data.destinationBalance) : null);
+      setTransferFee(0);
+      setTransferTax(0);
       setStep('success');
       onTransferComplete();
     } catch (err: any) {
@@ -416,7 +430,11 @@ export const TransferView: React.FC<TransferViewProps> = ({
                 onChange={(e) => setSourceAccountId(e.target.value)}
                 className="min-h-12 w-full min-w-0 p-3 text-base border border-gray-300 rounded-xs bg-white text-gray-900 focus:ring-1 focus:ring-[#173B70] focus:border-[#173B70] outline-hidden"
               >
-                {accounts.filter((account) => transferType !== 'zelle' || account.account_type === 'Checking').map((acc) => (
+                {accounts.filter((account) => (
+                  account.status === 'Active'
+                  && (transferType !== 'zelle' || account.account_type === 'Checking')
+                  && (transferType !== 'internal' || (['Checking', 'Savings'].includes(account.account_type) && account.currency === 'USD'))
+                )).map((acc) => (
                   <option key={acc.id} value={acc.id}>
                     {acc.nickname} · {acc.display_number} — {formatUSD(getAvailableBalance(acc))} available
                   </option>
@@ -439,7 +457,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   onChange={(e) => setDestinationAccountId(e.target.value)}
                 className="min-h-12 w-full min-w-0 p-3 text-base border border-gray-300 rounded-xs bg-white text-gray-900 focus:ring-1 focus:ring-[#173B70] focus:border-[#173B70] outline-hidden"
                 >
-                  {accounts
+                  {internalAccounts
                     .filter((a) => a.id !== sourceAccountId)
                     .map((acc) => (
                       <option key={acc.id} value={acc.id}>
@@ -795,7 +813,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   ) : (
                     <>
                       <Lock className="w-4 h-4" />
-                      <span>Verify & Submit for Review</span>
+                      <span>{transferType === 'internal' ? 'Verify & Complete Transfer' : 'Verify & Submit for Review'}</span>
                     </>
                   )}
                 </button>
@@ -825,7 +843,9 @@ export const TransferView: React.FC<TransferViewProps> = ({
             <p className="mt-1 text-[11px] text-gray-500 sm:text-xs">
               {transferType === 'zelle'
                 ? `Transfer Submitted — Your Zelle® transfer of ${formatUSD(Number(amount))} to ${receiptRecipientName} is pending security verification by Member Services. For inquiries, contact americancreditunion.financing@gmail.com.`
-                : 'Your transfer request is pending. The amount is reserved now and will post after approval.'}
+                : transferType === 'internal'
+                  ? `Transfer Completed — ${formatUSD(Number(amount))} was moved to ${receiptRecipientName}.`
+                  : 'Your transfer request is pending. The amount is reserved now and will post after approval.'}
             </p>
 
             <div className="mx-auto mt-3 max-w-md space-y-1 rounded-sm border border-gray-200 bg-gray-50 p-2.5 text-left text-xs sm:mt-6 sm:space-y-2.5 sm:p-4">
@@ -879,11 +899,19 @@ export const TransferView: React.FC<TransferViewProps> = ({
                   </span>
                 </div>
               )}
+              {newDestinationBalance !== null && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="shrink-0 text-gray-500">Destination Available Balance:</span>
+                  <span className="text-right font-mono font-bold text-emerald-700">
+                    {formatUSD(newDestinationBalance)} USD
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-2">
                 <span className="shrink-0 text-gray-500">Status:</span>
                 <span className="inline-flex items-center gap-1 font-bold text-amber-700">
-                  <Clock aria-hidden="true" className="h-3.5 w-3.5" />
-                  PENDING
+                  {transferType === 'internal' ? <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5" /> : <Clock aria-hidden="true" className="h-3.5 w-3.5" />}
+                  {transferType === 'internal' ? 'COMPLETED' : 'PENDING'}
                 </span>
               </div>
             </div>

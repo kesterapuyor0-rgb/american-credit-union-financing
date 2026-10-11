@@ -13,7 +13,7 @@ router.get('/summary', requireApprovedUser, async (req: AuthenticatedRequest, re
     const userId = req.user!.id;
     const [accounts, issuedCards, recentRows, pendingTransactionsCount] = await Promise.all([
       Account.find({ user_id: userId })
-        .select('id user_id account_number account_type nickname balance held_balance currency routing_number credit_limit status created_at')
+        .select('id user_id account_number account_type nickname balance held_balance currency routing_number credit_limit interest_rate accrued_interest last_interest_accrual_date status created_at')
         .sort({ account_type: 1, created_at: 1 }).lean<any[]>(),
       BankCard.find({ user_id: userId, status: 'Active' }).sort({ created_at: -1 })
         .select('id user_id account_id card_type network cardColor product_name last4 masked_number status credit_limit created_at')
