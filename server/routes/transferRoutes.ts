@@ -499,7 +499,7 @@ router.post('/confirm', requireApprovedUser, async (req: AuthenticatedRequest, r
           ] },
         }, { $inc: { held_balance: amount + totalCharges } }, { new: true, session }).lean<any>();
         if (!reservedSource) throw new Error('Insufficient available balance to reserve this transfer.');
-        await Transaction.create(pendingRows, { session });
+        await Transaction.create(pendingRows, { session, ordered: true });
         await createNotification({
           userId,
           title: 'Transfer Pending Review',
@@ -655,7 +655,7 @@ router.post('/internal', requireApprovedUser, async (req: AuthenticatedRequest, 
           date,
           created_at: now.getTime() + 1,
         },
-      ], { session });
+      ], { session, ordered: true });
       await createNotification({
         userId,
         title: 'Internal Transfer Completed',
