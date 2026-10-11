@@ -5,7 +5,6 @@ import { formatTransactionDescription } from '../utils/transactionFormatting';
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  Banknote,
   Check,
   ChevronRight,
   CircleEllipsis,
@@ -118,7 +117,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   }, [user.id]);
 
   useEffect(() => {
-    if (showCardsOnly) return;
+    if (showCardsOnly || !receiveModalOpen) return;
     let cancelled = false;
     const loadCryptoWallets = async () => {
       setCryptoVaultLoading(true);
@@ -145,7 +144,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     };
     void loadCryptoWallets();
     return () => { cancelled = true; };
-  }, [showCardsOnly, user.id]);
+  }, [receiveModalOpen, showCardsOnly, user.id]);
 
   const formatMoney = (amount: number) => new Intl.NumberFormat('en-US', {
     style: 'currency', currency: 'USD', minimumFractionDigits: 2,
@@ -192,6 +191,8 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   };
 
   const handleReceive = () => {
+    setCryptoVaultError('');
+    setCryptoCopyError('');
     setReceiveModalOpen(true);
   };
 
@@ -324,72 +325,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         </button>
       </section>
 
-      <section aria-labelledby="crypto-vault-heading" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Digital assets</p>
-            <h2 id="crypto-vault-heading" className="mt-1 text-lg font-semibold text-slate-900">Crypto Vault</h2>
-            <p className="mt-1 text-sm text-slate-600">View your assigned crypto deposit address. Digital assets are separate from your checking and savings balances.</p>
-          </div>
-          <span className="inline-flex w-fit items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
-            <Banknote aria-hidden="true" className="h-4 w-4" /> Deposit addresses
-          </span>
-        </div>
-
-        <div className="mt-4 grid grid-cols-3 gap-2" role="group" aria-label="Select crypto network">
-          {(['BTC', 'TRC-20', 'ERC-20'] as const).map((network) => (
-            <button
-              key={network}
-              type="button"
-              aria-pressed={selectedCryptoNetwork === network}
-              onClick={() => setSelectedCryptoNetwork(network)}
-              className={`min-h-11 rounded-lg border px-2 py-2 text-xs font-semibold sm:text-sm ${selectedCryptoNetwork === network ? 'border-teal-700 bg-teal-50 text-teal-900' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
-            >
-              {network === 'BTC' ? 'BTC Mainnet' : `USDT ${network}`}
-            </button>
-          ))}
-        </div>
-
-        {cryptoVaultLoading ? (
-          <p role="status" className="mt-4 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Loading assigned deposit addresses…</p>
-        ) : cryptoVaultError ? (
-          <p role="alert" className="mt-4 break-words rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{cryptoVaultError}</p>
-        ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-[minmax(0,1fr)_9rem] sm:items-center">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="font-semibold text-slate-800">{selectedCryptoNetwork === 'BTC' ? 'Bitcoin (BTC)' : `Tether (USDT) · ${selectedCryptoNetwork}`}</h3>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{selectedCryptoNetwork === 'BTC' ? 'Bitcoin Mainnet' : selectedCryptoNetwork}</span>
-              </div>
-              {selectedCryptoAddress ? (
-                <>
-                  <p className="mt-3 break-all rounded-lg border border-slate-200 bg-slate-50 p-3 font-mono text-xs leading-5 text-slate-900">{selectedCryptoAddress}</p>
-                  <button type="button" onClick={() => void copyCryptoAddress()} className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900 sm:w-auto">
-                    {copiedCryptoNetwork === selectedCryptoNetwork ? <Check aria-hidden="true" className="h-4 w-4" /> : <Copy aria-hidden="true" className="h-4 w-4" />}
-                    {copiedCryptoNetwork === selectedCryptoNetwork ? 'Address copied' : 'Copy address'}
-                  </button>
-                  {cryptoCopyError && <p role="alert" className="mt-2 text-xs text-rose-700">{cryptoCopyError}</p>}
-                </>
-              ) : (
-                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                  {selectedCryptoNetwork === 'BTC'
-                    ? 'A Bitcoin deposit address has not been assigned. Contact Member Services before sending funds.'
-                    : cryptoWallets.usdt
-                      ? `Your USDT address is assigned to ${cryptoWallets.usdtNetwork}. No address is assigned for ${selectedCryptoNetwork}; select the assigned network.`
-                      : `A USDT ${selectedCryptoNetwork} address has not been assigned. Contact Member Services before sending funds.`}
-                </p>
-              )}
-              <p className="mt-3 text-xs leading-5 text-slate-500">Only send {selectedCryptoNetwork === 'BTC' ? 'BTC on Bitcoin Mainnet' : `USDT on ${selectedCryptoNetwork}`} to a matching address. Sending another asset or using a different network may result in permanent loss.</p>
-            </div>
-            <div className="grid aspect-square w-36 place-items-center justify-self-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-center text-xs text-slate-500 sm:w-36" aria-label="QR code placeholder">
-              <div className="px-3">
-                <Landmark aria-hidden="true" className="mx-auto mb-2 h-8 w-8 text-slate-400" />
-                QR code placeholder
-              </div>
-            </div>
-          </div>
-        )}
-      </section>
       </>}
 
       <section id="active-cards" className="space-y-3">
