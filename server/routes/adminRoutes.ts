@@ -289,19 +289,39 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
   }
 });
 
-// PUT /api/admin/users/:userId/wallets
-router.put('/users/:userId/wallets', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const userId = String(req.params.userId || '').trim();
-  const btcAddress = typeof req.body?.assigned_btc_address === 'string' ? req.body.assigned_btc_address.trim() : '';
+// PUT /api/admin/users/:id/crypto-wallets
+const updateCryptoWalletAssignments = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = String(req.params.id || req.params.userId || '').trim();
+  const addressFields = [
+    'btcAddress',
+    'usdtTrc20Address',
+    'usdtErc20Address',
+    'assigned_btc_address',
+    'assigned_usdt_address',
+    'assigned_usdt_trc20_address',
+    'assigned_usdt_erc20_address',
+  ];
+  if (addressFields.some((field) =>
+    Object.prototype.hasOwnProperty.call(req.body || {}, field) && typeof req.body[field] !== 'string'
+  )) {
+    res.status(400).json({ error: 'Wallet addresses must be strings.' });
+    return;
+  }
+  const btcInput = req.body?.btcAddress ?? req.body?.assigned_btc_address;
+  const btcAddress = typeof btcInput === 'string' ? btcInput.trim() : '';
   const legacyUsdtAddress = typeof req.body?.assigned_usdt_address === 'string' ? req.body.assigned_usdt_address.trim() : '';
   const legacyUsdtNetwork = String(req.body?.usdt_network || '').trim().toUpperCase();
-  const hasNetworkSpecificAddresses = Object.prototype.hasOwnProperty.call(req.body || {}, 'assigned_usdt_trc20_address')
+  const trc20Input = req.body?.usdtTrc20Address ?? req.body?.assigned_usdt_trc20_address;
+  const erc20Input = req.body?.usdtErc20Address ?? req.body?.assigned_usdt_erc20_address;
+  const hasNetworkSpecificAddresses = Object.prototype.hasOwnProperty.call(req.body || {}, 'usdtTrc20Address')
+    || Object.prototype.hasOwnProperty.call(req.body || {}, 'usdtErc20Address')
+    || Object.prototype.hasOwnProperty.call(req.body || {}, 'assigned_usdt_trc20_address')
     || Object.prototype.hasOwnProperty.call(req.body || {}, 'assigned_usdt_erc20_address');
-  const usdtTrc20Address = typeof req.body?.assigned_usdt_trc20_address === 'string'
-    ? req.body.assigned_usdt_trc20_address.trim()
+  const usdtTrc20Address = typeof trc20Input === 'string'
+    ? trc20Input.trim()
     : !hasNetworkSpecificAddresses && legacyUsdtNetwork === 'TRC-20' ? legacyUsdtAddress : '';
-  const usdtErc20Address = typeof req.body?.assigned_usdt_erc20_address === 'string'
-    ? req.body.assigned_usdt_erc20_address.trim()
+  const usdtErc20Address = typeof erc20Input === 'string'
+    ? erc20Input.trim()
     : !hasNetworkSpecificAddresses && legacyUsdtNetwork === 'ERC-20' ? legacyUsdtAddress : '';
 
   const btcBase58 = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/;
@@ -360,7 +380,15 @@ router.put('/users/:userId/wallets', async (req: AuthenticatedRequest, res: Resp
         created_at: new Date().toISOString(),
       }], { session });
     });
-    res.json({ success: true, user: updatedUser });
+    res.json({
+      success: true,
+      user: {
+        ...updatedUser,
+        btcAddress: updatedUser.assigned_btc_address || '',
+        usdtTrc20Address: updatedUser.assigned_usdt_trc20_address || '',
+        usdtErc20Address: updatedUser.assigned_usdt_erc20_address || '',
+      },
+    });
   } catch (err) {
     if (err instanceof Error && err.message === 'Member not found.') {
       res.status(404).json({ error: err.message });
@@ -371,7 +399,10 @@ router.put('/users/:userId/wallets', async (req: AuthenticatedRequest, res: Resp
   } finally {
     await session.endSession();
   }
-});
+};
+
+router.put('/users/:id/crypto-wallets', updateCryptoWalletAssignments);
+router.put('/users/:userId/wallets', updateCryptoWalletAssignments);
 
 // GET /api/admin/verifications — customer enrollment profiles and submitted documents.
 router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {

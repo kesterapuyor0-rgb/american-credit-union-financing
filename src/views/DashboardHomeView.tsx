@@ -132,13 +132,9 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         if (!response.ok) throw new Error(data.error || 'Unable to load your assigned crypto deposit addresses.');
         if (!cancelled) {
           setCryptoWallets({
-            bitcoin: data.wallets?.bitcoin || '',
-            usdtTrc20: data.wallets?.usdtTrc20
-              || (data.wallets?.usdtNetwork === 'TRC-20' ? data.wallets?.usdt : '')
-              || '',
-            usdtErc20: data.wallets?.usdtErc20
-              || (data.wallets?.usdtNetwork === 'ERC-20' ? data.wallets?.usdt : '')
-              || '',
+            bitcoin: data.user?.btcAddress || '',
+            usdtTrc20: data.user?.usdtTrc20Address || '',
+            usdtErc20: data.user?.usdtErc20Address || '',
           });
         }
       } catch (error) {

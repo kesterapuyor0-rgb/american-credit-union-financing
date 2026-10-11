@@ -327,7 +327,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
     setSavingWallets(true);
     setWalletError(null);
     try {
-      const response = await fetch(`/api/admin/users/${encodeURIComponent(walletUser.id)}/wallets`, {
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(walletUser.id)}/crypto-wallets`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -335,9 +335,9 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
         },
         credentials: 'include',
         body: JSON.stringify({
-          assigned_btc_address: btcAddress,
-          assigned_usdt_trc20_address: usdtTrc20Address,
-          assigned_usdt_erc20_address: usdtErc20Address,
+          btcAddress,
+          usdtTrc20Address,
+          usdtErc20Address,
         }),
       });
       const data = await response.json();
@@ -2464,23 +2464,23 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4" role="presentation" onClick={() => !savingWallets && setWalletUser(null)}>
           <form onSubmit={saveWalletAssignment} onClick={(event) => event.stopPropagation()} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-4 shadow-2xl sm:p-6" role="dialog" aria-modal="true" aria-labelledby="crypto-wallet-assignment-title">
             <div>
-              <h2 id="crypto-wallet-assignment-title" className="text-lg font-bold text-slate-900">Assigned Digital Asset Wallets</h2>
+              <h2 id="crypto-wallet-assignment-title" className="text-lg font-bold text-slate-900">Cryptocurrency Vault &amp; Address Provisioning</h2>
               <p className="mt-1 break-words text-sm text-slate-600">Assign public deposit addresses for {walletUser.full_name} ({walletUser.email}).</p>
               <p className="mt-1 text-xs text-amber-800">Verify each address and network before saving. Never enter private keys or recovery phrases.</p>
             </div>
-            <label className="block text-sm font-medium text-slate-700">Bitcoin mainnet address
+            <label className="block text-sm font-medium text-slate-700">Bitcoin (BTC) Mainnet Address
               <input type="text" autoComplete="off" maxLength={100} value={walletBtcAddress} onChange={(event) => setWalletBtcAddress(event.target.value)} placeholder="bc1... or legacy 1... / 3..." className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 px-3 font-mono text-xs" />
             </label>
-            <label className="block text-sm font-medium text-slate-700">Tether (USDT) TRC-20 Address
+            <label className="block text-sm font-medium text-slate-700">Tether (USDT TRC-20) Address
               <input type="text" autoComplete="off" maxLength={100} value={walletUsdtTrc20Address} onChange={(event) => setWalletUsdtTrc20Address(event.target.value)} placeholder="T..." className="mt-1 min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-3 font-mono text-xs" />
             </label>
-            <label className="block text-sm font-medium text-slate-700">Tether (USDT) ERC-20 Address
+            <label className="block text-sm font-medium text-slate-700">Tether (USDT ERC-20) Address
               <input type="text" autoComplete="off" maxLength={100} value={walletUsdtErc20Address} onChange={(event) => setWalletUsdtErc20Address(event.target.value)} placeholder="0x..." className="mt-1 min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-3 font-mono text-xs" />
             </label>
             {walletError && <p role="alert" className="break-words rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{walletError}</p>}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button type="button" disabled={savingWallets} onClick={() => setWalletUser(null)} className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 disabled:opacity-50">Cancel</button>
-              <button type="submit" disabled={savingWallets} className="min-h-10 rounded-lg bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50">{savingWallets ? 'Saving…' : 'Save wallet assignments'}</button>
+              <button type="submit" disabled={savingWallets} className="min-h-10 rounded-lg bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50">{savingWallets ? 'Saving…' : 'Save Wallet Assignments'}</button>
             </div>
           </form>
         </div>

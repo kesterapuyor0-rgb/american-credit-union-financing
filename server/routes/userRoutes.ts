@@ -19,17 +19,25 @@ router.get('/wallets', requireApprovedUser, async (req: AuthenticatedRequest, re
       res.status(404).json({ error: 'User not found.' });
       return;
     }
+    const btcAddress = userWallets.assigned_btc_address || '';
+    const usdtTrc20Address = userWallets.assigned_usdt_trc20_address
+      || (userWallets.usdt_network === 'TRC-20' ? userWallets.assigned_usdt_address : '')
+      || '';
+    const usdtErc20Address = userWallets.assigned_usdt_erc20_address
+      || (userWallets.usdt_network === 'ERC-20' ? userWallets.assigned_usdt_address : '')
+      || '';
     res.json({
+      user: {
+        btcAddress,
+        usdtTrc20Address,
+        usdtErc20Address,
+      },
       wallets: {
-        bitcoin: userWallets.assigned_btc_address || '',
+        bitcoin: btcAddress,
         usdt: userWallets.assigned_usdt_address || '',
         usdtNetwork: userWallets.usdt_network || '',
-        usdtTrc20: userWallets.assigned_usdt_trc20_address
-          || (userWallets.usdt_network === 'TRC-20' ? userWallets.assigned_usdt_address : '')
-          || '',
-        usdtErc20: userWallets.assigned_usdt_erc20_address
-          || (userWallets.usdt_network === 'ERC-20' ? userWallets.assigned_usdt_address : '')
-          || '',
+        usdtTrc20: usdtTrc20Address,
+        usdtErc20: usdtErc20Address,
       },
     });
   } catch (err) {
