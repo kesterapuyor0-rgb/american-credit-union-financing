@@ -19,7 +19,6 @@ import {
   Plus,
   X,
 } from 'lucide-react';
-import { InvestmentView } from './InvestmentView';
 
 function getLocalGreeting(): string {
   const hour = new Date().getHours();
@@ -67,8 +66,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [pictureMessage, setPictureMessage] = useState('');
   const [receiveModalOpen, setReceiveModalOpen] = useState(false);
-  const [investmentViewOpen, setInvestmentViewOpen] = useState(false);
-  const [investmentRefreshKey, setInvestmentRefreshKey] = useState(0);
   const [investmentSummary, setInvestmentSummary] = useState<{
     totalValue: number;
     dailyChangePercent: number;
@@ -216,7 +213,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     };
     void loadInvestmentSummary();
     return () => { cancelled = true; };
-  }, [investmentRefreshKey, showCardsOnly, user.id]);
+  }, [showCardsOnly, user.id]);
 
   const formatMoney = (amount: number) => new Intl.NumberFormat('en-US', {
     style: 'currency', currency: 'USD', minimumFractionDigits: 2,
@@ -403,7 +400,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><ArrowUpRight className="h-5 w-5" /></span>
           <span className="leading-tight">Transfer</span>
         </button>
-        <button type="button" onClick={() => setInvestmentViewOpen(true)} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-teal-800">
+        <button type="button" onClick={() => onNavigateToTab('investments')} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-teal-800">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-teal-200 bg-white text-teal-800 shadow-sm sm:h-14 sm:w-14"><BriefcaseBusiness className="h-5 w-5" /></span>
           <span className="leading-tight">Invest</span>
         </button>
@@ -429,7 +426,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               key={filter}
               type="button"
               aria-pressed={accountFilter === filter}
-              onClick={() => setAccountFilter(filter)}
+              onClick={() => filter === 'Investments' ? onNavigateToTab('investments') : setAccountFilter(filter)}
               className={`min-h-10 min-w-0 truncate rounded-lg px-1 py-2 text-[11px] font-medium leading-tight transition-colors sm:px-3 sm:text-sm sm:font-semibold ${accountFilter === filter ? 'bg-teal-800 text-white shadow-sm' : 'text-slate-600 hover:bg-white hover:text-slate-900'}`}
             >
               {filter}
@@ -500,7 +497,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         {(accountFilter === 'All Accounts' || accountFilter === 'Investments') && (
           <button
             type="button"
-            onClick={() => setInvestmentViewOpen(true)}
+            onClick={() => onNavigateToTab('investments')}
             aria-label={`Investment Portfolio, ${investmentSummaryLoading ? 'loading value' : investmentSummaryError ? 'value unavailable' : balanceVisible ? formatMoney(investmentSummary?.totalValue || 0) : 'value hidden'}. Open portfolio details.`}
             className="flex min-h-[72px] w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 sm:px-4"
           >
@@ -812,16 +809,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             )}
           </section>
         </div>
-      )}
-
-      {investmentViewOpen && (
-        <InvestmentView
-          onClose={() => setInvestmentViewOpen(false)}
-          onPurchaseComplete={() => {
-            setInvestmentRefreshKey((key) => key + 1);
-            onRefresh();
-          }}
-        />
       )}
 
     </div>

@@ -236,7 +236,11 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
           </section>
         ) : null}
 
-        <section className="mt-5">
+        <a href="#investment-catalog" className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2">
+          Browse Stocks / Trade
+        </a>
+
+        <section id="investment-catalog" className="mt-5 scroll-mt-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div><h2 className="text-lg font-bold text-slate-950">Simulated asset catalog</h2><p className="text-sm text-slate-500">Illustrative reference prices only · not live quotes</p></div>
             <label className="relative block sm:w-64">

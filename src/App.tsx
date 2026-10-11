@@ -13,6 +13,7 @@ import { EnrollmentStatusView } from './views/EnrollmentStatusView';
 import { LandingView } from './views/LandingView';
 import { ProfileView } from './views/ProfileView';
 import { GrantApplicationView } from './views/GrantApplicationView';
+import { InvestmentView } from './views/InvestmentView';
 import { ProfileModal } from './components/ProfileModal';
 import { RefreshCw } from 'lucide-react';
 import { CardsManagementView, DashboardHomeView } from './views/DashboardHomeView';
@@ -517,6 +518,13 @@ export default function App() {
         return <CardsManagementView key="cards" {...dashboardProps} />;
       case 'grants':
         return <GrantApplicationView key="grants" user={user} onRefresh={fetchUserData} />;
+      case 'investments':
+        return <InvestmentView
+          key="investments"
+          inline
+          onClose={() => setActiveTab('home')}
+          onPurchaseComplete={() => { void fetchUserData(); }}
+        />;
       case 'security':
         return <SecurityView key="security" user={user} />;
       default:
