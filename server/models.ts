@@ -146,6 +146,18 @@ const transactionSchema = new Schema({
   created_at: { type: Number, required: true },
 }, { versionKey: false, bufferCommands: false });
 
+const investmentHoldingSchema = new Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  user_id: { type: String, required: true, index: true },
+  symbol: { type: String, required: true, uppercase: true, trim: true },
+  assetType: { type: String, required: true, enum: ['Equity', 'ETF', 'Mutual Fund', 'Fixed Income'] },
+  quantity: { type: Number, required: true, min: 0 },
+  averageCost: { type: Number, required: true, min: 0 },
+  createdAt: { type: Date, required: true, default: Date.now },
+  updatedAt: { type: Date, required: true, default: Date.now },
+}, { versionKey: false, bufferCommands: false });
+investmentHoldingSchema.index({ user_id: 1, symbol: 1 }, { unique: true });
+
 const transferSchema = new Schema({
   id: { type: String, required: true, unique: true, index: true },
   userId: { type: String, required: true, index: true },
@@ -204,6 +216,7 @@ notificationSchema.index({ userId: 1, createdAt: -1 });
 export const User = (mongoose.models.User || mongoose.model('User', userSchema)) as mongoose.Model<any>;
 export const Account = (mongoose.models.Account || mongoose.model('Account', accountSchema)) as mongoose.Model<any>;
 export const Transaction = (mongoose.models.Transaction || mongoose.model('Transaction', transactionSchema)) as mongoose.Model<any>;
+export const InvestmentHolding = (mongoose.models.InvestmentHolding || mongoose.model('InvestmentHolding', investmentHoldingSchema)) as mongoose.Model<any>;
 export const Transfer = (mongoose.models.Transfer || mongoose.model('Transfer', transferSchema)) as mongoose.Model<any>;
 export const VerificationCode = (mongoose.models.VerificationCode || mongoose.model('VerificationCode', verificationCodeSchema)) as mongoose.Model<any>;
 export const AuditLog = (mongoose.models.AuditLog || mongoose.model('AuditLog', auditLogSchema)) as mongoose.Model<any>;

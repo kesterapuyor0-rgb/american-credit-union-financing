@@ -15,9 +15,11 @@ import {
   Eye,
   EyeOff,
   HandCoins,
+  BriefcaseBusiness,
   Plus,
   X,
 } from 'lucide-react';
+import { InvestmentView } from './InvestmentView';
 
 function getLocalGreeting(): string {
   const hour = new Date().getHours();
@@ -64,6 +66,15 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const [pictureMessage, setPictureMessage] = useState('');
   const [receiveModalOpen, setReceiveModalOpen] = useState(false);
   const [detailsAccountId, setDetailsAccountId] = useState('');
+  const [investmentViewOpen, setInvestmentViewOpen] = useState(false);
+  const [investmentRefreshKey, setInvestmentRefreshKey] = useState(0);
+  const [investmentSummary, setInvestmentSummary] = useState<{
+    totalValue: number;
+    dailyChangePercent: number;
+    dailyChangeValue: number;
+  } | null>(null);
+  const [investmentSummaryLoading, setInvestmentSummaryLoading] = useState(true);
+  const [investmentSummaryError, setInvestmentSummaryError] = useState('');
   const [cryptoVaultLoading, setCryptoVaultLoading] = useState(false);
   const [cryptoVaultError, setCryptoVaultError] = useState('');
   const [cryptoCopyError, setCryptoCopyError] = useState('');
@@ -153,6 +164,36 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     void loadCryptoWallets();
     return () => { cancelled = true; };
   }, [receiveModalOpen, showCardsOnly, user.id]);
+
+  useEffect(() => {
+    if (showCardsOnly) return;
+    let cancelled = false;
+    const loadInvestmentSummary = async () => {
+      setInvestmentSummaryLoading(true);
+      setInvestmentSummaryError('');
+      try {
+        const response = await fetch('/api/investments/portfolio', {
+          headers: getAuthHeaders(),
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Unable to load your simulated investment portfolio.');
+        if (!cancelled) {
+          setInvestmentSummary({
+            totalValue: Number(data.totalValue) || 0,
+            dailyChangePercent: Number(data.dailyChangePercent) || 0,
+            dailyChangeValue: Number(data.dailyChangeValue) || 0,
+          });
+        }
+      } catch (error) {
+        if (!cancelled) setInvestmentSummaryError(error instanceof Error ? error.message : 'Unable to load your simulated investment portfolio.');
+      } finally {
+        if (!cancelled) setInvestmentSummaryLoading(false);
+      }
+    };
+    void loadInvestmentSummary();
+    return () => { cancelled = true; };
+  }, [investmentRefreshKey, showCardsOnly, user.id]);
 
   const formatMoney = (amount: number) => new Intl.NumberFormat('en-US', {
     style: 'currency', currency: 'USD', minimumFractionDigits: 2,
@@ -402,7 +443,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{dashboardError}</p>
       )}
 
-      <section aria-label="Quick actions" className="grid grid-cols-4 gap-2">
+      <section aria-label="Quick actions" className="grid grid-cols-5 gap-2">
         <button type="button" onClick={handleReceive} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><ArrowDownLeft className="h-5 w-5" /></span>
           <span className="leading-tight">Receive</span>
@@ -415,10 +456,43 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><HandCoins className="h-5 w-5" /></span>
           <span className="leading-tight">Grants</span>
         </button>
+        <button type="button" onClick={() => setInvestmentViewOpen(true)} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-teal-800">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-teal-200 bg-white text-teal-800 shadow-sm sm:h-14 sm:w-14"><BriefcaseBusiness className="h-5 w-5" /></span>
+          <span className="leading-tight">Invest</span>
+        </button>
         <button type="button" onClick={() => onNavigateToTab('profile')} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><CircleEllipsis className="h-5 w-5" /></span>
           <span className="leading-tight">More</span>
         </button>
+      </section>
+
+      <section aria-label="Investment portfolio summary" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-800"><BriefcaseBusiness aria-hidden="true" className="h-5 w-5" /></span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-teal-800">Paper-trading portfolio</p>
+              <h2 className="mt-1 text-base font-semibold text-slate-950">Investment summary</h2>
+              <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-2">
+                <div>
+                  <p className="text-[11px] text-slate-500">Simulated portfolio value</p>
+                  <p className="mt-0.5 text-xl font-bold tabular-nums text-slate-950">{investmentSummaryLoading ? 'Loading…' : formatMoney(investmentSummary?.totalValue || 0)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-slate-500">Daily simulated P/L</p>
+                  <p className={`mt-0.5 text-sm font-bold tabular-nums ${(investmentSummary?.dailyChangePercent || 0) < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                    {investmentSummaryLoading ? '—' : `${(investmentSummary?.dailyChangePercent || 0) > 0 ? '+' : ''}${(investmentSummary?.dailyChangePercent || 0).toFixed(2)}% (${formatMoney(investmentSummary?.dailyChangeValue || 0)})`}
+                  </p>
+                </div>
+              </div>
+              {investmentSummaryError && <p role="status" className="mt-2 text-xs text-rose-700">{investmentSummaryError}</p>}
+            </div>
+          </div>
+          <button type="button" onClick={() => setInvestmentViewOpen(true)} className="min-h-11 w-full shrink-0 rounded-lg bg-teal-800 px-4 text-sm font-semibold text-white hover:bg-teal-900 sm:w-auto">Open investments</button>
+        </div>
+        <p className="border-t border-slate-100 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600 sm:px-5">
+          Securities products are not FDIC insured, are not bank guaranteed, and may lose value. This area is a paper-trading simulation only; it does not provide brokerage services or place real orders.
+        </p>
       </section>
 
       </>}
@@ -677,6 +751,15 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                   </button>
                 ))}
               </div>
+            )}
+            {investmentViewOpen && (
+              <InvestmentView
+                onClose={() => setInvestmentViewOpen(false)}
+                onPurchaseComplete={() => {
+                  setInvestmentRefreshKey((key) => key + 1);
+                  onRefresh();
+                }}
+              />
             )}
 
             <div className="mt-4 rounded-xl border border-slate-200 p-4">

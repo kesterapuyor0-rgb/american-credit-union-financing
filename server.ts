@@ -14,6 +14,7 @@ import verifyRoutes from './server/routes/verifyRoutes.js';
 import accountRoutes from './server/routes/accountRoutes.js';
 import grantRoutes from './server/routes/grantRoutes.js';
 import notificationRoutes from './server/routes/notificationRoutes.js';
+import investmentRoutes from './server/routes/investmentRoutes.js';
 import { accrueSavingsInterest, startSavingsInterestCron } from './server/savingsInterest.js';
 import { connectDatabase } from './server/db.js';
 
@@ -63,6 +64,7 @@ app.use('/api/transfers', transferRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/grants', grantRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/investments', investmentRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.get('/admin', (req: Request, res: Response, next: NextFunction) => {

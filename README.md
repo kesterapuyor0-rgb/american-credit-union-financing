@@ -35,6 +35,10 @@ The two-step enrollment process collects a customer profile, a verification refe
 
 New enrollments are saved in MongoDB with an `under_review` status. After submitting, customers are instructed to contact `americancreditunion.financing@gmail.com` to complete registration. Customers can sign in to see the account-under-review screen, but banking APIs and the dashboard remain unavailable until an administrator approves the account. The status screen refreshes periodically so an approval grants access without requiring another sign-in. Administrators can set customer enrollment statuses to `under_review`, `approved`, or `rejected` (a reason is required for rejection) under **Enrollment review**; changes are added to the audit log. Existing accounts without a verification status remain usable for backward compatibility.
 
+## Investment portfolio simulator
+
+The dashboard investment area is an explicitly simulated paper-trading feature, not a brokerage service. The catalog uses hard-coded illustrative reference prices and daily movements; it does not retrieve live quotes, send brokerage orders, or custody securities. Paper-trade orders atomically debit the member's active checking ledger, create a `Paper Trading` transaction, and update simulated holdings. Do not present the catalog, prices, or records as real securities positions or investment advice.
+
 ## Savings accounts and interest
 
 New registrations include a checking account and a 1.50% APY savings account. Provision savings accounts for existing members with:
