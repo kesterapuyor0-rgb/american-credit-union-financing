@@ -276,7 +276,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
         </section>
 
         <footer className="mt-6 border-t border-slate-200 py-4 text-xs leading-5 text-slate-500">
-          Prices and daily changes are indicative reference data, not live market quotes. Orders recorded here update your in-app ledger and are not sent to a brokerage. Investments are not FDIC insured or bank guaranteed and may lose value.
+          Indicative prices only; orders update your in-app ledger. Investment products are not FDIC insured • No bank guarantee • May lose value.
         </footer>
       </div>
 
