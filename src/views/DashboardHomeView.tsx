@@ -72,6 +72,14 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     totalValue: number;
     dailyChangePercent: number;
     dailyChangeValue: number;
+    positions: Array<{
+      symbol: string;
+      name: string;
+      quantity: number;
+      averageCost: number;
+      demoPrice: number;
+      marketValue: number;
+    }>;
   } | null>(null);
   const [investmentSummaryLoading, setInvestmentSummaryLoading] = useState(true);
   const [investmentSummaryError, setInvestmentSummaryError] = useState('');
@@ -193,6 +201,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             totalValue: Number(data.totalValue) || 0,
             dailyChangePercent: Number(data.dailyChangePercent) || 0,
             dailyChangeValue: Number(data.dailyChangeValue) || 0,
+            positions: Array.isArray(data.positions) ? data.positions : [],
           });
         }
       } catch (error) {
@@ -505,6 +514,36 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                 <span className="block text-[11px] font-normal text-slate-500">simulated value</span>
               </p>
             </div>
+            {investmentSummaryError && (
+              <p role="status" className="mt-3 text-sm text-amber-800">{investmentSummaryError}</p>
+            )}
+            {!investmentSummaryLoading && investmentSummary && investmentSummary.positions.length > 0 && (
+              <div className="mt-4 divide-y divide-slate-100 border-t border-slate-100">
+                {investmentSummary.positions.map((position) => (
+                  <div key={position.symbol} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        {position.name} <span className="font-mono text-xs text-slate-500">{position.symbol}</span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {position.quantity.toLocaleString('en-US', { maximumFractionDigits: 6 })} units · average cost {formatMoney(position.averageCost)}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">
+                      {balanceVisible ? formatMoney(position.marketValue) : '••••••'}
+                      <span className="block text-right text-[10px] font-normal text-slate-500">
+                        demo price {formatMoney(position.demoPrice)}
+                      </span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!investmentSummaryLoading && investmentSummary?.positions.length === 0 && (
+              <p className="mt-4 border-t border-slate-100 pt-3 text-sm text-slate-500">
+                No simulated holdings yet. Explore the catalog to record a paper-trading order.
+              </p>
+            )}
             <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs leading-5 text-slate-600">Securities products are not FDIC insured, are not bank guaranteed, and may lose value. This is not a brokerage service; no real orders are placed.</p>
               <button type="button" onClick={() => setInvestmentViewOpen(true)} className="min-h-10 shrink-0 rounded-lg bg-teal-800 px-4 text-sm font-semibold text-white hover:bg-teal-900">Open investments</button>
