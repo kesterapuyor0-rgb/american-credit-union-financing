@@ -183,9 +183,9 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
           <div className="flex items-start gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-800"><BriefcaseBusiness className="h-5 w-5" /></span>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-teal-800">Investment portfolio · Simulator</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-teal-800">Investment Portfolio</p>
               <h1 className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">Explore investments</h1>
-              <p className="mt-1 text-sm text-slate-600">Browse illustrative assets and record simulated fractional or whole-unit trades.</p>
+              <p className="mt-1 text-sm text-slate-600">Browse equity, ETF, mutual fund, and fixed-income examples; manage simulated portfolio holdings.</p>
             </div>
           </div>
           <button type="button" onClick={onClose} aria-label={inline ? 'Back to all accounts' : 'Close investment portfolio'} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
