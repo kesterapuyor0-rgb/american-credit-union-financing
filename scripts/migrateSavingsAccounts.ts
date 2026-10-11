@@ -52,7 +52,7 @@ async function migrateSavingsAccounts(): Promise<void> {
         user_id: userId,
         account_number: await reserveAccountNumber(),
         account_type: 'Savings',
-        nickname: 'Member Savings',
+        nickname: 'Advantage Savings',
         balance: 0,
         held_balance: 0,
         currency: checking.currency || 'USD',

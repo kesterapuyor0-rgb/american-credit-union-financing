@@ -23,6 +23,7 @@ const userSchema = new Schema({
   profilePicture: { type: String, default: '' },
   security_pin: { type: String, select: false },
   account_number: { type: String, trim: true },
+  account_provisioning_version: { type: Number, default: 0, select: false },
   assigned_btc_address: { type: String, default: '', trim: true, maxlength: 100 },
   assigned_usdt_address: { type: String, default: '', trim: true, maxlength: 100 },
   usdt_network: { type: String, enum: ['', 'TRC-20', 'ERC-20'], default: '' },

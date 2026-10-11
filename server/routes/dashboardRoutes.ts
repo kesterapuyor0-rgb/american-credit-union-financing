@@ -1,5 +1,7 @@
 import { Router, Response } from 'express';
-import { Account, BankCard, Transaction } from '../models.js';
+import { randomInt, randomUUID } from 'crypto';
+import mongoose from 'mongoose';
+import { Account, BankCard, Transaction, User } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { AuthenticatedRequest, requireApprovedUser } from '../auth.js';
 import { maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
@@ -8,9 +10,61 @@ import { formatCryptoAmount } from '../cryptoRates.js';
 const router = Router();
 router.use(requireDatabase);
 
+async function ensureDefaultSavingsAccount(userId: string): Promise<void> {
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      await User.updateOne(
+        { id: userId },
+        { $inc: { account_provisioning_version: 1 } },
+        { session },
+      );
+
+      if (await Account.exists({ user_id: userId, account_type: 'Savings' }).session(session)) return;
+      const checking = await Account.findOne({
+        user_id: userId,
+        account_type: 'Checking',
+        status: 'Active',
+        currency: 'USD',
+      }).session(session).lean<any>();
+      if (!checking) return;
+
+      let accountNumber = '';
+      for (let attempt = 0; attempt < 50; attempt += 1) {
+        const candidate = `48${randomInt(0, 100_000_000).toString().padStart(8, '0')}`;
+        if (!(await Account.exists({ account_number: candidate }).session(session))) {
+          accountNumber = candidate;
+          break;
+        }
+      }
+      if (!accountNumber) throw new Error('Could not allocate a unique Savings account number.');
+
+      await Account.create([{
+        id: `acc_${randomUUID()}`,
+        user_id: userId,
+        account_number: accountNumber,
+        account_type: 'Savings',
+        nickname: 'Advantage Savings',
+        balance: 0,
+        held_balance: 0,
+        currency: 'USD',
+        routing_number: checking.routing_number || '026009593',
+        interest_rate: 0.015,
+        accrued_interest: 0,
+        last_interest_accrual_date: '',
+        status: 'Active',
+        created_at: new Date().toISOString(),
+      }], { session });
+    });
+  } finally {
+    await session.endSession();
+  }
+}
+
 router.get('/summary', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
+    await ensureDefaultSavingsAccount(userId);
     const [accounts, issuedCards, recentRows, pendingTransactionsCount] = await Promise.all([
       Account.find({ user_id: userId })
         .select('id user_id account_number account_type nickname balance held_balance currency routing_number credit_limit interest_rate accrued_interest last_interest_accrual_date status created_at')

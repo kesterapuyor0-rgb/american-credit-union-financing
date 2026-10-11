@@ -60,7 +60,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   onProfilePictureChange,
   showCardsOnly = false,
 }) => {
-  const [activeAccountId, setActiveAccountId] = useState('');
+  const [accountFilter, setAccountFilter] = useState<'All Accounts' | 'Checking' | 'Savings'>('All Accounts');
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [pictureMessage, setPictureMessage] = useState('');
@@ -100,7 +100,15 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     && (account.account_type === 'Checking' || account.account_type === 'Savings')
   );
   const defaultAccount = checkingAndSavings.find((account) => account.account_type === 'Checking') || checkingAndSavings[0] || accounts[0];
-  const activeAccount = accounts.find((account) => account.id === activeAccountId) || defaultAccount;
+  const primaryCheckingAccount = checkingAndSavings.find((account) => account.account_type === 'Checking') || defaultAccount;
+  const totalAccountBalance = checkingAndSavings.reduce(
+    (total, account) => total + Math.max(0, account.available_balance ?? account.balance - (account.held_balance || 0)),
+    0,
+  );
+  const visibleAccounts = accountFilter === 'All Accounts'
+    ? checkingAndSavings
+    : checkingAndSavings.filter((account) => account.account_type === accountFilter);
+  const hasSavingsAccount = checkingAndSavings.some((account) => account.account_type === 'Savings');
   const detailsAccount = accounts.find((account) => account.id === detailsAccountId);
   const legacyCards = accounts.filter((account) => account.account_type === 'Credit Card');
   const recentTransactions = useMemo(() => transactions.slice(0, 3), [transactions]);
@@ -327,7 +335,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
       <PushNotificationBanner userId={user.id} />
 
       {dashboardLoading ? (
-        <section aria-label="Loading primary account" className="rounded-3xl border border-teal-100 bg-white p-5 shadow-sm sm:p-7" aria-busy="true">
+        <section aria-label="Loading total account balance" className="rounded-3xl border border-teal-100 bg-white p-5 shadow-sm sm:p-7" aria-busy="true">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1 space-y-2">
               <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
@@ -341,36 +349,25 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           </div>
         </section>
       ) : (
-      <section aria-label="Primary account" className="rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-emerald-50 p-5 shadow-sm sm:p-7">
+      <section aria-label="Total account balance" className="rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-emerald-50 p-5 shadow-sm sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-medium text-slate-500">{activeAccount?.nickname || 'Primary Account'}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total deposit balances</p>
+            <p className="mt-1 text-sm font-medium text-slate-800">Primary account: {primaryCheckingAccount?.nickname || 'Unavailable'}</p>
             <p className="mt-1 text-sm tracking-wider text-slate-600">
-              {activeAccount?.account_number ? `••••  ••••  ${activeAccount.account_number.slice(-4)}` : 'Account unavailable'}
+              {primaryCheckingAccount?.account_number ? `••••  ••••  ${primaryCheckingAccount.account_number.slice(-4)}` : 'Account unavailable'}
             </p>
           </div>
-          {checkingAndSavings.length > 1 && (
-            <select
-              aria-label="Switch account"
-              value={activeAccount?.id || ''}
-              onChange={(event) => setActiveAccountId(event.target.value)}
-              className="max-w-full rounded-xl border border-teal-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-teal-600"
-            >
-              {checkingAndSavings.map((account) => (
-                <option key={account.id} value={account.id}>{account.account_type} · {account.nickname}</option>
-              ))}
-            </select>
-          )}
         </div>
         <div className="mt-8">
           <div className="flex items-center gap-2 text-sm text-slate-500">
-            <span>Available Balance</span>
+            <span>Total available balance</span>
             <button type="button" aria-label={balanceVisible ? 'Hide balance' : 'Show balance'} onClick={() => setBalanceVisible((visible) => !visible)} className="rounded p-1 text-slate-600 hover:bg-slate-100">
               {balanceVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             </button>
           </div>
           <p className="mt-1 break-all text-3xl font-bold tracking-tight text-teal-950 sm:text-4xl">
-            {balanceVisible ? formatMoney(activeAccount?.available_balance ?? activeAccount?.balance ?? 0) : '••••••'}
+            {balanceVisible ? formatMoney(totalAccountBalance) : '••••••'}
           </p>
         </div>
       </section>
@@ -381,6 +378,19 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             <h2 className="text-lg font-semibold text-slate-900">My Accounts</h2>
             <p className="text-sm text-slate-500">Checking and savings balances at a glance.</p>
           </div>
+        </div>
+        <div className="flex w-full gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1.5 sm:w-fit" role="group" aria-label="Filter accounts">
+          {(['All Accounts', 'Checking', 'Savings'] as const).map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              aria-pressed={accountFilter === filter}
+              onClick={() => setAccountFilter(filter)}
+              className={`min-h-10 shrink-0 rounded-lg px-4 text-sm font-semibold transition-colors ${accountFilter === filter ? 'bg-teal-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
+            >
+              {filter}
+            </button>
+          ))}
         </div>
         {dashboardLoading ? (
           <div className="grid gap-3 sm:grid-cols-2" aria-label="Loading accounts" aria-busy="true">
@@ -393,9 +403,9 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               </div>
             ))}
           </div>
-        ) : checkingAndSavings.length > 0 ? (
+        ) : visibleAccounts.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            {checkingAndSavings.map((account) => {
+            {visibleAccounts.map((account) => {
               const available = Math.max(0, account.available_balance ?? account.balance - (account.held_balance || 0));
               const apy = Math.max(0, Number(account.interest_rate) || 0) * 100;
               return (
@@ -434,9 +444,19 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             })}
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-7 text-center text-sm text-slate-500">
-            No active checking or savings accounts are available.
-          </div>
+          accountFilter === 'Savings' && checkingAndSavings.some((account) => account.account_type === 'Checking') ? (
+            <div className="rounded-2xl border border-dashed border-emerald-300 bg-white px-4 py-7 text-center">
+              <p className="font-semibold text-slate-900">Your Savings account is being prepared</p>
+              <p className="mt-1 text-sm text-slate-500">A default Advantage Savings account earns 1.50% APY and has no opening balance requirement.</p>
+              <button type="button" onClick={() => void onRefresh()} className="mt-4 min-h-11 rounded-lg bg-teal-800 px-5 text-sm font-semibold text-white hover:bg-teal-900">
+                Refresh account list
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-7 text-center text-sm text-slate-500">
+              No active {accountFilter === 'All Accounts' ? 'checking or savings' : accountFilter.toLowerCase()} accounts are available.
+            </div>
+          )
         )}
       </section>
       {dashboardError && !dashboardLoading && (
@@ -448,7 +468,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><ArrowDownLeft className="h-5 w-5" /></span>
           <span className="leading-tight">Receive</span>
         </button>
-        <button type="button" onClick={() => onNavigateToTransfer(activeAccount?.id)} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
+        <button type="button" onClick={() => onNavigateToTransfer(primaryCheckingAccount?.id)} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><ArrowUpRight className="h-5 w-5" /></span>
           <span className="leading-tight">Transfer</span>
         </button>

@@ -517,7 +517,7 @@ router.post('/register', async (req, res): Promise<void> => {
       });
       await Account.create({
         id: savingsAccountId, user_id: userId, account_number: savingsAccountNumber,
-        account_type: 'Savings', nickname: 'Member Savings',
+        account_type: 'Savings', nickname: 'Advantage Savings',
         balance: 0, currency: 'USD', routing_number: routingNumber,
         interest_rate: 0.015, accrued_interest: 0, last_interest_accrual_date: '',
         status: 'Active', created_at: createdAt,
