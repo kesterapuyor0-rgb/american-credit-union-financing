@@ -407,7 +407,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">My Accounts</h2>
-            <p className="text-sm text-slate-500">View your checking, savings, and simulated investment balances.</p>
+            <p className="text-sm text-slate-500">View your checking, savings, and investment balances.</p>
           </div>
         </div>
         <div className="flex w-full gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1.5 sm:w-fit" role="group" aria-label="Filter accounts">
