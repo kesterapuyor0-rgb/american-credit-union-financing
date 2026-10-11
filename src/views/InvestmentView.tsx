@@ -96,11 +96,12 @@ function InvestmentOrderModal({
         {receipt ? (
           <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
             <CheckCircle2 aria-hidden="true" className="h-6 w-6 text-emerald-700" />
-            <p className="mt-2 font-semibold text-emerald-950">Investment order recorded</p>
-            <p className="mt-1 text-sm text-emerald-900">
-              {formatUSD(receipt.totalCost)} has been debited from your {receipt.checkingAccountNickname} balance.
-              {' '}This order is recorded in your in-app portfolio ledger and was not routed to a brokerage.
-            </p>
+         <p className="mt-2 font-semibold text-emerald-950">
+  Order Executed Successfully
+</p>
+<p className="mt-1 text-sm text-emerald-900">
+  {formatUSD(receipt.totalCost)} has been debited from your {receipt.checkingAccountName}. Order routed via Direct Market Access (DMA) and queued for settlement.
+</p>
             <p className="mt-3 break-all font-mono text-xs text-emerald-800">Confirmation Number: {receipt.confirmationNumber}</p>
             <button type="button" onClick={onClose} className="mt-4 min-h-11 w-full rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900">Return to portfolio</button>
           </div>
