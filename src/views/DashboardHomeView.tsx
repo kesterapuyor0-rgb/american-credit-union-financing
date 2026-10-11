@@ -423,7 +423,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">My Accounts</h2>
-            <p className="text-sm text-slate-500">View your checking, savings, and investment balances.</p>
+            <p className="text-sm text-slate-500">View all your active accounts and balances.</p>
           </div>
         </div>
         <div className="flex w-full gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1.5 sm:w-fit" role="group" aria-label="Filter accounts">
@@ -450,16 +450,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               </div>
             ))}
           </div>
-        ) : accountFilter === 'Investments' ? (
-          <InvestmentView
-            inline
-            onClose={() => setAccountFilter('All Accounts')}
-            onPurchaseComplete={() => {
-              setInvestmentRefreshKey((key) => key + 1);
-              onRefresh();
-            }}
-          />
-        ) : visibleAccounts.length > 0 ? (
+        ) : accountFilter === 'Investments' ? null : visibleAccounts.length > 0 ? (
           <div className="space-y-3">
             {visibleAccounts.map((account) => {
               const available = Math.max(0, account.available_balance ?? account.balance - (account.held_balance || 0));
@@ -514,7 +505,9 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             </div>
           )
         )}
-        {accountFilter === 'All Accounts' && !investmentSummaryLoading && (investmentSummary?.totalValue || 0) > 0 && (
+        {(accountFilter === 'Investments' || (
+          accountFilter === 'All Accounts' && !investmentSummaryLoading && (investmentSummary?.totalValue || 0) > 0
+        )) && (
           <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">
