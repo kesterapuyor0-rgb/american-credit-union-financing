@@ -18,16 +18,30 @@ export const getTransactionSenderName = (transaction: Transaction): string => {
     transaction.sender_name,
     transaction.senderName,
     transaction.counterparty,
-    transaction.recipient_name,
+    ...(['deposit', 'transfer_in'].includes(transaction.type) ? [transaction.recipient_name] : []),
   ];
   const sender = candidates.find((candidate) => !isGenericSender(candidate));
   if (sender) return sender.trim();
 
   const typeAndDescription = `${transaction.transaction_type || ''} ${transaction.category || ''} ${transaction.description}`.toLowerCase();
-  if (typeAndDescription.includes('payroll') || typeAndDescription.includes('direct deposit')) {
-    return 'Gusto Payroll Services';
+  if (typeAndDescription.includes('payroll') || typeAndDescription.includes('direct deposit') || typeAndDescription.includes('ach')) {
+    return 'Gusto Payroll Inc.';
   }
-  return 'ACH Direct Deposit';
+  return 'Treasury Disbursement';
+};
+
+export const getTransactionModalTitle = (transaction: Transaction): string => {
+  const metadata = `${transaction.transaction_type || ''} ${transaction.category || ''} ${transaction.description}`.toLowerCase();
+  const category = metadata.includes('grant')
+    ? 'Grant Disbursement'
+    : metadata.includes('direct deposit') || metadata.includes('payroll') || metadata.includes('ach')
+      ? 'Direct Deposit'
+      : metadata.includes('wire')
+        ? 'Wire Transfer'
+        : metadata.includes('other credit')
+          ? 'Account Credit'
+          : transaction.category?.trim() || transaction.transaction_type?.trim() || 'Account Credit';
+  return `${category} - ${getTransactionSenderName(transaction)}`;
 };
 
 /** Normalizes legacy administrator adjustment labels for transaction displays. */

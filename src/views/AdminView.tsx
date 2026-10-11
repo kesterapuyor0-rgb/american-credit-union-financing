@@ -665,7 +665,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
     }
     setCreditAmount('');
     setCreditMemo('Account funding credit');
-    setCreditSenderName('Gusto Payroll Services');
+    setCreditSenderName('Gusto Payroll Inc.');
     setCreditTransactionType('ACH Direct Deposit');
     setCreditReferenceNumber(`ACH-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`);
     setCreditModalOpen(true);
@@ -2205,14 +2205,14 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
               <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                 <div className="min-w-0">
                   <label htmlFor="input-credit-sender" className="mb-1 block text-xs font-bold uppercase tracking-wider text-gray-700">
-                    Sender / Issuer Name
+                    Sender / Institution Name
                   </label>
                   <input
                     id="input-credit-sender"
                     type="text"
                     required
                     maxLength={120}
-                    placeholder="e.g., Gusto Payroll Services"
+                    placeholder="e.g., Gusto Payroll Inc. or Treasury Disbursement"
                     value={creditSenderName}
                     onChange={(event) => setCreditSenderName(event.target.value)}
                     className="w-full min-w-0 rounded-xs border border-gray-300 p-2.5 text-xs focus:ring-1 focus:ring-[#173B70]"

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BankAccount, Transaction, User, UserSummary } from '../types';
-import { formatTransactionDescription, getTransactionSenderName } from '../utils/transactionFormatting';
+import { formatTransactionDescription, getTransactionModalTitle, getTransactionSenderName } from '../utils/transactionFormatting';
 import {
   CreditCard,
   Landmark,
@@ -64,7 +64,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const customerName = user?.full_name || (user as any)?.name || 'Valued Customer';
   const selectedTransactionIsWire = selectedTransaction?.type === 'transfer_out'
     && selectedTransaction.description.toLowerCase().includes('domestic wire transfer');
-  const receiptRecipientName = selectedTransaction?.recipient_name?.trim() || 'James Smith';
+  const receiptRecipientName = selectedTransaction?.recipient_name?.trim() || user.full_name || 'Account holder';
   const selectedTransactionIsIncoming = selectedTransaction
     ? ['deposit', 'transfer_in', 'admin_credit', 'admin_release', 'card_credit'].includes(selectedTransaction.type)
       || (selectedTransaction.type === 'admin_adjustment' && selectedTransaction.amount > 0)
@@ -702,7 +702,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     {selectedTransactionIsWire
                       ? `Domestic Wire Transfer Out to ${receiptRecipientName || 'Recipient'}`
                       : selectedTransactionIsIncoming
-                        ? `Direct Deposit - ${getTransactionSenderName(selectedTransaction)}`
+                          ? getTransactionModalTitle(selectedTransaction)
                         : formatTransactionDescription(selectedTransaction.description)}
                   </h3>
                 </div>
@@ -771,10 +771,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <span className="font-medium text-gray-900">{selectedTransaction.account_name}</span>
                   </div>
                 )}
-                {(selectedTransactionIsWire || selectedTransaction.recipient_name) && (
+                {(selectedTransactionIsWire || selectedTransactionIsIncoming || selectedTransaction.recipient_name) && (
                   <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
-                    <span className="text-gray-500">{selectedTransactionIsWire ? 'Recipient:' : 'Payee / Recipient:'}</span>
-                    <span className="font-medium text-gray-900">{selectedTransactionIsWire ? receiptRecipientName : selectedTransaction.recipient_name}</span>
+                    <span className="text-gray-500">{selectedTransactionIsWire ? 'Recipient:' : selectedTransactionIsIncoming ? 'Recipient:' : 'Payee / Recipient:'}</span>
+                    <span className="font-medium text-gray-900">{selectedTransactionIsWire ? receiptRecipientName : selectedTransactionIsIncoming ? user.full_name || 'Account holder' : selectedTransaction.recipient_name}</span>
                   </div>
                 )}
                 {selectedTransactionIsIncoming && (

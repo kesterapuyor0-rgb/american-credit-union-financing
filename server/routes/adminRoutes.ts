@@ -696,6 +696,11 @@ router.post('/balance-adjustment', async (req: AuthenticatedRequest, res: Respon
       return;
     }
     const targetUser = await User.findOne({ id: account.user_id }).lean<any>();
+    const recipientName = typeof targetUser?.full_name === 'string' ? targetUser.full_name.trim() : '';
+    if (!recipientName) {
+      res.status(404).json({ error: 'The account holder profile could not be found.' });
+      return;
+    }
     const adjustmentAmount = action === 'credit' || action === 'release' ? parsedAmount : -parsedAmount;
     const description = {
       credit: `Bank Credit: ${reason}`,
@@ -740,7 +745,7 @@ router.post('/balance-adjustment', async (req: AuthenticatedRequest, res: Respon
         amount: adjustmentAmount,
         currency: account.currency || 'USD',
         description,
-        recipient_name: 'Account Administration',
+        recipient_name: recipientName,
         recipient_account: `...${String(account.account_number).slice(-4)}`,
         status: action === 'hold' ? 'Held' : 'Completed',
         category: action === 'hold' || action === 'release' ? 'Payment hold' : 'Adjustment',
@@ -952,7 +957,7 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
   const session = await mongoose.startSession();
   try {
     const { userId, accountId, accountNumber, amount } = req.body || {};
-    const senderName = String(req.body?.senderName || 'Gusto Payroll Services').trim();
+    const senderName = String(req.body?.senderName || 'Gusto Payroll Inc.').trim();
     const transactionType = String(req.body?.transactionType || 'ACH Direct Deposit').trim();
     const referenceId = String(req.body?.referenceNumber || '').trim() || `ACH-${randomUUID()}`;
     const memoText = String(req.body?.memo || req.body?.description || req.body?.reason || '').trim();
@@ -993,9 +998,17 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
     }
 
     const targetUser = await User.findOne({ id: account.user_id }).select('id email full_name').lean<any>();
+    const recipientName = typeof targetUser?.full_name === 'string' ? targetUser.full_name.trim() : '';
+    if (!recipientName) {
+      res.status(404).json({ error: 'The account holder profile could not be found.' });
+      return;
+    }
     const txId = `tx_cred_${randomUUID()}`;
     const today = new Date().toISOString().split('T')[0];
-    const fullDesc = `${transactionType} - ${senderName}`;
+    const isPayrollDeposit = transactionType === 'ACH Direct Deposit' || transactionType === 'Payroll Deposit';
+    const persistedTransactionType = isPayrollDeposit ? 'Payroll Processing' : transactionType;
+    const transactionCategory = isPayrollDeposit ? 'Direct Deposit' : transactionType;
+    const fullDesc = `${transactionCategory} - ${senderName}`;
     let updatedAccount: any;
 
     await session.withTransaction(async () => {
@@ -1016,10 +1029,11 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
         description: memoText ? `${fullDesc} — ${memoText}` : fullDesc,
         sender_name: senderName,
         reference_id: referenceId,
-        transaction_type: transactionType,
+        transaction_type: persistedTransactionType,
+        recipient_name: recipientName,
         recipient_account: account.account_number,
         status: 'APPROVED',
-        category: transactionType,
+        category: transactionCategory,
         date: today,
         created_at: Date.now(),
       }], { session });
@@ -1063,7 +1077,9 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
         id: txId,
         sender_name: senderName,
         reference_id: referenceId,
-        transaction_type: transactionType,
+        transaction_type: persistedTransactionType,
+        category: transactionCategory,
+        recipient_name: recipientName,
         formatted_amount: new Intl.NumberFormat('en-US', {
           style: 'currency',
           currency: account.currency || 'USD',
