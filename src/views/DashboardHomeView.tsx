@@ -374,6 +374,11 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           </p>
           {investmentSummaryError && <p role="status" className="mt-2 text-xs text-amber-800">Investment valuation is unavailable; combined total is not shown.</p>}
         </div>
+        <p className="mt-5 inline-flex max-w-full flex-wrap items-center rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-[10px] font-medium leading-4 text-slate-500 sm:text-xs">
+          Investment products are Not FDIC Insured <span aria-hidden="true" className="mx-1.5 text-slate-300">•</span>
+          No Bank Guarantee <span aria-hidden="true" className="mx-1.5 text-slate-300">•</span>
+          May Lose Value
+        </p>
       </section>
       )}
       <section aria-label="Quick actions" className="grid grid-cols-5 gap-2">
@@ -440,7 +445,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                     <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{account.account_type}</p>
                       <h3 className="mt-1 truncate font-semibold text-slate-900">{account.nickname}</h3>
-                      <p className="mt-1 text-xs text-slate-500">•••• {account.account_number.slice(-4)}</p>
+                      <p className="mt-1 text-xs text-slate-500">Account ending in •••• {account.account_number.slice(-4)}</p>
                     </div>
                     {account.account_type === 'Savings' && (
                       <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
