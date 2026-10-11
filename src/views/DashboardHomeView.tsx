@@ -75,7 +75,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
       name: string;
       quantity: number;
       averageCost: number;
-      demoPrice: number;
+      marketPrice: number;
       marketValue: number;
     }>;
   } | null>(null);
@@ -196,7 +196,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           credentials: 'include',
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Unable to load your simulated investment portfolio.');
+        if (!response.ok) throw new Error(data.error || 'Unable to load your investment portfolio.');
         if (!cancelled) {
           setInvestmentSummary({
             totalValue: Number(data.totalValue) || 0,
@@ -206,7 +206,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           });
         }
       } catch (error) {
-        if (!cancelled) setInvestmentSummaryError(error instanceof Error ? error.message : 'Unable to load your simulated investment portfolio.');
+        if (!cancelled) setInvestmentSummaryError(error instanceof Error ? error.message : 'Unable to load your investment portfolio.');
       } finally {
         if (!cancelled) setInvestmentSummaryLoading(false);
       }

@@ -5,7 +5,7 @@ import { Account, InvestmentHolding, Transaction } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { AuthenticatedRequest, requireApprovedUser } from '../auth.js';
 import { createNotification } from '../notifications.js';
-import { getInvestmentAsset, INVESTMENT_CATALOG } from '../../shared/investmentCatalog.js';
+import { getInvestmentAsset, getLegacyInvestmentSymbols, INVESTMENT_CATALOG } from '../../shared/investmentCatalog.js';
 
 const router = Router();
 router.use(requireDatabase, requireApprovedUser);
@@ -28,7 +28,7 @@ function summarizePortfolio(holdings: any[]) {
     const asset = getInvestmentAsset(holding.symbol);
     if (!asset) return null;
     const quantity = Number(holding.quantity) || 0;
-    const marketValue = quantity * asset.demoPrice;
+    const marketValue = quantity * asset.marketPrice;
     return {
       id: holding.id,
       symbol: asset.symbol,
@@ -36,7 +36,7 @@ function summarizePortfolio(holdings: any[]) {
       assetType: asset.assetType,
       quantity,
       averageCost: Number(holding.averageCost) || 0,
-      demoPrice: asset.demoPrice,
+      marketPrice: asset.marketPrice,
       marketValue,
       dailyChangePercent: asset.dailyChangePercent,
       detail: asset.detail,
@@ -58,9 +58,8 @@ function summarizePortfolio(holdings: any[]) {
 router.get('/catalog', (_req: AuthenticatedRequest, res: Response): void => {
   res.set('Cache-Control', 'private, no-store');
   res.json({
-    simulated: true,
+    marketDataStatus: 'indicative',
     assets: INVESTMENT_CATALOG,
-    notice: 'Paper-trading simulation only. Prices and performance are illustrative, not live market data or investment advice.',
   });
 });
 
@@ -79,7 +78,6 @@ router.get('/portfolio', async (req: AuthenticatedRequest, res: Response): Promi
     const portfolio = summarizePortfolio(holdings);
     res.set('Cache-Control', 'private, no-store');
     res.json({
-      simulated: true,
       ...portfolio,
       checkingAccount: checkingAccount ? {
         id: checkingAccount.id,
@@ -90,7 +88,7 @@ router.get('/portfolio', async (req: AuthenticatedRequest, res: Response): Promi
     });
   } catch (error) {
     console.error('Investment portfolio lookup failed:', error);
-    res.status(500).json({ error: errorMessage(error, 'Unable to load the simulated investment portfolio.') });
+    res.status(500).json({ error: errorMessage(error, 'Unable to load the investment portfolio.') });
   }
 });
 
@@ -105,9 +103,9 @@ router.post('/buy', async (req: AuthenticatedRequest, res: Response): Promise<vo
     return;
   }
 
-  const totalCost = Math.round(quantity * asset.demoPrice * 100) / 100;
+  const totalCost = Math.round(quantity * asset.marketPrice * 100) / 100;
   if (totalCost < 1 || !Number.isFinite(totalCost)) {
-    res.status(400).json({ error: 'The minimum paper-trade order value is $1.00.' });
+    res.status(400).json({ error: 'The minimum order value is $1.00.' });
     return;
   }
 
@@ -133,7 +131,7 @@ router.post('/buy', async (req: AuthenticatedRequest, res: Response): Promise<vo
         currency: 'USD',
       }).session(session).lean<any[]>();
       const checking = getPrimaryCheckingAccount(accounts);
-      if (!checking) throw new Error('An active USD checking account is required for this paper trade.');
+      if (!checking) throw new Error('An active USD checking account is required for this order.');
 
       const debited = await Account.findOneAndUpdate({
         id: checking.id,
@@ -148,12 +146,12 @@ router.post('/buy', async (req: AuthenticatedRequest, res: Response): Promise<vo
           ],
         },
       }, { $inc: { balance: -totalCost } }, { new: true, session }).lean<any>();
-      if (!debited) throw new Error('Insufficient available checking balance for this paper-trade order.');
+      if (!debited) throw new Error('Insufficient available checking balance for this order.');
 
       const holdingId = `holding_${userId}_${asset.symbol}`;
       const holding = await InvestmentHolding.findOne({
         user_id: userId,
-        symbol: asset.symbol,
+        symbol: { $in: [asset.symbol, ...getLegacyInvestmentSymbols(asset.symbol)] },
         assetType: asset.assetType,
       }).session(session).lean<any>();
       const now = new Date();
@@ -170,6 +168,7 @@ router.post('/buy', async (req: AuthenticatedRequest, res: Response): Promise<vo
           quantity: holding.quantity,
         }, {
           $set: {
+            symbol: asset.symbol,
             quantity: nextQuantity,
             averageCost: nextAverageCost,
             updatedAt: now,
@@ -189,7 +188,7 @@ router.post('/buy', async (req: AuthenticatedRequest, res: Response): Promise<vo
         }], { session });
       }
 
-      const transactionId = `tx_paper_investment_${randomUUID()}`;
+      const transactionId = `tx_investment_${randomUUID()}`;
       const date = now.toISOString().slice(0, 10);
       await Transaction.create([{
         id: transactionId,
@@ -198,22 +197,22 @@ router.post('/buy', async (req: AuthenticatedRequest, res: Response): Promise<vo
         type: 'withdrawal',
         amount: totalCost,
         currency: 'USD',
-        description: `Paper trade buy ${quantity} ${asset.symbol} at $${asset.demoPrice.toFixed(2)} simulated price`,
+        description: `Investment purchase ${quantity} ${asset.symbol} at $${asset.marketPrice.toFixed(2)} per unit`,
         sender_name: asset.name,
         reference_id: transactionId,
-        transaction_type: 'Paper Investment Purchase',
-        recipient_name: 'Simulated Investment Portfolio',
+        transaction_type: 'Investment Purchase',
+        recipient_name: 'Investment Portfolio',
         status: 'Completed',
-        category: 'Paper Trading',
+        category: 'Investments',
         date,
         created_at: now.getTime(),
       }], { session });
       await createNotification({
         userId,
-        title: 'Paper Trade Recorded',
-        message: `${quantity} ${asset.symbol} was added to your simulated portfolio. No brokerage order was placed.`,
+        title: 'Investment Order Recorded',
+        message: `${quantity} ${asset.symbol} was added to your portfolio. This order was not sent to a brokerage.`,
         type: 'investment',
-        category: 'paper-trading',
+        category: 'investments',
         link: 'home',
       }, session);
 
@@ -231,12 +230,12 @@ router.post('/buy', async (req: AuthenticatedRequest, res: Response): Promise<vo
       };
     });
 
-    if (!result) throw new Error('The paper-trade order could not be recorded.');
-    res.status(201).json({ success: true, simulated: true, ...result });
+    if (!result) throw new Error('The investment order could not be recorded.');
+    res.status(201).json({ success: true, ...result });
   } catch (error) {
-    const message = errorMessage(error, 'Unable to record this paper-trade order.');
+    const message = errorMessage(error, 'Unable to submit this order.');
     const status = message.includes('Insufficient') ? 409 : message.includes('portfolio changed') ? 409 : 400;
-    console.error('Simulated investment order failed:', error);
+    console.error('Investment order failed:', error);
     res.status(status).json({ error: message });
   } finally {
     await session.endSession();
