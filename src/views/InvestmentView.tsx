@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, BriefcaseBusiness, CheckCircle2, LoaderCircle, Search, X } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, BriefcaseBusiness, CheckCircle2, LoaderCircle, Search, X } from 'lucide-react';
 import { getAuthHeaders } from '../utils/api';
 import { InvestmentAsset, InvestmentAssetType } from '../../shared/investmentCatalog';
 
@@ -193,15 +193,6 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
           </button>
         </header>
 
-        <div role="note" className="mt-4 flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-          <AlertTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
-          <div>
-            <p className="font-bold">Paper trading only — not a brokerage service</p>
-            <p className="mt-1">All prices, daily movements, yields, holdings, and trades here are illustrative simulations, not live market data or investment advice. No securities are bought, sold, held, or custodied through this app.</p>
-            <p className="mt-2 font-semibold">Securities products are not FDIC insured, are not bank guaranteed, and may lose value.</p>
-          </div>
-        </div>
-
         <section aria-label="Simulated portfolio summary" className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Simulated portfolio value</p>
@@ -275,6 +266,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
             </div>
           )}
         </section>
+
+        <footer className="mt-6 border-t border-slate-200 py-4 text-xs leading-5 text-slate-500">
+          Paper trading only. Assets, prices, daily movements, yields, holdings, and trades are illustrative simulations—not live market data, investment advice, or brokerage services. No securities are bought, sold, held, or custodied through this app. Securities products are not FDIC insured, are not bank guaranteed, and may lose value.
+        </footer>
       </div>
 
       {selectedAsset && (
