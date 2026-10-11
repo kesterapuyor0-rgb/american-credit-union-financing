@@ -332,7 +332,7 @@ router.post('/admin/:id/disburse', requireAdmin, async (req: AuthenticatedReques
       result = { applicationId: grant.id, transactionId, amount: grant.approvedAmount, userId: grant.userId };
     });
     if (result) {
-      await sendPushNotification(result.userId, {
+      void sendPushNotification(result.userId, {
         title: 'Grant Funds Disbursed',
         body: 'Your grant disbursement has posted. Sign in to review your account history.',
         url: '/history',

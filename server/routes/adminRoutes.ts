@@ -381,7 +381,7 @@ const updateCryptoWalletAssignments = async (req: AuthenticatedRequest, res: Res
         created_at: new Date().toISOString(),
       }], { session });
     });
-    await sendPushNotification(updatedUser.id, {
+    void sendPushNotification(updatedUser.id, {
       title: 'Crypto Wallet Updated',
       body: 'Your cryptocurrency deposit wallet assignments have been updated.',
       url: '/history',
@@ -834,7 +834,7 @@ router.post('/balance-adjustment', async (req: AuthenticatedRequest, res: Respon
     });
 
     if (action === 'credit') {
-      await sendPushNotification(account.user_id, {
+      void sendPushNotification(account.user_id, {
         title: 'Account Credit Posted',
         body: 'A new credit has posted to your account. Sign in to review your account history.',
         url: '/history',
@@ -1161,7 +1161,7 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
     } catch (notificationError) {
       console.error('Unable to record account credit notification:', notificationError);
     }
-    await sendPushNotification(account.user_id, {
+    void sendPushNotification(account.user_id, {
       title: 'Account Credit Posted',
       body: 'A new credit has posted to your account. Sign in to review your account history.',
       url: '/history',
