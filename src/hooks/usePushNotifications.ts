@@ -3,6 +3,7 @@ import { getAuthHeaders } from '../utils/api';
 
 interface PushState {
   supported: boolean;
+  configured: boolean | null;
   enabled: boolean;
   permission: NotificationPermission | 'unsupported';
   busy: boolean;
@@ -19,11 +20,12 @@ function decodeVapidKey(encodedKey: string): ArrayBuffer {
 
 export function usePushNotifications(userId: string) {
   const supported = typeof window !== 'undefined'
-    && 'serviceWorker' in navigator
-    && 'PushManager' in window
+    && typeof navigator !== 'undefined'
+    && ('serviceWorker' in navigator && 'PushManager' in window)
     && 'Notification' in window;
   const [state, setState] = useState<PushState>({
     supported,
+    configured: null,
     enabled: false,
     permission: supported ? Notification.permission : 'unsupported',
     busy: false,
@@ -47,6 +49,24 @@ export function usePushNotifications(userId: string) {
     setState((current) => ({ ...current, busy: true, error: '' }));
     const initialize = async () => {
       try {
+        const keyResponse = await fetch('/api/notifications/vapid-public-key', {
+          headers: getAuthHeaders(),
+          credentials: 'include',
+        });
+        const keyData = await keyResponse.json();
+        if (!keyResponse.ok || typeof keyData.publicKey !== 'string' || !keyData.publicKey.trim()) {
+          if (!cancelled) {
+            setState((current) => ({
+              ...current,
+              configured: false,
+              enabled: false,
+              error: '',
+            }));
+          }
+          return;
+        }
+        if (!cancelled) setState((current) => ({ ...current, configured: true }));
+
         const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
         const subscription = await registration.pushManager.getSubscription();
         if (!cancelled && subscription && Notification.permission === 'granted') {
@@ -58,7 +78,7 @@ export function usePushNotifications(userId: string) {
           console.error('Unable to initialize browser push notifications:', error);
           setState((current) => ({
             ...current,
-            error: 'Push alerts could not be initialized on this device.',
+            error: 'Push alerts are unavailable in this browser session. You can continue using your account without them.',
           }));
         }
       } finally {
@@ -70,7 +90,7 @@ export function usePushNotifications(userId: string) {
   }, [persistSubscription, supported, userId]);
 
   const togglePush = useCallback(async () => {
-    if (!supported || !userId) return;
+    if (!supported || !userId || state.configured !== true) return;
     setState((current) => ({ ...current, busy: true, error: '' }));
     try {
       const registration = await navigator.serviceWorker.ready;
@@ -94,8 +114,9 @@ export function usePushNotifications(userId: string) {
         credentials: 'include',
       });
       const keyData = await keyResponse.json();
-      if (!keyResponse.ok || typeof keyData.publicKey !== 'string') {
-        throw new Error(keyData.error || 'Push alerts are not configured on the server.');
+      if (!keyResponse.ok || typeof keyData.publicKey !== 'string' || !keyData.publicKey.trim()) {
+        setState((current) => ({ ...current, configured: false, enabled: false, error: '' }));
+        return;
       }
 
       const permission = await Notification.requestPermission();
@@ -125,7 +146,7 @@ export function usePushNotifications(userId: string) {
     } finally {
       setState((current) => ({ ...current, busy: false }));
     }
-  }, [persistSubscription, supported, userId]);
+  }, [persistSubscription, state.configured, supported, userId]);
 
   return { ...state, togglePush };
 }

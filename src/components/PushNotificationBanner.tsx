@@ -7,8 +7,11 @@ interface PushNotificationBannerProps {
 }
 
 export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({ userId }) => {
-  const { supported, enabled, permission, busy, error, togglePush } = usePushNotifications(userId);
-  if (!supported) return null;
+  const { supported, configured, enabled, permission, busy, error, togglePush } = usePushNotifications(userId);
+  const browserSupportsPush = typeof window !== 'undefined'
+    && typeof navigator !== 'undefined'
+    && ('serviceWorker' in navigator && 'PushManager' in window);
+  if (!browserSupportsPush || !supported || configured !== true) return null;
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-teal-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
