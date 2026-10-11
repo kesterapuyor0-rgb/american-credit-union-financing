@@ -109,18 +109,25 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   );
   const defaultAccount = checkingAndSavings.find((account) => account.account_type === 'Checking') || checkingAndSavings[0] || accounts[0];
   const primaryCheckingAccount = checkingAndSavings.find((account) => account.account_type === 'Checking') || defaultAccount;
+  const mainAccountCards = accounts.filter((account) => {
+    if (account.status !== 'Active') return false;
+    if (account.account_type === 'Checking' || account.account_type === 'Credit Card') return true;
+    if (account.account_type !== 'Savings') return false;
+    const available = Math.max(0, account.available_balance ?? account.balance - (account.held_balance || 0));
+    return available > 0;
+  });
   const totalAccountBalance = checkingAndSavings.reduce(
     (total, account) => total + Math.max(0, account.available_balance ?? account.balance - (account.held_balance || 0)),
     0,
   );
   const totalNetWorth = totalAccountBalance + (investmentSummary?.totalValue || 0);
   const visibleAccounts = accountFilter === 'All Accounts'
-    ? checkingAndSavings
+    ? mainAccountCards.filter((account) => account.account_type !== 'Credit Card')
     : accountFilter === 'Investments'
       ? []
       : checkingAndSavings.filter((account) => account.account_type === accountFilter);
   const detailsAccount = accounts.find((account) => account.id === detailsAccountId);
-  const legacyCards = accounts.filter((account) => account.account_type === 'Credit Card');
+  const legacyCards = accounts.filter((account) => account.account_type === 'Credit Card' && account.status === 'Active');
   const recentTransactions = useMemo(() => transactions.slice(0, 3), [transactions]);
 
   useEffect(() => {
@@ -443,6 +450,15 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               </div>
             ))}
           </div>
+        ) : accountFilter === 'Investments' ? (
+          <InvestmentView
+            inline
+            onClose={() => setAccountFilter('All Accounts')}
+            onPurchaseComplete={() => {
+              setInvestmentRefreshKey((key) => key + 1);
+              onRefresh();
+            }}
+          />
         ) : visibleAccounts.length > 0 ? (
           <div className="space-y-3">
             {visibleAccounts.map((account) => {
@@ -484,12 +500,12 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             })}
           </div>
         ) : accountFilter === 'Investments' ? null : (
-          accountFilter === 'Savings' && checkingAndSavings.some((account) => account.account_type === 'Checking') ? (
+          accountFilter === 'Savings' ? (
             <div className="rounded-2xl border border-dashed border-emerald-300 bg-white px-4 py-7 text-center">
-              <p className="font-semibold text-slate-900">Your Savings account is being prepared</p>
-              <p className="mt-1 text-sm text-slate-500">A default Advantage Savings account earns 1.50% APY and has no opening balance requirement.</p>
+              <p className="font-semibold text-slate-900">Open a Savings Account</p>
+              <p className="mt-1 text-sm text-slate-500">Your Advantage Savings account earns 1.50% APY. No opening balance is required.</p>
               <button type="button" onClick={() => void onRefresh()} className="mt-4 min-h-11 rounded-lg bg-teal-800 px-5 text-sm font-semibold text-white hover:bg-teal-900">
-                Refresh account list
+                Open Savings Account
               </button>
             </div>
           ) : (
@@ -498,7 +514,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             </div>
           )
         )}
-        {(accountFilter === 'All Accounts' || accountFilter === 'Investments') && (
+        {accountFilter === 'All Accounts' && !investmentSummaryLoading && (investmentSummary?.totalValue || 0) > 0 && (
           <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">

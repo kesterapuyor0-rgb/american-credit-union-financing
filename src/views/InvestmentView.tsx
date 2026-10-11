@@ -24,6 +24,7 @@ interface InvestmentPortfolio {
 interface InvestmentViewProps {
   onClose: () => void;
   onPurchaseComplete: () => void;
+  inline?: boolean;
 }
 
 const assetGroups: InvestmentAssetType[] = ['Equity', 'ETF', 'Mutual Fund', 'Fixed Income'];
@@ -121,7 +122,7 @@ function InvestmentOrderModal({
   );
 }
 
-export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurchaseComplete }) => {
+export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurchaseComplete, inline = false }) => {
   const [assets, setAssets] = useState<InvestmentAsset[]>([]);
   const [portfolio, setPortfolio] = useState<InvestmentPortfolio | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<InvestmentAsset | null>(null);
@@ -176,8 +177,8 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
   };
 
   return (
-    <div className="fixed inset-0 z-[80] overflow-y-auto bg-slate-100">
-      <div className="mx-auto min-h-full max-w-6xl px-3 py-4 sm:px-6 sm:py-8">
+    <div className={inline ? 'overflow-y-auto rounded-2xl bg-slate-100' : 'fixed inset-0 z-[80] overflow-y-auto bg-slate-100'}>
+      <div className={`mx-auto max-w-6xl px-3 py-4 sm:px-6 sm:py-8 ${inline ? '' : 'min-h-full'}`}>
         <header className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <div className="flex items-start gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-800"><BriefcaseBusiness className="h-5 w-5" /></span>
@@ -187,7 +188,9 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
               <p className="mt-1 text-sm text-slate-600">Browse illustrative assets and record simulated fractional or whole-unit trades.</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close investment portfolio" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+          <button type="button" onClick={onClose} aria-label={inline ? 'Back to all accounts' : 'Close investment portfolio'} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
+            {inline ? <span className="px-2 text-sm font-semibold">Back</span> : <X className="h-5 w-5" />}
+          </button>
         </header>
 
         <div role="note" className="mt-4 flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
