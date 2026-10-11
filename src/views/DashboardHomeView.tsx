@@ -355,7 +355,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Net Worth</p>
-            <p className="mt-1 text-sm text-slate-600">Checking, savings, and simulated investments</p>
+            <p className="mt-1 text-sm text-slate-600">Checking, savings, and investments</p>
           </div>
         </div>
         <div className="mt-8">
