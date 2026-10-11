@@ -1,4 +1,5 @@
 import React, { useMemo, useState, ChangeEvent, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { User, BankAccount, Transaction, BankCard, CardApplication } from '../types';
 import { getAuthHeaders } from '../utils/api';
 import { formatTransactionDescription } from '../utils/transactionFormatting';
@@ -58,8 +59,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const [cryptoVaultLoading, setCryptoVaultLoading] = useState(false);
   const [cryptoVaultError, setCryptoVaultError] = useState('');
   const [cryptoCopyError, setCryptoCopyError] = useState('');
-  const [cryptoQrError, setCryptoQrError] = useState('');
-  const [cryptoQrCode, setCryptoQrCode] = useState('');
   const [cryptoWallets, setCryptoWallets] = useState<{ bitcoin: string; usdtTrc20: string; usdtErc20: string }>({
     bitcoin: '',
     usdtTrc20: '',
@@ -194,7 +193,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const handleReceive = () => {
     setCryptoVaultError('');
     setCryptoCopyError('');
-    setCryptoQrError('');
     setCryptoWallets({ bitcoin: '', usdtTrc20: '', usdtErc20: '' });
     setCryptoVaultLoading(true);
     setReceiveModalOpen(true);
@@ -203,33 +201,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const selectedCryptoAddress = selectedCryptoNetwork === 'BTC'
     ? cryptoWallets.bitcoin
     : selectedCryptoNetwork === 'TRC-20' ? cryptoWallets.usdtTrc20 : cryptoWallets.usdtErc20;
-
-  useEffect(() => {
-    let cancelled = false;
-    setCryptoQrCode('');
-    setCryptoQrError('');
-    if (!receiveModalOpen || !selectedCryptoAddress) return () => { cancelled = true; };
-
-    const generateQrCode = async () => {
-      try {
-        const { default: QRCode } = await import('qrcode');
-        const dataUrl = await QRCode.toDataURL(selectedCryptoAddress, {
-          width: 220,
-          margin: 2,
-          errorCorrectionLevel: 'M',
-        });
-        if (!cancelled) setCryptoQrCode(dataUrl);
-      } catch (error: unknown) {
-        if (!cancelled) {
-          console.error('Unable to generate crypto deposit QR code:', error);
-          setCryptoQrError('QR code is temporarily unavailable. You can still copy the wallet address.');
-        }
-      }
-    };
-    void generateQrCode();
-
-    return () => { cancelled = true; };
-  }, [receiveModalOpen, selectedCryptoAddress]);
 
   const copyCryptoAddress = async () => {
     const address = selectedCryptoAddress;
@@ -608,11 +579,15 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
 
             {selectedCryptoAddress && (
               <div className="mx-auto mt-4 grid aspect-square w-44 place-items-center rounded-xl border border-slate-200 bg-white p-3" aria-label={`${selectedCryptoNetwork} deposit QR code`}>
-                {cryptoQrCode
-                  ? <img src={cryptoQrCode} alt={`${selectedCryptoNetwork} wallet address QR code`} className="h-full w-full" />
-                  : cryptoQrError
-                    ? <p role="alert" className="text-center text-xs text-rose-700">{cryptoQrError}</p>
-                    : <p role="status" className="text-center text-xs text-slate-500">Generating QR code…</p>}
+                <QRCodeSVG
+                  value={selectedCryptoAddress}
+                  size={160}
+                  bgColor="#ffffff"
+                  fgColor="#0f172a"
+                  level="M"
+                  includeMargin
+                  title={`${selectedCryptoNetwork} wallet address QR code`}
+                />
               </div>
             )}
           </section>
