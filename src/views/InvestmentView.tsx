@@ -253,12 +253,12 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
                 <article key={asset.symbol} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-wide text-teal-800">{asset.assetType}</p><h3 className="mt-1 font-semibold text-slate-950">{asset.name}</h3><p className="mt-0.5 font-mono text-sm text-slate-500">{asset.symbol}</p></div>
-                    <p className="shrink-0 text-right font-mono font-semibold text-slate-950">{formatUSD(asset.demoPrice)}<span className="block text-[10px] font-sans font-normal text-slate-500">demo reference</span></p>
+                    <p className="shrink-0 text-right font-mono font-semibold text-slate-950">{formatUSD(asset.demoPrice)}<span className="block text-[10px] font-sans font-normal text-slate-500">illustrative price</span></p>
                   </div>
                   <p className="mt-3 min-h-10 text-xs leading-5 text-slate-500">{asset.detail}</p>
                   <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
-                    <span className={`text-xs font-semibold ${asset.dailyChangePercent < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{asset.dailyChangePercent > 0 ? '+' : ''}{asset.dailyChangePercent.toFixed(2)}% simulated daily move</span>
-                    <button type="button" disabled={!portfolio?.checkingAccount} onClick={() => setSelectedAsset(asset)} className="min-h-10 rounded-lg bg-teal-800 px-4 text-sm font-semibold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-50">Buy demo</button>
+                    <span className={`text-xs font-semibold ${asset.dailyChangePercent < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{asset.dailyChangePercent > 0 ? '+' : ''}{asset.dailyChangePercent.toFixed(2)}%</span>
+                    <button type="button" disabled={!portfolio?.checkingAccount} onClick={() => setSelectedAsset(asset)} className="min-h-10 rounded-lg bg-teal-800 px-4 text-sm font-semibold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-50">Buy</button>
                   </div>
                 </article>
               ))}
