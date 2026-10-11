@@ -110,7 +110,9 @@ function writeDashboardCache(userId: string, payload: DashboardPayload): void {
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string>(() => getStoredAuthToken());
-  const [activeTab, setActiveTab] = useState<string>('home');
+  const [activeTab, setActiveTab] = useState<string>(() =>
+    window.location.pathname === '/history' ? 'history' : 'home'
+  );
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [cards, setCards] = useState<BankCard[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);

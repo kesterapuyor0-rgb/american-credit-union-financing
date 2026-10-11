@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { User, BankAccount, Transaction, BankCard, CardApplication } from '../types';
 import { getAuthHeaders } from '../utils/api';
 import { formatTransactionDescription } from '../utils/transactionFormatting';
+import { PushNotificationBanner } from '../components/PushNotificationBanner';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -278,6 +279,8 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           </div>
         </div>
       </header>
+
+      <PushNotificationBanner userId={user.id} />
 
       {dashboardLoading ? (
         <section aria-label="Loading primary account" className="rounded-3xl border border-teal-100 bg-white p-5 shadow-sm sm:p-7" aria-busy="true">

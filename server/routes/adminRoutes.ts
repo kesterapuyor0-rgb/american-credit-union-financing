@@ -8,6 +8,7 @@ import { requireAdmin, AuthenticatedRequest, isAdminRole } from '../auth.js';
 import { maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
 import { createNotification } from '../notifications.js';
 import { formatCryptoAmount, getCryptoUsdRates } from '../cryptoRates.js';
+import { sendPushNotification } from '../webPush.js';
 
 const router = Router();
 
@@ -379,6 +380,11 @@ const updateCryptoWalletAssignments = async (req: AuthenticatedRequest, res: Res
         ip_address: req.ip || '127.0.0.1',
         created_at: new Date().toISOString(),
       }], { session });
+    });
+    await sendPushNotification(updatedUser.id, {
+      title: 'Crypto Wallet Updated',
+      body: 'Your cryptocurrency deposit wallet assignments have been updated.',
+      url: '/history',
     });
     res.json({
       success: true,
@@ -827,6 +833,13 @@ router.post('/balance-adjustment', async (req: AuthenticatedRequest, res: Respon
       }], { session });
     });
 
+    if (action === 'credit') {
+      await sendPushNotification(account.user_id, {
+        title: 'Account Credit Posted',
+        body: 'A new credit has posted to your account. Sign in to review your account history.',
+        url: '/history',
+      });
+    }
     const availableBalance = Math.max(0, updatedAccount.balance - (updatedAccount.held_balance || 0));
     res.json({
       success: true,
@@ -1148,6 +1161,11 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
     } catch (notificationError) {
       console.error('Unable to record account credit notification:', notificationError);
     }
+    await sendPushNotification(account.user_id, {
+      title: 'Account Credit Posted',
+      body: 'A new credit has posted to your account. Sign in to review your account history.',
+      url: '/history',
+    });
 
     res.json({
       success: true,

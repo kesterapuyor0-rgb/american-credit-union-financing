@@ -1,5 +1,14 @@
 import mongoose, { Schema } from 'mongoose';
 
+const pushSubscriptionSchema = new Schema({
+  endpoint: { type: String, required: true, maxlength: 2048 },
+  expirationTime: { type: Number, default: null },
+  keys: {
+    p256dh: { type: String, required: true, maxlength: 256 },
+    auth: { type: String, required: true, maxlength: 256 },
+  },
+}, { _id: false });
+
 const userSchema = new Schema({
   id: { type: String, required: true, unique: true, index: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
@@ -19,6 +28,7 @@ const userSchema = new Schema({
   usdt_network: { type: String, enum: ['', 'TRC-20', 'ERC-20'], default: '' },
   assigned_usdt_trc20_address: { type: String, default: '', trim: true, maxlength: 100 },
   assigned_usdt_erc20_address: { type: String, default: '', trim: true, maxlength: 100 },
+  pushSubscriptions: { type: [pushSubscriptionSchema], default: [], select: false },
   documentUrl: { type: String, default: '' },
   verification_status: { type: String, enum: ['under_review', 'approved', 'rejected'], default: 'under_review', index: true },
   verification_rejection_reason: { type: String, default: '', trim: true, maxlength: 500 },

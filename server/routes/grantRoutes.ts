@@ -5,6 +5,7 @@ import { Account, AuditLog, Grant, Transaction, User } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { AuthenticatedRequest, requireAdmin, requireApprovedUser } from '../auth.js';
 import { createNotification } from '../notifications.js';
+import { sendPushNotification } from '../webPush.js';
 
 const router = Router();
 const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024;
@@ -257,7 +258,7 @@ router.put('/admin/:id/status', requireAdmin, async (req: AuthenticatedRequest, 
 router.post('/admin/:id/disburse', requireAdmin, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const session = await mongoose.startSession();
   try {
-    let result: { applicationId: string; transactionId: string; amount: number } | null = null;
+    let result: { applicationId: string; transactionId: string; amount: number; userId: string } | null = null;
     await session.withTransaction(async () => {
       const grant = await Grant.findOne({ id: req.params.id, status: 'APPROVED', disbursedAt: null })
         .session(session).lean<any>();
@@ -328,8 +329,15 @@ router.post('/admin/:id/disburse', requireAdmin, async (req: AuthenticatedReques
         category: 'grant',
         link: 'grants',
       }, session);
-      result = { applicationId: grant.id, transactionId, amount: grant.approvedAmount };
+      result = { applicationId: grant.id, transactionId, amount: grant.approvedAmount, userId: grant.userId };
     });
+    if (result) {
+      await sendPushNotification(result.userId, {
+        title: 'Grant Funds Disbursed',
+        body: 'Your grant disbursement has posted. Sign in to review your account history.',
+        url: '/history',
+      });
+    }
     res.json({ success: true, ...result });
   } catch (err) {
     console.error('Grant disbursement failed:', err);
