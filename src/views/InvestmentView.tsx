@@ -47,7 +47,11 @@ function InvestmentOrderModal({
   const [quantity, setQuantity] = useState('1');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [receipt, setReceipt] = useState<{ transactionId: string; totalCost: number } | null>(null);
+  const [receipt, setReceipt] = useState<{
+    confirmationNumber: string;
+    totalCost: number;
+    checkingAccountNickname: string;
+  } | null>(null);
   const estimatedCost = Math.round((Number(quantity) * asset.marketPrice) * 100) / 100;
   const validQuantity = Number.isFinite(Number(quantity)) && Number(quantity) > 0;
 
@@ -64,7 +68,11 @@ function InvestmentOrderModal({
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Unable to submit this order.');
-      setReceipt({ transactionId: data.transactionId, totalCost: Number(data.totalCost) });
+      setReceipt({
+        confirmationNumber: data.confirmationNumber,
+        totalCost: Number(data.totalCost),
+        checkingAccountNickname: data.checkingAccountNickname,
+      });
       onComplete();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Unable to submit this order.');
@@ -79,7 +87,7 @@ function InvestmentOrderModal({
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-teal-800">Investment order</p>
-            <h2 id="investment-order-title" className="mt-1 text-xl font-bold text-slate-950">{receipt ? 'Order recorded' : `Buy ${asset.symbol}`}</h2>
+            <h2 id="investment-order-title" className="mt-1 text-xl font-bold text-slate-950">{receipt ? 'Trade Confirmation' : `Buy ${asset.symbol}`}</h2>
             <p className="mt-1 text-sm text-slate-600">{asset.name}</p>
           </div>
           <button type="button" onClick={onClose} disabled={submitting} aria-label="Close order" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"><X className="h-5 w-5" /></button>
@@ -89,8 +97,11 @@ function InvestmentOrderModal({
           <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
             <CheckCircle2 aria-hidden="true" className="h-6 w-6 text-emerald-700" />
             <p className="mt-2 font-semibold text-emerald-950">Investment order recorded</p>
-            <p className="mt-1 text-sm text-emerald-900">{formatUSD(receipt.totalCost)} was deducted from your available checking balance. This order was not sent to a brokerage.</p>
-            <p className="mt-3 break-all font-mono text-xs text-emerald-800">Reference: {receipt.transactionId}</p>
+            <p className="mt-1 text-sm text-emerald-900">
+              {formatUSD(receipt.totalCost)} has been debited from your {receipt.checkingAccountNickname} balance.
+              {' '}This order is recorded in your in-app portfolio ledger and was not routed to a brokerage.
+            </p>
+            <p className="mt-3 break-all font-mono text-xs text-emerald-800">Confirmation Number: {receipt.confirmationNumber}</p>
             <button type="button" onClick={onClose} className="mt-4 min-h-11 w-full rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900">Return to portfolio</button>
           </div>
         ) : (

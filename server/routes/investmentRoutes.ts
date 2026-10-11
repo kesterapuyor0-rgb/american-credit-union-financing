@@ -114,9 +114,12 @@ router.post('/buy', async (req: AuthenticatedRequest, res: Response): Promise<vo
   try {
     let result: {
       transactionId: string;
+      confirmationNumber: string;
       symbol: string;
       quantity: number;
       totalCost: number;
+      checkingAccountNickname: string;
+      orderStatus: 'recorded';
       averageCost: number;
       portfolioValue: number;
       dailyChangePercent: number;
@@ -220,9 +223,12 @@ router.post('/buy', async (req: AuthenticatedRequest, res: Response): Promise<vo
       const portfolio = summarizePortfolio(updatedHoldings);
       result = {
         transactionId,
+        confirmationNumber: transactionId,
         symbol: asset.symbol,
         quantity,
         totalCost,
+        checkingAccountNickname: checking.nickname || 'Checking',
+        orderStatus: 'recorded',
         averageCost: nextAverageCost,
         portfolioValue: portfolio.totalValue,
         dailyChangePercent: portfolio.dailyChangePercent,
