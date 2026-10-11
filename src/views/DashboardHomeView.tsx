@@ -107,6 +107,10 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     account.status === 'Active'
     && (account.account_type === 'Checking' || account.account_type === 'Savings')
   );
+  const orderedCheckingAndSavings = [...checkingAndSavings].sort((left, right) => {
+    if (left.account_type === right.account_type) return 0;
+    return left.account_type === 'Checking' ? -1 : 1;
+  });
   const defaultAccount = checkingAndSavings.find((account) => account.account_type === 'Checking') || checkingAndSavings[0] || accounts[0];
   const primaryCheckingAccount = checkingAndSavings.find((account) => account.account_type === 'Checking') || defaultAccount;
   const totalAccountBalance = checkingAndSavings.reduce(
@@ -115,10 +119,10 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   );
   const totalNetWorth = totalAccountBalance + (investmentSummary?.totalValue || 0);
   const visibleAccounts = accountFilter === 'All Accounts'
-    ? checkingAndSavings
+    ? orderedCheckingAndSavings
     : accountFilter === 'Investments'
       ? []
-      : checkingAndSavings.filter((account) => account.account_type === accountFilter);
+      : orderedCheckingAndSavings.filter((account) => account.account_type === accountFilter);
   const detailsAccount = accounts.find((account) => account.id === detailsAccountId);
   const legacyCards = accounts.filter((account) => account.account_type === 'Credit Card' && account.status === 'Active');
   const recentTransactions = useMemo(() => transactions.slice(0, 3), [transactions]);
@@ -505,7 +509,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-800"><BriefcaseBusiness aria-hidden="true" className="h-5 w-5" /></span>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Investments · paper-trading simulation</p>
-                  <h3 className="mt-1 font-semibold text-slate-900">Simulated portfolio</h3>
+                  <h3 className="mt-1 font-semibold text-slate-900">Investment Portfolio</h3>
                   <p className="mt-1 text-xs text-slate-500">Daily simulated P/L: {investmentSummaryLoading ? 'Loading…' : `${(investmentSummary?.dailyChangePercent || 0) > 0 ? '+' : ''}${(investmentSummary?.dailyChangePercent || 0).toFixed(2)}% (${formatMoney(investmentSummary?.dailyChangeValue || 0)})`}</p>
                 </div>
               </div>
