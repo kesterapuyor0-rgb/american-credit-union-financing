@@ -43,9 +43,11 @@ export interface Transaction {
   account_id: string;
   type: 'deposit' | 'withdrawal' | 'transfer_in' | 'transfer_out' | 'payment' | 'admin_adjustment' | 'admin_credit' | 'admin_debit' | 'admin_hold' | 'admin_release' | 'card_debit' | 'card_credit';
   amount: number;
+  amount_usd?: number;
   transfer_fee?: number;
   transfer_tax?: number;
   currency: string;
+  crypto_network?: string;
   description: string;
   sender_name?: string;
   senderName?: string;

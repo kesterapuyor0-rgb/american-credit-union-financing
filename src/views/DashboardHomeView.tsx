@@ -542,7 +542,9 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                     <p className="truncate text-xs text-slate-500">{transaction.date}</p>
                   </div>
                   <p className={`shrink-0 whitespace-nowrap text-right text-sm font-bold tabular-nums ${isIncoming ? 'text-emerald-700' : 'text-slate-900'}`}>
-                    {isIncoming ? '+' : '−'}{formatMoney(amount)}
+                    {isIncoming ? '+' : '−'}{transaction.formatted_amount && transaction.currency !== 'USD'
+                      ? `${transaction.formatted_amount} · ${formatMoney(transaction.amount_usd ?? 0)} USD`
+                      : formatMoney(transaction.amount_usd ?? amount)}
                   </p>
                 </div>
               );

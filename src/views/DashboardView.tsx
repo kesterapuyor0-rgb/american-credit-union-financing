@@ -657,7 +657,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                               isPositive ? 'text-green-600' : 'text-gray-900'
                             }`}
                           >
-                            {isPositive ? `+${formatUSD(Math.abs(tx.amount))}` : `-${formatUSD(Math.abs(tx.amount))}`}
+                            {isPositive ? `+${formatUSD(Math.abs(tx.amount_usd ?? tx.amount))}` : `-${formatUSD(Math.abs(tx.amount_usd ?? tx.amount))}`}
                           </td>
                         </tr>
                       );
@@ -721,6 +721,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     {selectedTransaction.formatted_amount || `${formatUSD(selectedTransaction.amount)} USD`}
                   </span>
                 </div>
+                {selectedTransaction.amount_usd !== undefined && (
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                    <span className="text-gray-500">USD account credit:</span>
+                    <span className="font-mono font-bold text-gray-900">{formatUSD(selectedTransaction.amount_usd)} USD</span>
+                  </div>
+                )}
+                {selectedTransaction.crypto_network && (
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                    <span className="text-gray-500">Crypto network:</span>
+                    <span className="font-medium text-gray-900">{selectedTransaction.crypto_network}</span>
+                  </div>
+                )}
                 {selectedTransactionIsWire && (
                   <>
                     <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
@@ -733,7 +745,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
                     <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                       <span className="text-gray-500">Total debit:</span>
-                      <span className="font-mono font-bold text-gray-900">{formatUSD(selectedTransaction.amount + receiptFee + receiptTax)} USD</span>
+                      <span className="font-mono font-bold text-gray-900">{formatUSD((selectedTransaction.amount_usd ?? selectedTransaction.amount) + receiptFee + receiptTax)} USD</span>
                     </div>
                   </>
                 )}

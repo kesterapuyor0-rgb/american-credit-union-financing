@@ -7,11 +7,22 @@ import { errorMessage, requireDatabase } from '../db.js';
 import { requireAdmin, AuthenticatedRequest, isAdminRole } from '../auth.js';
 import { maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
 import { createNotification } from '../notifications.js';
+import { formatCryptoAmount, getCryptoUsdRates } from '../cryptoRates.js';
 
 const router = Router();
 
 router.use(requireDatabase);
 router.use(requireAdmin);
+
+router.get('/crypto-prices', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const prices = await getCryptoUsdRates();
+    res.json({ prices, updatedAt: new Date().toISOString() });
+  } catch (error) {
+    console.error('Unable to retrieve crypto market prices:', error);
+    res.status(502).json({ error: 'Live crypto market prices are temporarily unavailable.' });
+  }
+});
 
 const transferDebitAmount = (transaction: any): number =>
   Math.abs(Number(transaction.amount) || 0)
@@ -961,12 +972,43 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
     const transactionType = String(req.body?.transactionType || 'ACH Direct Deposit').trim();
     const referenceId = String(req.body?.referenceNumber || '').trim() || `ACH-${randomUUID()}`;
     const memoText = String(req.body?.memo || req.body?.description || req.body?.reason || '').trim();
-    const parsedAmount = Math.round(Number(amount) * 100) / 100;
-    const allowedTransactionTypes = ['ACH Direct Deposit', 'Wire Transfer', 'Payroll Deposit', 'Grant Disbursement', 'Other Credit'];
+    const cryptoTypes: Record<string, { currency: 'BTC' | 'USDT'; network: string; maximumDecimals: number }> = {
+      'Crypto Deposit - Bitcoin (BTC)': { currency: 'BTC', network: 'Bitcoin Mainnet', maximumDecimals: 8 },
+      'Crypto Deposit - Tether (USDT TRC-20)': { currency: 'USDT', network: 'TRC-20', maximumDecimals: 6 },
+      'Crypto Deposit - Tether (USDT ERC-20)': { currency: 'USDT', network: 'ERC-20', maximumDecimals: 6 },
+    };
+    const cryptoType = cryptoTypes[transactionType];
+    const rawAmount = String(amount ?? '').trim();
+    const parsedAmount = Number(rawAmount);
+    let amountToCredit = Math.round(parsedAmount * 100) / 100;
+    let usdEquivalent: number | undefined;
+    const currency = cryptoType?.currency || 'USD';
+    let cryptoNetwork = '';
+    const allowedTransactionTypes = ['ACH Direct Deposit', 'Wire Transfer', 'Payroll Deposit', 'Grant Disbursement', 'Other Credit', ...Object.keys(cryptoTypes)];
 
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0 || parsedAmount > 10000000) {
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0 || (!cryptoType && parsedAmount > 10000000)) {
       res.status(400).json({ error: 'Credit amount must be greater than $0.00 and no more than $10,000,000.00.' });
       return;
+    }
+    if (!cryptoType && amountToCredit <= 0) {
+      res.status(400).json({ error: 'Credit amount must be at least $0.01.' });
+      return;
+    }
+    if (cryptoType) {
+      const decimalPart = rawAmount.match(/\.(\d+)$/)?.[1] || '';
+      if (!/^\d+(?:\.\d+)?$/.test(rawAmount) || decimalPart.length > cryptoType.maximumDecimals) {
+        res.status(400).json({ error: `Enter a valid ${cryptoType.currency} amount with no more than ${cryptoType.maximumDecimals} decimal places.` });
+        return;
+      }
+      const prices = await getCryptoUsdRates();
+      const rate = prices[cryptoType.currency];
+      usdEquivalent = Math.round(parsedAmount * rate * 100) / 100;
+      if (!Number.isFinite(usdEquivalent) || usdEquivalent <= 0 || usdEquivalent > 10000000) {
+        res.status(400).json({ error: 'Crypto amount must convert to a value greater than $0.00 and no more than $10,000,000.00 USD.' });
+        return;
+      }
+      amountToCredit = usdEquivalent;
+      cryptoNetwork = cryptoType.network;
     }
     if (!senderName || senderName.length > 120) {
       res.status(400).json({ error: 'Sender / issuer name is required and must be 120 characters or fewer.' });
@@ -1005,16 +1047,17 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
     }
     const txId = `tx_cred_${randomUUID()}`;
     const today = new Date().toISOString().split('T')[0];
+    const isCryptoDeposit = Boolean(cryptoType);
     const isPayrollDeposit = transactionType === 'ACH Direct Deposit' || transactionType === 'Payroll Deposit';
     const persistedTransactionType = isPayrollDeposit ? 'Payroll Processing' : transactionType;
-    const transactionCategory = isPayrollDeposit ? 'Direct Deposit' : transactionType;
+    const transactionCategory = isCryptoDeposit ? 'Crypto Deposit' : isPayrollDeposit ? 'Direct Deposit' : transactionType;
     const fullDesc = `${transactionCategory} - ${senderName}`;
     let updatedAccount: any;
 
     await session.withTransaction(async () => {
       updatedAccount = await Account.findOneAndUpdate(
         { id: account.id },
-        { $inc: { balance: parsedAmount } },
+        { $inc: { balance: amountToCredit } },
         { new: true, session },
       ).lean<any>();
       if (!updatedAccount) throw new Error('Target customer account could not be found.');
@@ -1024,8 +1067,10 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
         user_id: account.user_id,
         account_id: account.id,
         type: 'admin_credit',
-        amount: parsedAmount,
-        currency: account.currency || 'USD',
+        amount: isCryptoDeposit ? parsedAmount : amountToCredit,
+        ...(usdEquivalent !== undefined ? { amount_usd: usdEquivalent } : {}),
+        currency: isCryptoDeposit ? currency : account.currency || 'USD',
+        crypto_network: cryptoNetwork,
         description: memoText ? `${fullDesc} — ${memoText}` : fullDesc,
         sender_name: senderName,
         reference_id: referenceId,
@@ -1045,8 +1090,8 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
         action: 'ADMIN_CREDIT',
         target_user_id: account.user_id,
         target_account_id: account.id,
-        amount: parsedAmount,
-        details: `${transactionType} credit of $${parsedAmount.toFixed(2)} from ${senderName} to ${targetUser?.full_name || 'customer'} (Acct: ${account.account_number}). Reference: ${referenceId}.${memoText ? ` Memo: ${memoText}` : ''}`,
+        amount: amountToCredit,
+        details: `${transactionType} credit${isCryptoDeposit ? ` (${formatCryptoAmount(parsedAmount, currency)}, approximately $${usdEquivalent?.toFixed(2)} USD)` : ` of $${amountToCredit.toFixed(2)}`} from ${senderName} to ${targetUser?.full_name || 'customer'} (Acct: ${account.account_number}). Reference: ${referenceId}.${memoText ? ` Memo: ${memoText}` : ''}`,
         ip_address: req.ip || '127.0.0.1',
         created_at: new Date().toISOString(),
       }], { session });
@@ -1056,7 +1101,7 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
       await createNotification({
         userId: account.user_id,
         title: 'Account Credit Posted',
-        message: `${new Intl.NumberFormat('en-US', { style: 'currency', currency: account.currency || 'USD' }).format(parsedAmount)} from ${senderName} was credited to your account.`,
+        message: `${new Intl.NumberFormat('en-US', { style: 'currency', currency: account.currency || 'USD' }).format(amountToCredit)} from ${senderName} was credited to your account.`,
         type: 'deposit',
         category: 'deposit',
         link: 'history',
@@ -1067,9 +1112,11 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
 
     res.json({
       success: true,
-      message: `Successfully credited $${parsedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} to ${targetUser?.full_name || 'Customer'}'s account (${account.account_number}).`,
+      message: isCryptoDeposit
+        ? `${formatCryptoAmount(parsedAmount, currency)} (${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amountToCredit)} USD equivalent) was credited to ${targetUser?.full_name || 'Customer'}'s account (${account.account_number}).`
+        : `Successfully credited $${amountToCredit.toLocaleString('en-US', { minimumFractionDigits: 2 })} to ${targetUser?.full_name || 'Customer'}'s account (${account.account_number}).`,
       newBalance: updatedAccount.balance,
-      creditedAmount: parsedAmount,
+      creditedAmount: amountToCredit,
       account: updatedAccount,
       user: targetUser,
       transactionId: txId,
@@ -1079,11 +1126,16 @@ router.post('/credit-user', async (req: AuthenticatedRequest, res: Response): Pr
         reference_id: referenceId,
         transaction_type: persistedTransactionType,
         category: transactionCategory,
+        currency,
+        crypto_network: cryptoNetwork,
+        amount_usd: usdEquivalent,
         recipient_name: recipientName,
-        formatted_amount: new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: account.currency || 'USD',
-        }).format(parsedAmount),
+        formatted_amount: isCryptoDeposit
+          ? formatCryptoAmount(parsedAmount, currency)
+          : new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: account.currency || 'USD',
+          }).format(amountToCredit),
       },
     });
   } catch (err: any) {
@@ -1130,10 +1182,12 @@ router.get('/transactions', async (req: AuthenticatedRequest, res: Response): Pr
     const accountsById = new Map(accounts.map((account) => [account.id, account]));
     const transactions = rows.map((row) => ({
       ...row,
-      formatted_amount: new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: row.currency || 'USD',
-      }).format(Math.abs(Number(row.amount) || 0)),
+      formatted_amount: row.amount_usd !== undefined && row.currency !== 'USD'
+        ? formatCryptoAmount(Number(row.amount) || 0, row.currency)
+        : new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: row.currency || 'USD',
+        }).format(Math.abs(Number(row.amount) || 0)),
       user_email: usersById.get(row.user_id)?.email,
       user_name: usersById.get(row.user_id)?.full_name,
       account_number: accountsById.get(row.account_id)?.account_number,

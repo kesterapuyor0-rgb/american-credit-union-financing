@@ -51,6 +51,12 @@ interface VerificationApplicant {
 const CARD_COLOR_OPTIONS = ['emerald', 'navy', 'crimson', 'gold'] as const;
 type GrantReviewDecision = 'UNDER_COMMITTEE_REVIEW' | 'APPROVED' | 'REJECTED';
 
+const CRYPTO_CREDIT_OPTIONS = [
+  { value: 'Crypto Deposit - Bitcoin (BTC)', currency: 'BTC', maximumDecimals: 8 },
+  { value: 'Crypto Deposit - Tether (USDT TRC-20)', currency: 'USDT', maximumDecimals: 6 },
+  { value: 'Crypto Deposit - Tether (USDT ERC-20)', currency: 'USDT', maximumDecimals: 6 },
+] as const;
+
 const getVerificationDocumentUrl = (
   document?: User['verificationDocument'],
   documentUrl?: string,
@@ -129,6 +135,9 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
   const [creditTransactionType, setCreditTransactionType] = useState('ACH Direct Deposit');
   const [creditReferenceNumber, setCreditReferenceNumber] = useState('');
   const [submittingCredit, setSubmittingCredit] = useState(false);
+  const [cryptoPrices, setCryptoPrices] = useState<{ BTC: number; USDT: number } | null>(null);
+  const [cryptoPriceError, setCryptoPriceError] = useState('');
+  const [loadingCryptoPrices, setLoadingCryptoPrices] = useState(false);
   const [grantApplications, setGrantApplications] = useState<GrantApplication[]>([]);
   const [grantNotes, setGrantNotes] = useState<Record<string, string>>({});
   const [grantAwards, setGrantAwards] = useState<Record<string, string>>({});
@@ -136,11 +145,55 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
   const [selectedGrantDocument, setSelectedGrantDocument] = useState<GrantApplication | null>(null);
 
   const activeToken = token || getStoredAuthToken();
+  const selectedCryptoCredit = CRYPTO_CREDIT_OPTIONS.find((option) => option.value === creditTransactionType);
+  const selectedCryptoPrice = selectedCryptoCredit ? cryptoPrices?.[selectedCryptoCredit.currency] : undefined;
   const pendingWireTransfers = pendingDeposits.filter((transaction) =>
     String(transaction.type).toLowerCase() === 'transfer_out'
     && !String(transaction.category || '').toLowerCase().includes('zelle')
     && transaction.description.toLowerCase().includes('domestic wire')
   );
+
+  useEffect(() => {
+    if (!creditModalOpen) return;
+    let cancelled = false;
+    const controller = new AbortController();
+    const loadCryptoPrices = async () => {
+      setLoadingCryptoPrices(true);
+      setCryptoPriceError('');
+      try {
+        const response = await fetch('/api/admin/crypto-prices', {
+          headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {},
+          credentials: 'include',
+          signal: controller.signal,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error || 'Unable to load current crypto prices.');
+        const btc = Number(data?.prices?.BTC);
+        const usdt = Number(data?.prices?.USDT);
+        if (!Number.isFinite(btc) || btc <= 0 || !Number.isFinite(usdt) || usdt <= 0) {
+          throw new Error('The price service returned invalid crypto prices.');
+        }
+        if (!cancelled) {
+          setCryptoPrices({ BTC: btc, USDT: usdt });
+          setCryptoPriceError('');
+        }
+      } catch (error) {
+        if (!cancelled && !(error instanceof DOMException && error.name === 'AbortError')) {
+          setCryptoPriceError(error instanceof Error ? error.message : 'Unable to load current crypto prices.');
+        }
+      } finally {
+        if (!cancelled) setLoadingCryptoPrices(false);
+      }
+    };
+
+    void loadCryptoPrices();
+    const refreshTimer = window.setInterval(() => void loadCryptoPrices(), 60_000);
+    return () => {
+      cancelled = true;
+      controller.abort();
+      window.clearInterval(refreshTimer);
+    };
+  }, [activeToken, creditModalOpen]);
 
   const fetchOverview = async () => {
     try {
@@ -674,8 +727,27 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
 
   const handleProcessCreditUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    const parsed = parseFloat(creditAmount);
-    if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 10000000) {
+    const parsed = Number(creditAmount);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setError('Enter a credit amount greater than $0.00 and no more than $10,000,000.00 USD.');
+      return;
+    }
+    if (selectedCryptoCredit) {
+      const decimalPart = creditAmount.match(/\.(\d+)$/)?.[1] || '';
+      if (!/^\d+(?:\.\d+)?$/.test(creditAmount) || decimalPart.length > selectedCryptoCredit.maximumDecimals) {
+        setError(`Enter a valid ${selectedCryptoCredit.currency} amount with no more than ${selectedCryptoCredit.maximumDecimals} decimal places.`);
+        return;
+      }
+      if (!selectedCryptoPrice || cryptoPriceError) {
+        setError(cryptoPriceError || 'Wait for a current crypto market price before submitting this credit.');
+        return;
+      }
+      const usdEquivalent = parsed * selectedCryptoPrice;
+      if (!Number.isFinite(usdEquivalent) || usdEquivalent < 0.01 || usdEquivalent > 10000000) {
+        setError('Crypto amount must convert to at least $0.01 and no more than $10,000,000.00 USD.');
+        return;
+      }
+    } else if (parsed > 10000000) {
       setError('Enter a credit amount greater than $0.00 and no more than $10,000,000.00 USD.');
       return;
     }
@@ -707,7 +779,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
         credentials: 'include',
         body: JSON.stringify({
           accountId: creditAccountId,
-          amount: parsed,
+          amount: selectedCryptoCredit ? creditAmount : parsed,
           senderName: creditSenderName.trim(),
           transactionType: creditTransactionType,
           referenceNumber: creditReferenceNumber.trim(),
@@ -721,7 +793,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
         throw new Error(data?.error || 'Failed to process customer credit injection.');
       }
 
-      setSuccessMsg(data.message || `Successfully credited $${parsed.toFixed(2)} to customer account.`);
+      setSuccessMsg(data.message || `Successfully credited $${parsed.toFixed(selectedCryptoCredit?.maximumDecimals ?? 2)} to customer account.`);
       setCreditModalOpen(false);
       fetchUsers();
       fetchOverview();
@@ -1912,7 +1984,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                         </span>
                       </td>
                       <td className="break-words px-1.5 py-2 text-right font-mono font-bold text-gray-900 sm:px-4 sm:py-3">
-                        {formatUSD(t.amount)} USD
+                        {t.amount_usd !== undefined ? `${t.formatted_amount || `${t.amount} ${t.currency}`} · ${formatUSD(t.amount_usd)} USD equivalent` : `${formatUSD(t.amount)} USD`}
                       </td>
                     </tr>
                   ))}
@@ -2225,7 +2297,18 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                   <select
                     id="select-credit-transaction-type"
                     value={creditTransactionType}
-                    onChange={(event) => setCreditTransactionType(event.target.value)}
+                    onChange={(event) => {
+                      const transactionType = event.target.value;
+                      setCreditTransactionType(transactionType);
+                      if (transactionType.startsWith('Crypto Deposit') && creditSenderName === 'Gusto Payroll Inc.') {
+                        setCreditSenderName('Treasury Disbursement');
+                      }
+                      if (transactionType.startsWith('Crypto Deposit')) {
+                        setCreditReferenceNumber(`CRYPTO-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`);
+                      } else if (creditReferenceNumber.startsWith('CRYPTO-')) {
+                        setCreditReferenceNumber(`ACH-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`);
+                      }
+                    }}
                     className="w-full min-w-0 rounded-xs border border-gray-300 bg-white p-2.5 text-xs focus:ring-1 focus:ring-[#173B70]"
                     required
                   >
@@ -2234,6 +2317,9 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                     <option>Payroll Deposit</option>
                     <option>Grant Disbursement</option>
                     <option>Other Credit</option>
+                    <option value="Crypto Deposit - Bitcoin (BTC)">Crypto Deposit - Bitcoin (BTC)</option>
+                    <option value="Crypto Deposit - Tether (USDT TRC-20)">Crypto Deposit - Tether (USDT TRC-20)</option>
+                    <option value="Crypto Deposit - Tether (USDT ERC-20)">Crypto Deposit - Tether (USDT ERC-20)</option>
                   </select>
                 </div>
               </div>
@@ -2260,31 +2346,39 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                   htmlFor="input-credit-amount"
                   className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1"
                 >
-                  Deposit / Credit Amount ($ USD)
+                  Deposit / Credit Amount ({selectedCryptoCredit?.currency || '$ USD'})
                 </label>
                 <div className="relative mb-2">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-gray-500">
-                    $
-                  </span>
+                  {!selectedCryptoCredit && <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-gray-500">$</span>}
                   <input
                     id="input-credit-amount"
                     type="number"
-                    step="0.01"
-                    min="0.01"
-                    max="10000000"
+                    step={selectedCryptoCredit ? `0.${'0'.repeat(selectedCryptoCredit.maximumDecimals - 1)}1` : '0.01'}
+                    min={selectedCryptoCredit ? `0.${'0'.repeat(selectedCryptoCredit.maximumDecimals - 1)}1` : '0.01'}
+                    max={selectedCryptoCredit && selectedCryptoPrice ? 10000000 / selectedCryptoPrice : 10000000}
                     required
-                    placeholder="0.00"
+                    placeholder={selectedCryptoCredit?.maximumDecimals === 8 ? '0.00000000' : selectedCryptoCredit ? '0.000000' : '0.00'}
                     value={creditAmount}
                     onChange={(e) => setCreditAmount(e.target.value)}
-                    className="w-full pl-8 pr-12 py-2 text-base font-bold font-mono border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#173B70]"
+                    className={`w-full ${selectedCryptoCredit ? 'pl-3' : 'pl-8'} pr-16 py-2 text-base font-bold font-mono border border-gray-300 rounded-xs focus:ring-1 focus:ring-[#173B70]`}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
-                    USD
-                  </span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">{selectedCryptoCredit?.currency || 'USD'}</span>
                 </div>
 
+                {selectedCryptoCredit && (
+                  <p className="mb-3 text-xs text-gray-600" aria-live="polite">
+                    {loadingCryptoPrices && !selectedCryptoPrice
+                      ? 'Loading current market price…'
+                      : cryptoPriceError
+                        ? cryptoPriceError
+                        : selectedCryptoPrice
+                          ? `Estimated USD credit: ${formatUSD((Number(creditAmount) || 0) * selectedCryptoPrice)} USD · 1 ${selectedCryptoCredit.currency} ≈ ${formatUSD(selectedCryptoPrice)} USD`
+                          : 'Waiting for current market price…'}
+                  </p>
+                )}
+
                 {/* Quick preset chips */}
-                <div className="flex flex-wrap gap-1.5">
+                {!selectedCryptoCredit && <div className="flex flex-wrap gap-1.5">
                   {[500, 1000, 2500, 5000, 10000].map((amt) => (
                     <button
                       key={amt}
@@ -2295,7 +2389,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                       +${amt.toLocaleString()}
                     </button>
                   ))}
-                </div>
+                </div>}
               </div>
 
               {/* Transaction Memo / Description */}
@@ -2334,7 +2428,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
                 <button
                   id="btn-confirm-credit-user"
                   type="submit"
-                  disabled={submittingCredit}
+                  disabled={submittingCredit || Boolean(selectedCryptoCredit && (!selectedCryptoPrice || cryptoPriceError || loadingCryptoPrices && !cryptoPrices))}
                   className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider rounded-xs shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
                 >
                   {submittingCredit ? (
