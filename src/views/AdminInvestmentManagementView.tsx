@@ -76,6 +76,7 @@ export const AdminInvestmentManagementView: React.FC<AdminInvestmentManagementVi
   const [cashReason, setCashReason] = useState('');
   const [scope, setScope] = useState<'portfolio' | 'holding'>('portfolio');
   const [symbol, setSymbol] = useState('');
+  const [overrideAction, setOverrideAction] = useState<'set' | 'top_up' | 'deduct'>('set');
   const [overrideMode, setOverrideMode] = useState<'offset' | 'multiplier'>('offset');
   const [overrideValue, setOverrideValue] = useState('');
   const [overrideReason, setOverrideReason] = useState('');
@@ -192,6 +193,12 @@ export const AdminInvestmentManagementView: React.FC<AdminInvestmentManagementVi
   const holdingsValue = livePositions.reduce((sum, position) => sum + position.currentValue, 0);
   const holdingsProfitLoss = livePositions.reduce((sum, position) => sum + position.profitLoss, 0);
   const totalProfitLoss = applyProfitOverride(holdingsProfitLoss, managedPortfolio?.profitOverride || null);
+  const baseHoldingsProfitLoss = livePositions.reduce(
+    (sum, position) => sum + position.currentValue - position.quantity * position.averageCost,
+    0,
+  );
+  const adminProfitOffset = totalProfitLoss - baseHoldingsProfitLoss;
+  const totalAccountValue = cashBalance + holdingsValue + adminProfitOffset;
   const totalCostBasis = livePositions.reduce((sum, position) => sum + position.quantity * position.averageCost, 0);
   const totalProfitLossPercent = totalCostBasis > 0 ? (totalProfitLoss / totalCostBasis) * 100 : 0;
   const selectedPosition = livePositions.find((position) => position.symbol === symbol);
@@ -262,11 +269,15 @@ export const AdminInvestmentManagementView: React.FC<AdminInvestmentManagementVi
     event.preventDefault();
     if (!managedPortfolio) return;
     const value = Number(overrideValue);
+    const effectiveMode = overrideAction === 'set' ? overrideMode : 'offset';
     if (!Number.isFinite(value)
-      || (overrideMode === 'offset' && (Math.abs(value) > 10000000 || Math.abs(value * 100 - Math.round(value * 100)) > 1e-8))
-      || (overrideMode === 'multiplier' && (value < 0 || value > 100 || Math.abs(value * 10000 - Math.round(value * 10000)) > 1e-8))) {
-      setError(overrideMode === 'offset'
-        ? 'Enter a dollar offset within ±$10,000,000.00, with at most 2 decimal places.'
+      || (effectiveMode === 'offset' && (Math.abs(value) > 10000000 || Math.abs(value * 100 - Math.round(value * 100)) > 1e-8))
+      || (effectiveMode === 'multiplier' && (value < 0 || value > 100 || Math.abs(value * 10000 - Math.round(value * 10000)) > 1e-8))
+      || (overrideAction !== 'set' && value <= 0)) {
+      setError(effectiveMode === 'offset'
+        ? overrideAction === 'set'
+          ? 'Enter a dollar offset within ±$10,000,000.00, with at most 2 decimal places.'
+          : 'Enter an adjustment greater than $0.00 and no more than $10,000,000.00, with at most 2 decimal places.'
         : 'Enter a multiplier between 0 and 100, with at most 4 decimal places.');
       return;
     }
@@ -279,7 +290,11 @@ export const AdminInvestmentManagementView: React.FC<AdminInvestmentManagementVi
       return;
     }
     const target = scope === 'portfolio' ? 'total portfolio P/L' : `${selectedPosition?.name} (${symbol}) P/L`;
-    const effect = overrideMode === 'offset' ? `a ${formatSignedUSD(value)} offset` : `a ${value}× multiplier`;
+    const effect = overrideAction === 'top_up'
+      ? `a ${formatUSD(value)} P/L top-up`
+      : overrideAction === 'deduct'
+        ? `a ${formatUSD(value)} P/L deduction`
+        : effectiveMode === 'offset' ? `a ${formatSignedUSD(value)} offset` : `a ${value}× multiplier`;
     if (!window.confirm(`Apply ${effect} to ${target} for ${managedPortfolio.user.full_name}? This changes the displayed profit/loss only; it does not change cash, units, or market prices. A receipt and audit record will be created.`)) return;
 
     setSubmitting(true);
@@ -291,10 +306,10 @@ export const AdminInvestmentManagementView: React.FC<AdminInvestmentManagementVi
         headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         credentials: 'include',
         body: JSON.stringify({
-          action: 'set',
+          action: overrideAction,
           scope,
           symbol: scope === 'holding' ? symbol : undefined,
-          mode: overrideMode,
+          mode: effectiveMode,
           value,
           reason: overrideReason.trim(),
         }),
@@ -389,10 +404,10 @@ export const AdminInvestmentManagementView: React.FC<AdminInvestmentManagementVi
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3"><p className="text-xs font-semibold uppercase text-slate-500">Cash balance · active USD checking</p><p className="mt-1 text-xl font-bold text-slate-950">{formatUSD(cashBalance)}</p></div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3"><p className="text-xs font-semibold uppercase text-slate-500">Live holdings value</p><p className="mt-1 text-xl font-bold text-slate-950">{formatUSD(holdingsValue)}</p></div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3"><p className="text-xs font-semibold uppercase text-slate-500">Unrealized profit / loss</p><p className={`mt-1 flex items-center gap-1 text-xl font-bold ${totalProfitLoss < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{totalProfitLoss < 0 ? <ArrowDownRight className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}{formatSignedUSD(totalProfitLoss)}</p><p className="text-xs text-slate-600">{totalProfitLossPercent > 0 ? '+' : ''}{totalProfitLossPercent.toFixed(2)}%</p></div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3"><p className="text-xs font-semibold uppercase text-slate-500">Total account value</p><p className="mt-1 text-xl font-bold text-slate-950">{formatUSD(cashBalance + holdingsValue)}</p><p className="text-xs text-slate-600">Cash + live holdings value</p></div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3"><p className="text-xs font-semibold uppercase text-slate-500">Total account value</p><p className="mt-1 text-xl font-bold text-slate-950">{formatUSD(totalAccountValue)}</p><p className="text-xs text-slate-600">Cash + live holdings + admin P/L offset</p></div>
             </div>
             {(managedPortfolio.profitOverride || livePositions.some((position) => position.profitOverride)) && (
-              <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">One or more administrative P/L overrides are active. These affect displayed profit/loss only, not cash, holdings, or market prices.</p>
+              <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">One or more administrative P/L adjustments are active. They affect reported profit/loss and account valuation, not the cash ledger, holdings, or market prices.</p>
             )}
           </section>
 
@@ -410,18 +425,19 @@ export const AdminInvestmentManagementView: React.FC<AdminInvestmentManagementVi
             </form>
 
             <form onSubmit={(event) => void saveProfitOverride(event)} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div><h3 className="font-semibold text-slate-950">Profit / loss display override</h3><p className="mt-1 text-xs leading-5 text-slate-600">Applies an offset or multiplier to calculated unrealized P/L only. It never changes market prices, cash, or unit ownership.</p></div>
+              <div><h3 className="font-semibold text-slate-950">Profit / loss adjustment</h3><p className="mt-1 text-xs leading-5 text-slate-600">Create or set an offset, top up or deduct from it, or apply a multiplier. The persisted adjustment updates reported P/L and account valuation only; it never changes the cash ledger, market prices, or unit ownership.</p></div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block space-y-1 text-sm font-medium text-slate-700"><span>Apply to</span><select value={scope} onChange={(event) => setScope(event.target.value as 'portfolio' | 'holding')} className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="portfolio">Total portfolio P/L</option><option value="holding">Specific holding P/L</option></select></label>
                 {scope === 'holding' && <label className="block space-y-1 text-sm font-medium text-slate-700"><span>Holding</span><select required value={symbol} onChange={(event) => setSymbol(event.target.value)} className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3">{livePositions.map((position) => <option key={position.symbol} value={position.symbol}>{position.name} ({position.symbol})</option>)}</select></label>}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block space-y-1 text-sm font-medium text-slate-700"><span>Override type</span><select value={overrideMode} onChange={(event) => setOverrideMode(event.target.value as 'offset' | 'multiplier')} className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="offset">Dollar offset</option><option value="multiplier">Direct multiplier</option></select></label>
-                <label className="block space-y-1 text-sm font-medium text-slate-700"><span>{overrideMode === 'offset' ? 'Offset (USD)' : 'Multiplier (0–100×)'}</span><input type="number" min={overrideMode === 'offset' ? -10000000 : 0} max={overrideMode === 'offset' ? 10000000 : 100} step={overrideMode === 'offset' ? '0.01' : '0.0001'} required value={overrideValue} onChange={(event) => setOverrideValue(event.target.value)} className="min-h-11 w-full rounded-lg border border-slate-300 px-3 font-mono" placeholder={overrideMode === 'offset' ? '250.00 or -100.00' : '1.25'} /></label>
+                <label className="block space-y-1 text-sm font-medium text-slate-700"><span>Adjustment action</span><select value={overrideAction} onChange={(event) => setOverrideAction(event.target.value as 'set' | 'top_up' | 'deduct')} className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="set">Create / set adjustment</option><option value="top_up">Top up profit offset</option><option value="deduct">Deduct from profit offset</option></select></label>
+                {overrideAction === 'set' && <label className="block space-y-1 text-sm font-medium text-slate-700"><span>Override type</span><select value={overrideMode} onChange={(event) => setOverrideMode(event.target.value as 'offset' | 'multiplier')} className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="offset">Dollar offset</option><option value="multiplier">Direct multiplier</option></select></label>}
+                <label className="block space-y-1 text-sm font-medium text-slate-700"><span>{overrideAction === 'top_up' ? 'Top-up amount (USD)' : overrideAction === 'deduct' ? 'Deduction amount (USD)' : overrideMode === 'offset' ? 'Profit / loss offset (USD)' : 'Multiplier (0–100×)'}</span><input type="number" min={overrideAction === 'set' && overrideMode === 'offset' ? -10000000 : 0} max={10000000} step={overrideAction === 'set' && overrideMode === 'multiplier' ? '0.0001' : '0.01'} required value={overrideValue} onChange={(event) => setOverrideValue(event.target.value)} className="min-h-11 w-full rounded-lg border border-slate-300 px-3 font-mono" placeholder={overrideAction === 'top_up' ? '500.00' : overrideAction === 'deduct' ? '100.00' : overrideMode === 'offset' ? '250.00 or -100.00' : '1.25'} /></label>
               </div>
               <label className="block space-y-1 text-sm font-medium text-slate-700"><span>Reason / audit note</span><input required maxLength={500} value={overrideReason} onChange={(event) => setOverrideReason(event.target.value)} className="min-h-11 w-full rounded-lg border border-slate-300 px-3" placeholder="Administrative reporting adjustment" /></label>
               <div className="flex flex-wrap gap-2">
-                <button type="submit" disabled={submitting || (scope === 'holding' && !selectedPosition)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#173B70] px-4 text-sm font-semibold text-white hover:bg-[#245B9E] disabled:cursor-not-allowed disabled:opacity-50">{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}Apply P/L override</button>
+                <button type="submit" disabled={submitting || (scope === 'holding' && !selectedPosition)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#173B70] px-4 text-sm font-semibold text-white hover:bg-[#245B9E] disabled:cursor-not-allowed disabled:opacity-50">{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}{overrideAction === 'top_up' ? 'Confirm profit top-up' : overrideAction === 'deduct' ? 'Confirm profit deduction' : 'Apply P/L adjustment'}</button>
                 {activeOverride && <button type="button" disabled={submitting} onClick={() => void clearProfitOverride()} className="min-h-11 rounded-lg border border-rose-300 px-4 text-sm font-semibold text-rose-800 hover:bg-rose-50 disabled:opacity-50">Clear current override</button>}
               </div>
               {activeOverride && <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">Current: {activeOverride.mode === 'offset' ? `${formatSignedUSD(activeOverride.value)} offset` : `${activeOverride.value}× multiplier`} · {activeOverride.reason}</p>}

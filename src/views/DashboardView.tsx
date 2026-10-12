@@ -654,10 +654,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                           <td
                             className={`break-words px-2 py-4 text-right font-bold font-mono sm:px-6 ${
-                              isPositive ? 'text-green-600' : 'text-gray-900'
+                              tx.type === 'investment_adjustment' ? 'text-teal-800' : isPositive ? 'text-green-600' : 'text-gray-900'
                             }`}
                           >
-                            {isPositive ? `+${formatUSD(Math.abs(tx.amount_usd ?? tx.amount))}` : `-${formatUSD(Math.abs(tx.amount_usd ?? tx.amount))}`}
+                            {tx.type === 'investment_adjustment'
+                              ? `P/L ${tx.amount > 0 ? '+' : tx.amount < 0 ? '−' : ''}${formatUSD(Math.abs(tx.amount))}`
+                              : isPositive ? `+${formatUSD(Math.abs(tx.amount_usd ?? tx.amount))}` : `-${formatUSD(Math.abs(tx.amount_usd ?? tx.amount))}`}
                           </td>
                         </tr>
                       );
@@ -716,9 +718,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
               <div className="space-y-3 text-xs border-y border-gray-100 py-4">
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
-                  <span className="text-gray-500">{selectedTransactionIsWire ? 'Transfer amount:' : 'Amount:'}</span>
+                  <span className="text-gray-500">{selectedTransaction.type === 'investment_adjustment' ? 'P/L adjustment (not cash):' : selectedTransactionIsWire ? 'Transfer amount:' : 'Amount:'}</span>
                   <span className="font-mono font-bold text-base text-gray-900">
-                    {selectedTransaction.formatted_amount || `${formatUSD(selectedTransaction.amount)} USD`}
+                    {selectedTransaction.type === 'investment_adjustment'
+                      ? `P/L ${selectedTransaction.amount > 0 ? '+' : selectedTransaction.amount < 0 ? '−' : ''}${formatUSD(Math.abs(selectedTransaction.amount))}`
+                      : selectedTransaction.formatted_amount || `${formatUSD(selectedTransaction.amount)} USD`}
                   </span>
                 </div>
                 {selectedTransaction.amount_usd !== undefined && (

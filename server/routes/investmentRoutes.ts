@@ -86,6 +86,8 @@ router.get('/portfolio', async (req: AuthenticatedRequest, res: Response): Promi
       ...position,
       profitOverride: overridesBySymbol.get(position.symbol) || null,
     }));
+    const baseHoldingsProfitLoss = positions.reduce((sum, position) =>
+      sum + position.marketValue - position.quantity * position.averageCost, 0);
     const holdingsProfitLoss = positions.reduce((sum, position) => {
       const costBasis = position.quantity * position.averageCost;
       const baseProfitLoss = position.marketValue - costBasis;
@@ -100,6 +102,7 @@ router.get('/portfolio', async (req: AuthenticatedRequest, res: Response): Promi
         ? holdingsProfitLoss + profitOverride.value
         : holdingsProfitLoss * profitOverride.value
       : holdingsProfitLoss;
+    const adminProfitOffset = unrealizedProfitLoss - baseHoldingsProfitLoss;
     const totalCostBasis = positions.reduce((sum, position) => sum + position.quantity * position.averageCost, 0);
     res.set('Cache-Control', 'private, no-store');
     res.json({
@@ -108,6 +111,7 @@ router.get('/portfolio', async (req: AuthenticatedRequest, res: Response): Promi
       profitOverride,
       unrealizedProfitLoss,
       unrealizedProfitLossPercent: totalCostBasis > 0 ? unrealizedProfitLoss / totalCostBasis * 100 : 0,
+      adminProfitOffset,
       checkingAccount: checkingAccount ? {
         id: checkingAccount.id,
         nickname: checkingAccount.nickname,

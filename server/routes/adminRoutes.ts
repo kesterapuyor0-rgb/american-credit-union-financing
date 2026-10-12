@@ -354,7 +354,7 @@ router.get('/investment-management/:userId', async (req: AuthenticatedRequest, r
 router.post('/investment-management/:userId/profit-override', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userId = String(req.params.userId || '').trim();
   const scope = req.body?.scope === 'portfolio' ? 'portfolio' : req.body?.scope === 'holding' ? 'holding' : '';
-  const action = req.body?.action === 'clear' ? 'clear' : req.body?.action === 'set' ? 'set' : '';
+  const action = ['set', 'top_up', 'deduct', 'clear'].includes(req.body?.action) ? req.body.action as string : '';
   const symbolInput = typeof req.body?.symbol === 'string' ? req.body.symbol.trim().toUpperCase() : '';
   const mode = req.body?.mode === 'offset' || req.body?.mode === 'multiplier' ? req.body.mode : '';
   const rawValue = req.body?.value;
@@ -370,13 +370,21 @@ router.post('/investment-management/:userId/profit-override', async (req: Authen
     res.status(400).json({ error: 'A reason of 1 to 500 characters is required.' });
     return;
   }
-  if (action === 'set') {
+  if (action === 'set' || action === 'top_up' || action === 'deduct') {
     if (!mode || !Number.isFinite(value)) {
       res.status(400).json({ error: 'Choose an override mode and enter a valid value.' });
       return;
     }
+    if ((action === 'top_up' || action === 'deduct') && (mode !== 'offset' || value <= 0)) {
+      res.status(400).json({ error: 'Profit top-ups and deductions require a positive dollar amount and the dollar offset mode.' });
+      return;
+    }
     if (mode === 'offset' && (Math.abs(value) > 10000000 || Math.abs(value * 100 - Math.round(value * 100)) > 1e-8)) {
       res.status(400).json({ error: 'Dollar offsets must be within ±$10,000,000 and use at most 2 decimal places.' });
+      return;
+    }
+    if ((action === 'top_up' || action === 'deduct') && value > 10000000) {
+      res.status(400).json({ error: 'Profit adjustments must not exceed $10,000,000.00.' });
       return;
     }
     if (mode === 'multiplier' && (value < 0 || value > 100 || Math.abs(value * 10000 - Math.round(value * 10000)) > 1e-8)) {
@@ -389,6 +397,7 @@ router.post('/investment-management/:userId/profit-override', async (req: Authen
   try {
     let savedOverride: any = null;
     let transactionId = '';
+    let transactionAmount = 0;
     await session.withTransaction(async () => {
       const targetUser = await User.findOne({ id: userId }).select('id full_name email role isAdmin').session(session).lean<any>();
       if (!targetUser || isAdminRole(targetUser.role, targetUser.isAdmin)) throw new Error('CUSTOMER_NOT_FOUND');
@@ -401,12 +410,24 @@ router.post('/investment-management/:userId/profit-override', async (req: Authen
       const existingOverride = await InvestmentProfitOverride.findOne({ user_id: userId, symbol }).session(session).lean<any>();
       if (action === 'clear') {
         if (!existingOverride) throw new Error('OVERRIDE_NOT_FOUND');
+        transactionAmount = existingOverride.mode === 'offset' ? -Number(existingOverride.value) : 0;
         await InvestmentProfitOverride.deleteOne({ id: existingOverride.id, user_id: userId }).session(session);
       } else {
+        let nextValue = value;
+        if (action === 'top_up' || action === 'deduct') {
+          if (existingOverride && existingOverride.mode !== 'offset') throw new Error('OFFSET_REQUIRED');
+          const currentOffset = Number(existingOverride?.value) || 0;
+          const adjustment = action === 'top_up' ? value : -value;
+          nextValue = Math.round((currentOffset + adjustment) * 100) / 100;
+          if (Math.abs(nextValue) > 10000000) throw new Error('OFFSET_LIMIT_EXCEEDED');
+          transactionAmount = adjustment;
+        } else if (mode === 'offset') {
+          transactionAmount = Math.round((value - (existingOverride?.mode === 'offset' ? Number(existingOverride.value) : 0)) * 100) / 100;
+        }
         savedOverride = await InvestmentProfitOverride.findOneAndUpdate(
           { user_id: userId, symbol },
           {
-            $set: { mode, value, reason, updated_by: req.user!.id, updated_at: new Date() },
+            $set: { mode, value: nextValue, reason, updated_by: req.user!.id, updated_at: new Date() },
             $setOnInsert: { id: `profit_override_${randomUUID()}` },
           },
           { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true, session },
@@ -414,9 +435,15 @@ router.post('/investment-management/:userId/profit-override', async (req: Authen
       }
 
       const scopeDescription = scope === 'portfolio' ? 'portfolio total' : `${symbol} holding`;
+      const signedTransactionAmount = `${transactionAmount >= 0 ? '+' : '-'}$${Math.abs(transactionAmount).toFixed(2)}`;
+      const multiplierOperation = action === 'clear'
+        ? existingOverride?.mode === 'multiplier'
+        : mode === 'multiplier';
       const actionDescription = action === 'clear'
-        ? `Cleared the administrative P/L override for the ${scopeDescription}. Reason: ${reason}`
-        : `Set ${scopeDescription} P/L ${mode === 'offset' ? `offset to ${value >= 0 ? '+' : '-'}$${Math.abs(value).toFixed(2)}` : `multiplier to ${value}×`}. Reason: ${reason}`;
+        ? `Cleared the administrative P/L override for the ${scopeDescription}. Removed ${existingOverride.mode === 'offset' ? `an offset of $${Math.abs(Number(existingOverride.value)).toFixed(2)}` : `a ${Number(existingOverride.value)}× multiplier`}. Reason: ${reason}`
+        : action === 'top_up' || action === 'deduct'
+          ? `${action === 'top_up' ? 'Topped up' : 'Deducted'} $${value.toFixed(2)} ${action === 'top_up' ? 'to' : 'from'} the ${scopeDescription} P/L offset. New offset: ${Number(savedOverride.value) >= 0 ? '+' : '-'}$${Math.abs(Number(savedOverride.value)).toFixed(2)}. Reason: ${reason}`
+          : `Set the ${scopeDescription} P/L ${mode === 'offset' ? `offset to ${value >= 0 ? '+' : '-'}$${Math.abs(value).toFixed(2)}` : `multiplier to ${value}×`}. Reason: ${reason}`;
       transactionId = `tx_profit_override_${randomUUID()}`;
       const firstCheckingAccount = await Account.findOne({
         user_id: userId,
@@ -428,13 +455,13 @@ router.post('/investment-management/:userId/profit-override', async (req: Authen
         id: transactionId,
         user_id: userId,
         account_id: firstCheckingAccount?.id || `investment-portfolio:${userId}`,
-        type: 'admin_adjustment',
-        amount: 0,
+        type: 'investment_adjustment',
+        amount: transactionAmount,
         currency: 'USD',
-        description: actionDescription,
+        description: `${actionDescription} Recorded adjustment: ${multiplierOperation ? 'no dollar amount (multiplier operation)' : signedTransactionAmount}.`,
         sender_name: 'Administrator',
         reference_id: transactionId,
-        transaction_type: 'Investment P/L Override',
+        transaction_type: `Investment P/L ${action.replace('_', ' ').toUpperCase()}`,
         status: 'Completed',
         category: 'Investment P/L Override',
         date: new Date().toISOString().slice(0, 10),
@@ -444,9 +471,9 @@ router.post('/investment-management/:userId/profit-override', async (req: Authen
         id: `log_profit_override_${randomUUID()}`,
         admin_id: req.user!.id,
         admin_email: req.user!.email,
-        action: action === 'clear' ? 'INVESTMENT_PROFIT_OVERRIDE_CLEARED' : 'INVESTMENT_PROFIT_OVERRIDE_SET',
+        action: `INVESTMENT_PROFIT_OVERRIDE_${action.toUpperCase()}`,
         target_user_id: userId,
-        amount: action === 'set' && mode === 'offset' ? value : undefined,
+        amount: transactionAmount,
         details: `${actionDescription} Target member: ${targetUser.email}.`,
         ip_address: req.ip || '127.0.0.1',
         created_at: new Date().toISOString(),
@@ -454,14 +481,14 @@ router.post('/investment-management/:userId/profit-override', async (req: Authen
       await createNotification({
         userId,
         title: 'Investment P/L Display Updated',
-        message: 'An administrative profit/loss display adjustment was recorded. It does not change cash, asset units, or market prices.',
+        message: 'An administrative profit/loss adjustment was recorded. It does not change cash, asset units, or market prices.',
         type: 'investment',
         category: 'investments',
         link: 'history',
       }, session);
     });
 
-    res.json({ success: true, override: savedOverride, transactionId });
+    res.json({ success: true, override: savedOverride, transactionId, amount: transactionAmount });
   } catch (error) {
     if (error instanceof Error && error.message === 'CUSTOMER_NOT_FOUND') {
       res.status(404).json({ error: 'Customer profile not found.' });
@@ -469,6 +496,10 @@ router.post('/investment-management/:userId/profit-override', async (req: Authen
       res.status(404).json({ error: 'The selected customer does not own that investment.' });
     } else if (error instanceof Error && error.message === 'OVERRIDE_NOT_FOUND') {
       res.status(404).json({ error: 'No override exists for this scope to clear.' });
+    } else if (error instanceof Error && error.message === 'OFFSET_REQUIRED') {
+      res.status(409).json({ error: 'Top-ups and deductions require a dollar-offset override. Clear or replace the multiplier first.' });
+    } else if (error instanceof Error && error.message === 'OFFSET_LIMIT_EXCEEDED') {
+      res.status(400).json({ error: 'The resulting profit offset cannot exceed ±$10,000,000.00.' });
     } else {
       console.error('Unable to update investment profit override:', error);
       res.status(500).json({ error: errorMessage(error, 'Unable to update the investment profit override.') });

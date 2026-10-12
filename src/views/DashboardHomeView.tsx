@@ -6,6 +6,7 @@ import { formatTransactionDescription } from '../utils/transactionFormatting';
 import { PushNotificationBanner } from '../components/PushNotificationBanner';
 import {
   ArrowDownLeft,
+  ArrowLeftRight,
   ArrowUpRight,
   Check,
   ChevronRight,
@@ -72,6 +73,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     dailyChangeValue: number;
     unrealizedProfitLoss: number;
     unrealizedProfitLossPercent: number;
+    adminProfitOffset: number;
     positions: Array<{
       symbol: string;
       name: string;
@@ -117,7 +119,9 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     (total, account) => total + Math.max(0, account.available_balance ?? account.balance - (account.held_balance || 0)),
     0,
   );
-  const totalNetWorth = totalAccountBalance + (investmentSummary?.totalValue || 0);
+  const totalNetWorth = totalAccountBalance
+    + (investmentSummary?.totalValue || 0)
+    + (investmentSummary?.adminProfitOffset || 0);
   const visibleAccounts = accountFilter === 'All Accounts'
     ? orderedCheckingAndSavings
     : accountFilter === 'Investments'
@@ -206,6 +210,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             dailyChangeValue: Number(data.dailyChangeValue) || 0,
             unrealizedProfitLoss: Number(data.unrealizedProfitLoss) || 0,
             unrealizedProfitLossPercent: Number(data.unrealizedProfitLossPercent) || 0,
+            adminProfitOffset: Number(data.adminProfitOffset) || 0,
             positions: Array.isArray(data.positions) ? data.positions : [],
           });
         }
@@ -519,6 +524,11 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                   Unrealized P/L: {(investmentSummary?.unrealizedProfitLoss || 0) > 0 ? '+' : ''}{formatMoney(investmentSummary?.unrealizedProfitLoss || 0)} ({(investmentSummary?.unrealizedProfitLossPercent || 0) > 0 ? '+' : ''}{(investmentSummary?.unrealizedProfitLossPercent || 0).toFixed(2)}%)
                 </span>
               )}
+              {!investmentSummaryError && !investmentSummaryLoading && (investmentSummary?.adminProfitOffset || 0) !== 0 && (
+                <span className="block truncate text-[11px] text-amber-800">
+                  Includes administrative P/L valuation adjustment: {(investmentSummary?.adminProfitOffset || 0) > 0 ? '+' : ''}{formatMoney(investmentSummary?.adminProfitOffset || 0)}.
+                </span>
+              )}
               <span className="block truncate text-[10px] leading-4 text-slate-500">Not FDIC insured · No bank guarantee · May lose value</span>
             </span>
             <span className="flex shrink-0 items-center gap-2">
@@ -692,24 +702,27 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                 'card_credit',
               ].includes(transaction.type)
                 || (transaction.type === 'admin_adjustment' && transaction.amount > 0);
+              const isInvestmentAdjustment = transaction.type === 'investment_adjustment';
               const amount = Math.abs(transaction.amount)
                 + (!isIncoming && transaction.type === 'transfer_out'
                   ? (transaction.transfer_fee || 0) + (transaction.transfer_tax || 0)
                   : 0);
-              const AmountIcon = isIncoming ? ArrowDownLeft : ArrowUpRight;
+              const AmountIcon = isInvestmentAdjustment ? ArrowLeftRight : isIncoming ? ArrowDownLeft : ArrowUpRight;
               return (
                 <div key={transaction.id} className="flex min-w-0 items-center gap-3 py-3">
-                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${isIncoming ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${isInvestmentAdjustment ? 'bg-teal-50 text-teal-700' : isIncoming ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                     <AmountIcon aria-hidden="true" className="h-4 w-4" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-900">{formatTransactionDescription(transaction.description)}</p>
                     <p className="truncate text-xs text-slate-500">{transaction.date}</p>
                   </div>
-                  <p className={`shrink-0 whitespace-nowrap text-right text-sm font-bold tabular-nums ${isIncoming ? 'text-emerald-700' : 'text-slate-900'}`}>
-                    {isIncoming ? '+' : '−'}{transaction.formatted_amount && transaction.currency !== 'USD'
-                      ? `${transaction.formatted_amount} · ${formatMoney(transaction.amount_usd ?? 0)} USD`
-                      : formatMoney(transaction.amount_usd ?? amount)}
+                  <p className={`shrink-0 whitespace-nowrap text-right text-sm font-bold tabular-nums ${isInvestmentAdjustment ? 'text-teal-800' : isIncoming ? 'text-emerald-700' : 'text-slate-900'}`}>
+                    {isInvestmentAdjustment
+                      ? `P/L ${transaction.amount > 0 ? '+' : transaction.amount < 0 ? '−' : ''}${formatMoney(amount)}`
+                      : `${isIncoming ? '+' : '−'}${transaction.formatted_amount && transaction.currency !== 'USD'
+                        ? `${transaction.formatted_amount} · ${formatMoney(transaction.amount_usd ?? 0)} USD`
+                        : formatMoney(transaction.amount_usd ?? amount)}`}
                   </p>
                 </div>
               );

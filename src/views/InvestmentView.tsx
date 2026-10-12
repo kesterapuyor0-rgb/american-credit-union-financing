@@ -21,6 +21,7 @@ interface InvestmentPortfolio {
     profitOverride?: { mode: 'offset' | 'multiplier'; value: number; reason: string } | null;
   }>;
   profitOverride?: { mode: 'offset' | 'multiplier'; value: number; reason: string } | null;
+  adminProfitOffset?: number;
   checkingAccount: { availableBalance: number; nickname: string } | null;
 }
 
@@ -277,7 +278,12 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
     ? (totalUnrealizedProfitLoss / totalCostBasis) * 100
     : 0;
   const availableCash = portfolio?.checkingAccount?.availableBalance || 0;
-  const totalAccountValue = availableCash + totalPortfolioValue;
+  const baseUnrealizedProfitLoss = liveHoldings.reduce(
+    (total, holding) => total + holding.currentValue - holding.shares * holding.buyPrice,
+    0,
+  );
+  const adminProfitOffset = totalUnrealizedProfitLoss - baseUnrealizedProfitLoss;
+  const totalAccountValue = availableCash + totalPortfolioValue + adminProfitOffset;
 
   const filteredAssets = useMemo(() => assets.filter((asset) => {
     const matchesCategory = category === 'All' || asset.assetType === category;
@@ -321,7 +327,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Account Value</p>
             <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums sm:text-4xl">{loading ? 'Loading…' : formatUSD(totalAccountValue)}</p>
-            <p className="mt-1 text-sm text-slate-400">Available cash + live investments</p>
+            <p className="mt-1 text-sm text-slate-400">Cash + live investments + admin P/L offset</p>
           </div>
           <div className="mt-5 grid grid-cols-2 gap-4 border-t border-slate-800 pt-4">
             <div className="min-w-0">
@@ -336,7 +342,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
                 {loading ? 'Loading…' : formatSignedUSD(totalUnrealizedProfitLoss)}
               </p>
               {(portfolio?.profitOverride || liveHoldings.some((holding) => portfolio?.positions.find((position) => position.symbol === holding.symbol)?.profitOverride)) && (
-                <p className="mt-1 text-[11px] font-semibold text-amber-300">Admin P/L override · display-only</p>
+                <p className="mt-1 text-[11px] font-semibold text-amber-300">Admin P/L adjustment included in reported account value; no cash movement.</p>
               )}
             </div>
             <div className="min-w-0">
@@ -370,7 +376,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
                       {formatSignedUSD(holding.profitLoss)} ({holding.profitLossPercent > 0 ? '+' : ''}{holding.profitLossPercent.toFixed(2)}%)
                     </p>
                     {portfolio?.positions.find((position) => position.symbol === holding.symbol)?.profitOverride && (
-                      <p className="mt-0.5 text-[11px] font-semibold text-amber-800">Admin P/L override · display-only</p>
+                      <p className="mt-0.5 text-[11px] font-semibold text-amber-800">Admin P/L adjustment · no cash movement</p>
                     )}
                   </div>
                 </div>

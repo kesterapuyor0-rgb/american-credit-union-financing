@@ -46,7 +46,7 @@ export interface Transaction {
   id: string;
   user_id: string;
   account_id: string;
-  type: 'deposit' | 'withdrawal' | 'transfer_in' | 'transfer_out' | 'payment' | 'admin_adjustment' | 'admin_credit' | 'admin_debit' | 'admin_hold' | 'admin_release' | 'card_debit' | 'card_credit';
+  type: 'deposit' | 'withdrawal' | 'transfer_in' | 'transfer_out' | 'payment' | 'admin_adjustment' | 'admin_credit' | 'admin_debit' | 'admin_hold' | 'admin_release' | 'card_debit' | 'card_credit' | 'investment_adjustment';
   amount: number;
   amount_usd?: number;
   transfer_fee?: number;

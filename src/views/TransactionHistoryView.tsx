@@ -44,6 +44,17 @@ const getTransactionPresentation = (transaction: Transaction): TransactionPresen
   const description = formatTransactionDescription(transaction.description);
   const normalizedDescription = description.toLowerCase();
   const normalizedCategory = transaction.category?.toLowerCase() || '';
+  if (transaction.type === 'investment_adjustment') {
+    return {
+      title: 'Investment profit / loss adjustment',
+      typeLabel: transaction.transaction_type || 'Investment P/L Adjustment',
+      subtitle: description,
+      isIncoming: false,
+      amountClassName: 'font-semibold text-teal-800',
+      Icon: ArrowLeftRight,
+      iconClassName: 'bg-teal-50 text-teal-700',
+    };
+  }
   const isZelle = normalizedCategory.includes('zelle');
   const isGrant = normalizedCategory.includes('grant')
     || transaction.id.startsWith('tx_grant_')
@@ -369,8 +380,14 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
                   </span>
                   <span className={`flex shrink-0 flex-col items-end gap-1 text-right ${presentation.amountClassName}`}>
                     <span className="inline-flex max-w-full items-center justify-end gap-0.5 whitespace-nowrap text-xs font-bold tabular-nums sm:gap-1 sm:text-sm">
-                      {presentation.isIncoming ? <ArrowDownLeft aria-hidden="true" className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" /> : <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />}
-                      {presentation.isIncoming ? '+' : '−'}{transaction.formatted_amount || formatMoney(transaction.amount)}
+                      {transaction.type === 'investment_adjustment'
+                        ? <ArrowLeftRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                        : presentation.isIncoming
+                          ? <ArrowDownLeft aria-hidden="true" className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                          : <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />}
+                      {transaction.type === 'investment_adjustment'
+                        ? `P/L ${transaction.amount > 0 ? '+' : transaction.amount < 0 ? '−' : ''}${transaction.formatted_amount || formatMoney(Math.abs(transaction.amount))}`
+                        : `${presentation.isIncoming ? '+' : '−'}${transaction.formatted_amount || formatMoney(transaction.amount)}`}
                     </span>
                     {transaction.type === 'transfer_out' && ((transaction.transfer_fee || 0) + (transaction.transfer_tax || 0) > 0) && (
                       <span className="hidden text-[10px] font-normal text-slate-500 sm:block">Plus {formatMoney((transaction.transfer_fee || 0) + (transaction.transfer_tax || 0))} fees/tax</span>
@@ -409,7 +426,7 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({
               {selectedTransaction.recipient_account && <div className="flex items-start justify-between gap-2 text-xs sm:text-sm"><dt className="min-w-0 flex-1 break-words text-slate-500">Counterparty account</dt><dd className="min-w-0 flex-1 break-all text-right font-medium text-slate-900">{selectedTransaction.recipient_account}</dd></div>}
               <div className="flex items-start justify-between gap-2 text-xs sm:text-sm"><dt className="min-w-0 flex-1 break-words text-slate-500">Transaction date &amp; time</dt><dd className="min-w-0 flex-1 break-words text-right font-medium text-slate-900">{formatTransactionDateTime(selectedTransaction)}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-slate-500">Status</dt><dd><span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${getStatusPresentation(selectedTransaction.status).className}`}>{getStatusPresentation(selectedTransaction.status).label}</span></dd></div>
-              <div className="flex justify-between gap-3 border-t border-slate-100 pt-3"><dt className="text-slate-500">Principal amount</dt><dd className={`font-semibold ${selectedPresentation?.isIncoming ? 'text-emerald-700' : 'text-slate-900'}`}>{selectedPresentation?.isIncoming ? '+' : '−'}{selectedTransaction.formatted_amount || `${formatMoney(selectedTransaction.amount)} ${selectedTransaction.currency || 'USD'}`}</dd></div>
+              <div className="flex justify-between gap-3 border-t border-slate-100 pt-3"><dt className="text-slate-500">{selectedTransaction.type === 'investment_adjustment' ? 'P/L adjustment (not cash)' : 'Principal amount'}</dt><dd className={`font-semibold ${selectedTransaction.type === 'investment_adjustment' ? 'text-teal-800' : selectedPresentation?.isIncoming ? 'text-emerald-700' : 'text-slate-900'}`}>{selectedTransaction.type === 'investment_adjustment' ? `${selectedTransaction.amount > 0 ? '+' : selectedTransaction.amount < 0 ? '−' : ''}${selectedTransaction.formatted_amount || `${formatMoney(Math.abs(selectedTransaction.amount))} ${selectedTransaction.currency || 'USD'}`}` : `${selectedPresentation?.isIncoming ? '+' : '−'}${selectedTransaction.formatted_amount || `${formatMoney(selectedTransaction.amount)} ${selectedTransaction.currency || 'USD'}`}`}</dd></div>
               {selectedTransactionIsWire && <>
                 <div className="flex justify-between gap-3"><dt className="text-slate-500">Transfer fee</dt><dd className="font-medium text-slate-900">{formatMoney(receiptFee)} {selectedTransaction.currency || 'USD'}</dd></div>
                 <div className="flex justify-between gap-3"><dt className="text-slate-500">Tax</dt><dd className="font-medium text-slate-900">{formatMoney(receiptTax)} {selectedTransaction.currency || 'USD'}</dd></div>
