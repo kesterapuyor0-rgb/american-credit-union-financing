@@ -401,6 +401,8 @@ export default function App() {
       navigateTo('/admin');
     } else if (loggedInUser.verification_status === 'rejected' || loggedInUser.status === 'action_required') {
       navigateTo('/enroll/resubmit');
+    } else if (loggedInUser.verification_status === 'under_review' || loggedInUser.status === 'pending_review') {
+      navigateTo('/enrollment/status');
     } else {
       navigateTo('/dashboard');
       setActiveTab(grantApplicationRequested ? 'grants' : 'home');

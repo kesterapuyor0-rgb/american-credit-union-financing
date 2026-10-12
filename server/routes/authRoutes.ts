@@ -142,9 +142,20 @@ router.post('/login', async (req, res): Promise<void> => {
     }
 
     const normalizedRole = isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user';
+    const accountStatuses = [user.verification_status, user.status, user.kycStatus]
+      .filter((status): status is string => typeof status === 'string')
+      .map((status) => status.trim().toLowerCase().replace(/[\s-]+/g, '_'));
     const actionRequired = normalizedRole === 'user'
-      && (user.verification_status === 'rejected' || user.kycStatus === 'Rejected' || user.status === 'action_required');
-    if (actionRequired) {
+      && accountStatuses.some((status) => status === 'rejected' || status === 'action_required');
+    const primaryStatus = [user.verification_status, user.status, user.kycStatus]
+      .find((status): status is string => typeof status === 'string' && Boolean(status.trim()))
+      ?.trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, '_');
+    const pendingReview = normalizedRole === 'user'
+      && !actionRequired
+      && ['pending', 'pending_review', 'under_review'].includes(primaryStatus || '');
+    if (actionRequired || pendingReview) {
       const authToken = signAuthToken({
         id: user.id,
         email: user.email,
@@ -156,6 +167,7 @@ router.post('/login', async (req, res): Promise<void> => {
       const rejectionDetails = Array.isArray(user.verification_rejection_details) && user.verification_rejection_details.length
         ? user.verification_rejection_details
         : rejectionReason.split(/\r?\n/).map((detail: string) => detail.trim()).filter(Boolean);
+      const status = actionRequired ? 'action_required' : 'pending_review';
       res.cookie('boa_token', authToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -165,22 +177,20 @@ router.post('/login', async (req, res): Promise<void> => {
       res.json({
         success: true,
         token: authToken,
-        status: 'action_required',
-        redirectTo: '/enroll/resubmit',
-        rejectionReason,
-        rejectionDetails,
+        status,
+        redirectTo: actionRequired ? '/enroll/resubmit' : '/enrollment/status',
+        ...(actionRequired ? { rejectionReason, rejectionDetails } : {}),
         user: {
           id: user.id,
           email: user.email,
           full_name: user.full_name,
           role: normalizedRole,
           phone: user.phone,
-          rejectionReason,
-          rejectionDetails,
-          verification_status: 'rejected',
+          ...(actionRequired ? { rejectionReason, rejectionDetails } : {}),
+          verification_status: actionRequired ? 'rejected' : 'under_review',
           verification_rejection_reason: rejectionReason,
-          verification_rejection_details: rejectionDetails,
-          status: 'action_required',
+          verification_rejection_details: actionRequired ? rejectionDetails : [],
+          status,
         },
       });
       return;

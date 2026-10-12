@@ -53,7 +53,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [resendCooldown, setResendCooldown] = useState(0);
 
   const saveActionRequiredFeedback = (data: any) => {
-    if (data?.user?.status !== 'action_required' && data?.status !== 'action_required' && !data?.redirectTo) return;
+    if (
+      data?.user?.status !== 'action_required'
+      && data?.status !== 'action_required'
+      && data?.redirectTo !== '/enroll/resubmit'
+    ) return;
     const feedback = {
       status: 'action_required',
       ...data.user,
@@ -116,8 +120,15 @@ export const LoginView: React.FC<LoginViewProps> = ({
       }
 
       const data = result.data;
-      if (data.status === 'action_required' || data.user?.status === 'action_required' || data.redirectTo === '/enroll/resubmit') {
-        if (!data.token || !data.user) throw new Error('The re-submission sign-in response was incomplete. Please try again.');
+      if (
+        data.status === 'action_required'
+        || data.user?.status === 'action_required'
+        || data.redirectTo === '/enroll/resubmit'
+        || data.status === 'pending_review'
+        || data.user?.status === 'pending_review'
+        || data.redirectTo === '/enrollment/status'
+      ) {
+        if (!data.token || !data.user) throw new Error('The enrollment sign-in response was incomplete. Please try again.');
         if (adminOnly) throw new Error('This sign-in is restricted to authorized Member Services specialists.');
         setStoredAuthToken(data.token);
         saveActionRequiredFeedback(data);
