@@ -27,10 +27,27 @@ interface InvestmentViewProps {
   inline?: boolean;
 }
 
-const assetGroups: InvestmentAssetType[] = ['Equity', 'ETF', 'Mutual Fund', 'Fixed Income'];
+const assetGroups: InvestmentAssetType[] = ['Equity', 'ETF', 'Mutual Fund', 'Fixed Income', 'Crypto'];
+const FINNHUB_API_KEY = import.meta.env.VITE_FINNHUB_API_KEY || 'db5quvpr01qmd5lf3v20db5quvpr01qmd5lf3v2g';
+
+interface FinnhubQuote {
+  c: number;
+  d: number;
+  dp: number;
+  pc: number;
+}
 
 function formatUSD(value: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+}
+
+async function fetchFinnhubQuote(symbol: string): Promise<FinnhubQuote> {
+  const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(FINNHUB_API_KEY)}`);
+  if (!response.ok) throw new Error(`Finnhub returned HTTP ${response.status}.`);
+
+  const quote = await response.json() as FinnhubQuote;
+  if (!Number.isFinite(quote.c) || quote.c <= 0) throw new Error('Finnhub returned no current market price.');
+  return quote;
 }
 
 function InvestmentOrderModal({
@@ -100,7 +117,7 @@ function InvestmentOrderModal({
   Order Executed Successfully
 </p>
 <p className="mt-1 text-sm text-emerald-900">
-  {formatUSD(receipt.totalCost)} has been debited from your {receipt.checkingAccountName || 'Advantage Plus Checking'}. Order routed via Direct Market Access (DMA) and queued for settlement.
+  {formatUSD(receipt.totalCost)} has been debited from your {receipt.checkingAccountNickname || 'Advantage Plus Checking'}. Order routed via Direct Market Access (DMA) and queued for settlement.
 </p>
             <p className="mt-3 break-all font-mono text-xs text-emerald-800">Confirmation Number: {receipt.confirmationNumber}</p>
             <button type="button" onClick={onClose} className="mt-4 min-h-11 w-full rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900">Return to portfolio</button>
@@ -154,7 +171,24 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
         if (!catalogResponse.ok) throw new Error(catalogData.error || 'Unable to load investment assets.');
         if (!portfolioResponse.ok) throw new Error(portfolioData.error || 'Unable to load your portfolio.');
         if (!cancelled) {
-          setAssets(Array.isArray(catalogData.assets) ? catalogData.assets : []);
+          const catalogAssets: InvestmentAsset[] = Array.isArray(catalogData.assets) ? catalogData.assets : [];
+          setAssets(catalogAssets);
+          void Promise.all(catalogAssets.map(async (asset) => {
+            try {
+              const quote = await fetchFinnhubQuote(asset.symbol);
+              const dailyChangePercent = Number.isFinite(quote.dp)
+                ? quote.dp
+                : quote.pc > 0
+                  ? ((quote.c - quote.pc) / quote.pc) * 100
+                  : asset.dailyChangePercent;
+              return { ...asset, marketPrice: quote.c, dailyChangePercent };
+            } catch (error) {
+              console.warn(`Unable to refresh ${asset.symbol} from Finnhub; keeping its catalog price.`, error);
+              return asset;
+            }
+          })).then((pricedAssets) => {
+            if (!cancelled) setAssets(pricedAssets);
+          });
           setPortfolio(portfolioData);
         }
       } catch (error) {
@@ -194,7 +228,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-teal-800">Investment Portfolio</p>
               <h1 className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">Explore investments</h1>
-              <p className="mt-1 text-sm text-slate-600">Browse equities, ETFs, mutual funds, and fixed-income investments.</p>
+              <p className="mt-1 text-sm text-slate-600">Browse equities, ETFs, mutual funds, fixed-income investments, and cryptocurrency.</p>
             </div>
           </div>
           <button type="button" onClick={onClose} aria-label={inline ? 'Back to all accounts' : 'Close investment portfolio'} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
