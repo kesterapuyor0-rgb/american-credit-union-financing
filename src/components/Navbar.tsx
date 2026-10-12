@@ -120,7 +120,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <div className="sticky top-0 z-50 w-full shrink-0 bg-white">
-      <header className="flex min-h-[72px] shrink-0 items-center border-b border-amber-500/50 bg-slate-900 px-4 py-3 text-white shadow-md sm:px-8">
+      <header className="flex min-h-[72px] shrink-0 items-center justify-between border-b border-amber-500/50 bg-slate-900 px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top))] text-white shadow-md sm:px-8">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3">
           <button
             type="button"
@@ -148,7 +148,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="relative grid h-10 w-10 place-items-center rounded-full border border-white/15 text-slate-100 transition hover:border-amber-300/60 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-amber-300"
                 >
                   <Bell aria-hidden="true" className="h-5 w-5" />
-                  {unreadCount > 0 && <span aria-hidden="true" className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-slate-900">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+                  {unreadCount > 0 && <span aria-hidden="true" className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{unreadCount > 99 ? '99+' : unreadCount}</span>}
                 </button>
                 {notificationsOpen && (
                   <section id="header-notifications-panel" aria-label="Banking notifications" className="fixed right-2 top-[4.5rem] z-[60] w-[min(96vw,25rem)] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-xl sm:absolute sm:right-0 sm:top-12 sm:w-[24rem]">
