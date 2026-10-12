@@ -317,34 +317,40 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
           </button>
         </header>
 
-        <section aria-label="Portfolio summary" className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Account Value</p>
-            <p className="mt-2 text-2xl font-bold text-slate-950">{loading ? 'Loading…' : formatUSD(totalAccountValue)}</p>
-            <p className="mt-1 text-xs text-slate-500">Available cash + live investments</p>
+        <section aria-label="Portfolio summary" className="mt-4 rounded-2xl bg-slate-900 p-5 text-white shadow-sm sm:p-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Account Value</p>
+            <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums sm:text-4xl">{loading ? 'Loading…' : formatUSD(totalAccountValue)}</p>
+            <p className="mt-1 text-sm text-slate-400">Available cash + live investments</p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Portfolio Value (Live)</p>
-            <p className="mt-2 text-2xl font-bold text-slate-950">{loading ? 'Loading…' : formatUSD(totalPortfolioValue)}</p>
-            <p className="mt-1 text-xs text-slate-500">Based on current market prices</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Profit / Loss</p>
-            <p className={`mt-2 flex items-center gap-1 text-2xl font-bold ${totalUnrealizedProfitLoss < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-              {totalUnrealizedProfitLoss < 0 ? <ArrowDownRight className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
-              {loading ? 'Loading…' : formatSignedUSD(totalUnrealizedProfitLoss)}
-            </p>
-            <p className={`mt-1 text-xs font-semibold ${totalUnrealizedProfitLoss < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-              {totalUnrealizedProfitLossPercent > 0 ? '+' : ''}{totalUnrealizedProfitLossPercent.toFixed(2)}% unrealized
-            </p>
-            {(portfolio?.profitOverride || liveHoldings.some((holding) => portfolio?.positions.find((position) => position.symbol === holding.symbol)?.profitOverride)) && (
-              <p className="mt-1 text-[11px] font-semibold text-amber-800">Administrative P/L override applied; display-only.</p>
-            )}
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Available Cash</p>
-            <p className="mt-2 text-2xl font-bold text-slate-950">{loading ? 'Loading…' : formatUSD(availableCash)}</p>
-            <p className="mt-1 text-xs text-slate-500">Available checking balance</p>
+          <div className="mt-5 grid grid-cols-2 gap-4 border-t border-slate-800 pt-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Portfolio Value</p>
+              <p className="mt-1 break-words text-lg font-semibold tabular-nums sm:text-xl">{loading ? 'Loading…' : formatUSD(totalPortfolioValue)}</p>
+              <p className="mt-0.5 text-xs text-slate-400">Live market value</p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Profit / Loss</p>
+              <p className={`mt-1 flex items-center gap-1 break-words text-lg font-semibold tabular-nums sm:text-xl ${totalUnrealizedProfitLoss < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                {totalUnrealizedProfitLoss < 0 ? <ArrowDownRight className="h-4 w-4 shrink-0" /> : <ArrowUpRight className="h-4 w-4 shrink-0" />}
+                {loading ? 'Loading…' : formatSignedUSD(totalUnrealizedProfitLoss)}
+              </p>
+              {(portfolio?.profitOverride || liveHoldings.some((holding) => portfolio?.positions.find((position) => position.symbol === holding.symbol)?.profitOverride)) && (
+                <p className="mt-1 text-[11px] font-semibold text-amber-300">Admin P/L override · display-only</p>
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Available Cash</p>
+              <p className="mt-1 break-words text-lg font-semibold tabular-nums sm:text-xl">{loading ? 'Loading…' : formatUSD(availableCash)}</p>
+              <p className="mt-0.5 text-xs text-slate-400">Checking balance</p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Unrealized Gain</p>
+              <p className={`mt-1 break-words text-lg font-semibold tabular-nums sm:text-xl ${totalUnrealizedProfitLoss < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                {loading ? 'Loading…' : `${totalUnrealizedProfitLossPercent > 0 ? '+' : ''}${totalUnrealizedProfitLossPercent.toFixed(2)}%`}
+              </p>
+              <p className="mt-0.5 text-xs text-slate-400">Gain / loss percentage</p>
+            </div>
           </div>
         </section>
 
