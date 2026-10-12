@@ -502,18 +502,18 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       />
                     </div>
                     {governmentIdUrl && (
-                      <div className="mt-3 flex items-center gap-4 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
-                        <img src={governmentIdUrl} alt="Government ID preview" className="h-24 w-36 shrink-0 rounded-md border border-slate-200 bg-white object-cover shadow-sm" />
-                        <div className="min-w-0">
-                          <p className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
-                            <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0 text-emerald-700" />
+                      <div className="mt-3 flex flex-row items-center gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                        <img src={governmentIdUrl} alt="Uploaded government ID" className="h-16 w-16 shrink-0 rounded-lg border border-emerald-300 object-cover" />
+                        <div className="min-w-0 flex-1">
+                          <p className="flex items-center gap-1.5 whitespace-nowrap text-sm font-semibold text-emerald-800">
+                            <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-600" />
                             Government ID Attached
                           </p>
-                          <p className="mt-1 text-xs leading-5 text-emerald-800">Encrypted and stored securely for enrollment review.</p>
+                          <p className="mt-0.5 text-xs leading-5 text-emerald-700">Encrypted and stored securely for compliance review.</p>
                         </div>
                       </div>
                     )}
-                    <p className="mt-1 text-[11px] text-gray-500">JPEG, PNG, WebP, or GIF · up to 5 MB.</p>
+                    {!governmentIdUrl && <p className="mt-1 text-[11px] text-gray-500">JPEG, PNG, WebP, or GIF · up to 5 MB.</p>}
                   </div>
                 </div>
                 ) : (
@@ -556,18 +556,18 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         />
                       </div>
                       {selfieUrl && (
-                        <div className="mt-3 flex items-center gap-4 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
-                          <img src={selfieUrl} alt="Verification selfie preview" className="h-24 w-24 shrink-0 rounded-full border-2 border-white bg-gray-100 object-cover shadow-sm ring-1 ring-emerald-200" />
-                          <div className="min-w-0">
-                            <p className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
-                              <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0 text-emerald-700" />
+                        <div className="mt-3 flex flex-row items-center gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                          <img src={selfieUrl} alt="Uploaded verification selfie" className="h-16 w-16 shrink-0 rounded-full border border-emerald-300 object-cover" />
+                          <div className="min-w-0 flex-1">
+                            <p className="flex items-center gap-1.5 whitespace-nowrap text-sm font-semibold text-emerald-800">
+                              <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-600" />
                               Selfie Ready
                             </p>
-                            <p className="mt-1 text-xs leading-5 text-emerald-800">Encrypted and stored securely for compliance verification.</p>
+                            <p className="mt-0.5 text-xs leading-5 text-emerald-700">Encrypted and stored securely for compliance verification.</p>
                           </div>
                         </div>
                       )}
-                      <p className="mt-1 text-[11px] text-gray-500">JPEG, PNG, WebP, or GIF · up to 5 MB.</p>
+                      {!selfieUrl && <p className="mt-1 text-[11px] text-gray-500">JPEG, PNG, WebP, or GIF · up to 5 MB.</p>}
                     </div>
                   </div>
                 )}
