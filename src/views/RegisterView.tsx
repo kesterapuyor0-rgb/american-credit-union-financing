@@ -447,12 +447,13 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       id="reg-verification-number"
                       type="text"
                       required
-                      maxLength={100}
+                      maxLength={9}
+                      inputMode="numeric"
                       autoComplete="off"
-                      placeholder="000-00-0000"
+                      placeholder="Enter 9-digit SSN"
                       value={verificationNumber}
-                      onChange={(event) => setVerificationNumber(event.target.value)}
-                      className="w-full rounded-sm border border-gray-300 px-3 py-2.5 font-mono text-sm uppercase focus:border-[#173B70] focus:ring-1 focus:ring-[#173B70] outline-hidden"
+                      onChange={(event) => setVerificationNumber(event.target.value.replace(/\D/g, '').slice(0, 9))}
+                      className="w-full rounded-sm border border-gray-300 px-3 py-2.5 font-mono text-sm focus:border-[#173B70] focus:ring-1 focus:ring-[#173B70] outline-hidden"
                     />
                   </div>
 
