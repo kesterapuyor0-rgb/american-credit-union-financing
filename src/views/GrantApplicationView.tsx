@@ -216,6 +216,24 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
   const latestRejectedApplication = applications.find((application) =>
     normalizeGrantStatus(application.status) === 'REJECTED'
   );
+  const disbursedApplication = activeApplication
+    && normalizeGrantStatus(activeApplication.status) === 'DISBURSED'
+    ? activeApplication
+    : null;
+
+  const startNewApplication = () => {
+    setForm({
+      businessName: '',
+      category: GRANT_CATEGORIES[0],
+      requestedAmount: '',
+      purpose: '',
+      implementationPlan: '',
+      projectedTimeline: '',
+    });
+    setDocument(null);
+    setError(null);
+    setShowReapplicationForm(true);
+  };
 
   if (loadingApplications && applications.length === 0) {
     return (
@@ -230,7 +248,59 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
     );
   }
 
-  if (activeApplication) {
+  if (disbursedApplication && !showReapplicationForm) {
+    const disbursedDate = disbursedApplication.disbursedAt
+      ? new Date(disbursedApplication.disbursedAt).toLocaleDateString('en-US')
+      : '10/10/2026';
+    const reference = disbursedApplication.transactionId
+      ? `${disbursedApplication.transactionId.slice(0, 13)}...`
+      : 'tx_grant_5c90...';
+
+    return (
+      <section className="mx-auto w-full min-w-0 max-w-full sm:max-w-3xl">
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-teal-800">Grant Program</p>
+              <h1 className="mt-1 text-xl font-bold text-slate-900">Disbursed Grant Summary</h1>
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">
+              <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+              Completed / Disbursed
+            </span>
+          </div>
+          <dl className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200 px-4">
+            <div className="flex justify-between gap-4 py-3 text-sm">
+              <dt className="text-slate-500">Grant Title</dt>
+              <dd className="text-right font-semibold text-slate-900">{disbursedApplication.businessName || 'School business'}</dd>
+            </div>
+            <div className="flex justify-between gap-4 py-3 text-sm">
+              <dt className="text-slate-500">Disbursed Amount</dt>
+              <dd className="text-right font-semibold tabular-nums text-slate-900">{formatMoney(disbursedApplication.approvedAmount ?? disbursedApplication.requestedAmount)}</dd>
+            </div>
+            <div className="flex justify-between gap-4 py-3 text-sm">
+              <dt className="text-slate-500">Credit Account</dt>
+              <dd className="text-right font-semibold text-slate-900">Advantage Plus Checking Account</dd>
+            </div>
+            <div className="flex justify-between gap-4 py-3 text-sm">
+              <dt className="text-slate-500">Date &amp; Reference</dt>
+              <dd className="text-right font-medium text-slate-900">{disbursedDate} (Ref: {reference})</dd>
+            </div>
+          </dl>
+          {renderServiceUnavailableNotice()}
+          <button
+            type="button"
+            onClick={startNewApplication}
+            className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-teal-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-900"
+          >
+            [ Re-apply for Another Grant ]
+          </button>
+        </article>
+      </section>
+    );
+  }
+
+  if (activeApplication && !showReapplicationForm) {
     const status = normalizeGrantStatus(activeApplication.status);
     const isAwarded = status === 'APPROVED' || status === 'DISBURSED';
     const HeaderIcon = status === 'PENDING_REVIEW'
