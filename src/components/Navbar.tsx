@@ -120,7 +120,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <div className="sticky top-0 z-50 w-full shrink-0 bg-white">
-      <header className="flex min-h-[72px] shrink-0 items-center justify-between border-b border-amber-500/50 bg-slate-900 px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top))] text-white shadow-md sm:px-8">
+      <header className="flex min-h-[72px] shrink-0 items-center justify-between border-b border-amber-500/50 bg-slate-900 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] text-white shadow-md sm:px-8">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3">
           <button
             type="button"
