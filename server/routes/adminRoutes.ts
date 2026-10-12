@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 import { User, Account, Transaction, AuditLog, BankCard, CardApplication, InvestmentHolding, InvestmentProfitOverride } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { requireAdmin, AuthenticatedRequest, isAdminRole } from '../auth.js';
-import { maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
+import { generateCardNumber, maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
 import { createNotification } from '../notifications.js';
 import { formatCryptoAmount, getCryptoUsdRates } from '../cryptoRates.js';
 import { sendPushNotification } from '../webPush.js';
@@ -913,7 +913,7 @@ router.post('/card-applications/decision', async (req: AuthenticatedRequest, res
           product_name: reviewedApplication.product_name,
           last4,
           masked_number: maskedCardNumber(reviewedApplication.network || 'Visa', last4),
-          card_number: `${Array.from({ length: 12 }, () => randomInt(0, 10)).join('')}${last4}`,
+          card_number: generateCardNumber(reviewedApplication.network || 'Visa', last4),
           expiry_date: (() => {
             const expiry = new Date();
             expiry.setFullYear(expiry.getFullYear() + 4);

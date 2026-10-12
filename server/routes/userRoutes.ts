@@ -3,7 +3,7 @@ import { randomInt, randomUUID } from 'crypto';
 import { User, Account, Transaction, BankCard, CardApplication } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { requireApprovedUser, AuthenticatedRequest } from '../auth.js';
-import { maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
+import { generateCardNumber, maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
 import { formatCryptoAmount } from '../cryptoRates.js';
 
 const router = Router();
@@ -194,11 +194,18 @@ router.get('/cards/:cardId/details', requireApprovedUser, async (req: Authentica
       return;
     }
 
-    if (!card.card_number || !card.expiry_date || !card.cvv) {
+    const network = String(card.network || 'Visa');
+    const expectedPrefix = network === 'Mastercard' ? '5' : '4';
+    const normalizedLastFour = numericCardLastFour(card.last4);
+    const validCardNumber = typeof card.card_number === 'string'
+      && /^\d{16}$/.test(card.card_number)
+      && card.card_number.startsWith(expectedPrefix)
+      && card.card_number.endsWith(normalizedLastFour);
+    if (!validCardNumber || !card.expiry_date || !card.cvv) {
       const expiry = new Date();
       expiry.setFullYear(expiry.getFullYear() + 4);
       const generatedDetails = {
-        card_number: `${Array.from({ length: 12 }, () => randomInt(0, 10)).join('')}${String(card.last4).padStart(4, '0').slice(-4)}`,
+        card_number: generateCardNumber(network, normalizedLastFour),
         expiry_date: `${String(expiry.getMonth() + 1).padStart(2, '0')}/${String(expiry.getFullYear()).slice(-2)}`,
         cvv: String(randomInt(100, 1000)),
       };
