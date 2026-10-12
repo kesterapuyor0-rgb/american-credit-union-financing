@@ -633,7 +633,7 @@ router.put('/users/:userId/wallets', updateCryptoWalletAssignments);
 router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const applicants = await User.find({ role: { $ne: 'admin' }, isAdmin: { $ne: true } })
-      .select('id email full_name phone created_at verification_status verification_rejection_reason verification_submission verificationDocument documentUrl')
+      .select('id email full_name phone created_at verification_status verification_rejection_reason verification_submission verificationDocument documentUrl userSelfieStatus +userSelfie')
       .sort({ created_at: -1 })
       .lean<any[]>();
     res.json({
@@ -641,10 +641,56 @@ router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): 
         ...applicant,
         verification_status: applicant.verification_status || 'approved',
         verification_rejection_reason: applicant.verification_rejection_reason || '',
+        userSelfieStatus: applicant.userSelfieStatus || 'pending',
       })),
     });
   } catch (err) {
     res.status(500).json({ error: errorMessage(err, 'Failed to load enrollment records.') });
+  }
+});
+
+// PATCH /api/admin/verifications/:userId/selfie-status
+router.patch('/verifications/:userId/selfie-status', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = String(req.params.userId || '').trim();
+  const selfieStatus = req.body?.selfieStatus;
+  if (!userId || !['verified', 'rejected'].includes(selfieStatus)) {
+    res.status(400).json({ error: 'Choose verified or rejected for the selfie review.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let updatedUser: any;
+    await session.withTransaction(async () => {
+      updatedUser = await User.findOneAndUpdate(
+        {
+          id: userId,
+          role: { $ne: 'admin' },
+          isAdmin: { $ne: true },
+          userSelfie: { $exists: true, $ne: '' },
+        },
+        { $set: { userSelfieStatus: selfieStatus } },
+        { new: true, runValidators: true, session },
+      ).select('id email full_name userSelfieStatus').lean<any>();
+      if (!updatedUser) throw new Error('Customer selfie not found.');
+
+      await AuditLog.create([{
+        id: `log_selfie_review_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: `KYC_SELFIE_${selfieStatus.toUpperCase()}`,
+        target_user_id: userId,
+        details: `${selfieStatus === 'verified' ? 'Verified' : 'Rejected'} KYC selfie for ${updatedUser.email}.`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+    });
+    res.json({ success: true, user: updatedUser });
+  } catch (err) {
+    const message = errorMessage(err, 'Unable to update selfie review status.');
+    res.status(message === 'Customer selfie not found.' ? 404 : 500).json({ error: message });
+  } finally {
+    await session.endSession();
   }
 });
 

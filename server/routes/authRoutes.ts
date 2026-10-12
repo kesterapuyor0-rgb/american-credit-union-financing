@@ -370,7 +370,7 @@ router.post('/register', async (req, res): Promise<void> => {
   res.setHeader('Content-Type', 'application/json');
 
   try {
-    const { name, fullName, email, phone, password, passcode, securityPin, verificationNumber, sampleFile, verificationDocument } = req.body || {};
+    const { name, fullName, email, phone, password, passcode, securityPin, verificationNumber, sampleFile, verificationDocument, userSelfie } = req.body || {};
     const chosenName = String(name || fullName || '').trim();
     const chosenPassword = password || passcode;
 
@@ -407,6 +407,19 @@ router.post('/register', async (req, res): Promise<void> => {
     if (documentBuffer.length !== sampleFileSize || documentBuffer.length > 5 * 1024 * 1024
       || documentBuffer.toString('base64') !== documentData) {
       res.status(400).json({ success: false, error: 'The supporting image must be no larger than 5 MB and match its uploaded file.' });
+      return;
+    }
+    const selfieMatch = typeof userSelfie === 'string'
+      ? userSelfie.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$/)
+      : null;
+    if (!selfieMatch) {
+      res.status(400).json({ success: false, error: 'Upload a valid verification selfie (JPEG, PNG, WebP, or GIF).'});
+      return;
+    }
+    const selfieBuffer = Buffer.from(selfieMatch[2], 'base64');
+    if (selfieBuffer.length <= 0 || selfieBuffer.length > 5 * 1024 * 1024
+      || selfieBuffer.toString('base64') !== selfieMatch[2]) {
+      res.status(400).json({ success: false, error: 'The verification selfie must be no larger than 5 MB.' });
       return;
     }
 
@@ -460,6 +473,8 @@ router.post('/register', async (req, res): Promise<void> => {
           data: documentData,
           contentType: documentContentType,
         },
+        userSelfie,
+        userSelfieStatus: 'pending',
         verification_submission: {
           verificationNumber: cleanVerificationNumber,
           sampleFileName: cleanFileName,

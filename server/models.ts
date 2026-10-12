@@ -37,6 +37,8 @@ const userSchema = new Schema({
     data: { type: String },
     contentType: { type: String },
   },
+  userSelfie: { type: String, default: '', select: false },
+  userSelfieStatus: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
   verification_submission: {
     verificationNumber: { type: String, default: '', trim: true, maxlength: 20 },
     sampleFileName: { type: String, default: '', maxlength: 120 },

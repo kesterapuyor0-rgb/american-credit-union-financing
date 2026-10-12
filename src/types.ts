@@ -12,6 +12,8 @@ export interface User {
     data: string;
     contentType: string;
   };
+  userSelfie?: string;
+  userSelfieStatus?: 'pending' | 'verified' | 'rejected';
   address?: string;
   profilePicture?: string;
   assigned_btc_address?: string;

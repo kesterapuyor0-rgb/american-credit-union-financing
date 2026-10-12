@@ -59,7 +59,8 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
   const [securityPin, setSecurityPin] = useState('');
   const [verificationNumber, setVerificationNumber] = useState('');
   const [sampleFile, setSampleFile] = useState<File | null>(null);
-  const [step, setStep] = useState<1 | 2>(1);
+  const [selfieFile, setSelfieFile] = useState<File | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [showPassword, setShowPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
 
@@ -123,12 +124,20 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       return;
     }
 
-    if (!/^(?:ACUF-)?[A-Z0-9]{4,12}$/.test(verificationNumber.trim().toUpperCase())) {
-      setError('Enter a verification reference with 4–12 letters or numbers, optionally prefixed with ACUF-. Do not enter a Social Security number.');
+    if (step === 2) {
+      if (!/^(?:ACUF-)?[A-Z0-9]{4,12}$/.test(verificationNumber.trim().toUpperCase())) {
+        setError('Enter a verification reference with 4–12 letters or numbers, optionally prefixed with ACUF-. Do not enter a Social Security number.');
+        return;
+      }
+      if (!sampleFile) {
+        setError('Choose a sample image file to continue.');
+        return;
+      }
+      setStep(3);
       return;
     }
-    if (!sampleFile) {
-      setError('Choose a sample image file to continue.');
+    if (!selfieFile) {
+      setError('Take or upload a verification selfie to continue.');
       return;
     }
 
@@ -136,6 +145,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
     try {
       const verificationDocument = await readVerificationDocument(sampleFile);
+      const selfie = await readVerificationDocument(selfieFile);
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
@@ -155,6 +165,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
             size: sampleFile.size,
           },
           verificationDocument,
+          userSelfie: `data:${selfie.contentType};base64,${selfie.data}`,
         }),
       });
 
@@ -255,7 +266,10 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                   <span className={step === 1 ? 'font-semibold text-[#173B70]' : 'text-gray-500'}>Profile</span>
                   <span className="h-px flex-1 bg-gray-300" />
                   <span className={`flex h-7 w-7 items-center justify-center rounded-full font-bold ${step === 2 ? 'bg-[#173B70] text-white' : 'bg-gray-200 text-gray-500'}`}>2</span>
-                  <span className={step === 2 ? 'font-semibold text-[#173B70]' : 'text-gray-500'}>Identity Verification</span>
+                  <span className={step === 2 ? 'font-semibold text-[#173B70]' : step > 2 ? 'text-gray-500' : 'text-gray-400'}>Identity</span>
+                  <span className="h-px flex-1 bg-gray-300" />
+                  <span className={`flex h-7 w-7 items-center justify-center rounded-full font-bold ${step === 3 ? 'bg-[#173B70] text-white' : 'bg-gray-200 text-gray-500'}`}>3</span>
+                  <span className={step === 3 ? 'font-semibold text-[#173B70]' : 'text-gray-500'}>Selfie</span>
                 </div>
 
                 {step === 1 ? (
@@ -427,7 +441,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                   </label>
                 </div>
                 </>
-                ) : (
+                ) : step === 2 ? (
                 <div className="space-y-4">
                   <div>
                     <label htmlFor="reg-verification-number" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-700">
@@ -480,6 +494,46 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     {sampleFile && <p className="mt-1 text-[11px] text-gray-500">Selected file: {Math.ceil(sampleFile.size / 1024)} KB. The image will be stored for review by authorized Member Services specialists.</p>}
                   </div>
                 </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <h2 className="text-sm font-bold uppercase tracking-wider text-gray-800">Selfie Verification</h2>
+                      <p className="mt-1 text-xs leading-5 text-gray-600">Take or upload a clear selfie so an administrator can compare it with your enrollment documents.</p>
+                    </div>
+                    <div>
+                      <label htmlFor="reg-selfie-file" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-700">
+                        Take or Upload Verification Selfie
+                      </label>
+                      <label htmlFor="reg-selfie-file" className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center hover:border-[#173B70]">
+                        <Upload className="h-5 w-5 text-[#173B70]" />
+                        <span className="text-xs font-semibold text-gray-700">{selfieFile ? selfieFile.name : 'Take or choose a selfie image'}</span>
+                        <span className="text-[11px] text-gray-500">JPEG, PNG, WebP, or GIF · up to 5 MB · stored privately for KYC review</span>
+                      </label>
+                      <input
+                        id="reg-selfie-file"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        capture="user"
+                        className="sr-only"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0] || null;
+                          if (!file) {
+                            setSelfieFile(null);
+                            return;
+                          }
+                          if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) || file.size <= 0 || file.size > 5 * 1024 * 1024) {
+                            setSelfieFile(null);
+                            event.target.value = '';
+                            setError('Choose a JPEG, PNG, WebP, or GIF selfie up to 5 MB.');
+                            return;
+                          }
+                          setError(null);
+                          setSelfieFile(file);
+                        }}
+                      />
+                      {selfieFile && <p className="mt-1 text-[11px] text-gray-500">Selected selfie: {Math.ceil(selfieFile.size / 1024)} KB. It will remain pending until reviewed by an administrator.</p>}
+                    </div>
+                  </div>
                 )}
 
                 {/* Submit Button */}
@@ -496,10 +550,10 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     </div>
                   )}
                   <div className="flex gap-3">
-                    {step === 2 && (
+                    {step > 1 && (
                       <button
                         type="button"
-                        onClick={() => { setError(null); setStep(1); }}
+                        onClick={() => { setError(null); setStep(step === 3 ? 2 : 1); }}
                         disabled={loading}
                         className="min-h-12 rounded-sm border border-gray-300 px-4 text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                       >
@@ -514,8 +568,8 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     >
                       {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : (
                         <>
-                          <span>{step === 1 ? 'Continue to Verification' : 'Open Account & Complete Enrollment'}</span>
-                          {step === 1 ? <ArrowRight className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                          <span>{step === 1 ? 'Continue to Verification' : step === 2 ? 'Continue to Selfie Verification' : 'Open Account & Complete Enrollment'}</span>
+                          {step < 3 ? <ArrowRight className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                         </>
                       )}
                     </button>

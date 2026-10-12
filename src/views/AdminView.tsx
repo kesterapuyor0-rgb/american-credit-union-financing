@@ -39,6 +39,8 @@ interface VerificationApplicant {
   verification_status: 'under_review' | 'approved' | 'rejected';
   verification_rejection_reason?: string;
   verificationDocument?: User['verificationDocument'];
+  userSelfie?: string;
+  userSelfieStatus: NonNullable<User['userSelfieStatus']>;
   documentUrl?: string;
   verification_submission?: {
     verificationNumber?: string;
@@ -78,6 +80,14 @@ const getVerificationDocumentUrl = (
   return null;
 };
 
+const getSelfieImageUrl = (selfie?: string): string | null => {
+  const value = selfie?.trim();
+  if (!value) return null;
+  if (/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/]+=*$/i.test(value)) return value;
+  if (/^https?:\/\/[^\s]+$/i.test(value) || (value.startsWith('/') && !value.startsWith('//'))) return value;
+  return null;
+};
+
 export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) => {
 const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' | 'zelle' | 'verifications' | 'cards' | 'audit' | 'transactions' | 'grants'>('users');
   const [overview, setOverview] = useState<AdminOverviewData | null>(null);
@@ -90,6 +100,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
   const [verificationApplicants, setVerificationApplicants] = useState<VerificationApplicant[]>([]);
   const [verificationStatusEdits, setVerificationStatusEdits] = useState<Record<string, { status: VerificationApplicant['verification_status']; reason: string }>>({});
   const [savingVerificationId, setSavingVerificationId] = useState<string | null>(null);
+  const [savingSelfieReviewId, setSavingSelfieReviewId] = useState<string | null>(null);
+  const [selectedKycSelfie, setSelectedKycSelfie] = useState<string | null>(null);
   const [issuedCards, setIssuedCards] = useState<BankCard[]>([]);
   const [savingCardColorId, setSavingCardColorId] = useState<string | null>(null);
   const [cardColorError, setCardColorError] = useState<string | null>(null);
@@ -517,6 +529,35 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
       ])));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load enrollment records.');
+    }
+  };
+
+  const reviewSelfie = async (applicant: VerificationApplicant, selfieStatus: 'verified' | 'rejected') => {
+    setSavingSelfieReviewId(applicant.id);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await fetch(`/api/admin/verifications/${encodeURIComponent(applicant.id)}/selfie-status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: 'Bearer ' + activeToken } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ selfieStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to update selfie review status.');
+      setVerificationApplicants((current) => current.map((currentApplicant) =>
+        currentApplicant.id === applicant.id
+          ? { ...currentApplicant, userSelfieStatus: data.user.userSelfieStatus }
+          : currentApplicant
+      ));
+      setSuccessMsg(`${applicant.full_name}'s selfie marked ${selfieStatus}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update selfie review status.');
+    } finally {
+      setSavingSelfieReviewId(null);
     }
   };
 
@@ -1485,6 +1526,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                     applicant.documentUrl,
                     applicant.verification_submission?.sampleFileType,
                   );
+                  const selfieUrl = getSelfieImageUrl(applicant.userSelfie);
                   return (
                   <article key={applicant.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                     <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
@@ -1518,6 +1560,50 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                             </dd>
                           </div>
                         </dl>
+                        <section aria-label="KYC selfie verification" className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <h5 className="text-sm font-semibold text-slate-900">KYC Verification</h5>
+                            <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                              applicant.userSelfieStatus === 'verified'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : applicant.userSelfieStatus === 'rejected'
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {applicant.userSelfieStatus === 'verified'
+                                ? '[ KYC Verified ]'
+                                : applicant.userSelfieStatus === 'rejected'
+                                  ? '[ Selfie Rejected ]'
+                                  : '[ Pending Selfie Review ]'}
+                            </span>
+                          </div>
+                          {selfieUrl ? (
+                            <button type="button" onClick={() => setSelectedKycSelfie(selfieUrl)} className="block rounded border border-slate-200 bg-white p-1 text-left focus:outline-none focus:ring-2 focus:ring-[#173B70]" aria-label={`View ${applicant.full_name}'s verification selfie full-size`}>
+                              <img src={selfieUrl} alt={`${applicant.full_name} verification selfie`} className="h-36 w-36 rounded object-cover" />
+                              <span className="mt-1 block px-1 text-[10px] font-semibold text-teal-800">Click to view full size</span>
+                            </button>
+                          ) : (
+                            <p className="text-xs text-slate-600">No verification selfie was uploaded.</p>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              disabled={!selfieUrl || savingSelfieReviewId === applicant.id || applicant.userSelfieStatus === 'verified'}
+                              onClick={() => void reviewSelfie(applicant, 'verified')}
+                              className="min-h-9 rounded-md bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {savingSelfieReviewId === applicant.id ? 'Saving…' : 'Verify selfie'}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!selfieUrl || savingSelfieReviewId === applicant.id || applicant.userSelfieStatus === 'rejected'}
+                              onClick={() => void reviewSelfie(applicant, 'rejected')}
+                              className="min-h-9 rounded-md border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {savingSelfieReviewId === applicant.id ? 'Saving…' : 'Reject selfie'}
+                            </button>
+                          </div>
+                        </section>
                         {documentUrl && (
                           <div className="space-y-2">
                             <img
@@ -2600,6 +2686,14 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
               <button type="submit" disabled={submittingCardDebit} className="min-h-10 rounded-lg bg-rose-700 px-4 text-sm font-semibold text-white disabled:opacity-50">{submittingCardDebit ? 'Processing…' : 'Record debit'}</button>
             </div>
           </form>
+        </div>
+      )}
+      {selectedKycSelfie && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/80 p-4" role="presentation" onClick={() => setSelectedKycSelfie(null)}>
+          <section role="dialog" aria-modal="true" aria-label="Full-size KYC selfie" onClick={(event) => event.stopPropagation()} className="relative max-h-[90dvh] max-w-4xl rounded-xl bg-white p-3 shadow-2xl">
+            <button type="button" onClick={() => setSelectedKycSelfie(null)} aria-label="Close full-size selfie" className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-sm font-semibold text-slate-800 shadow">Close</button>
+            <img src={selectedKycSelfie} alt="Full-size KYC verification selfie" className="max-h-[84dvh] max-w-full rounded-lg object-contain" />
+          </section>
         </div>
       )}
     </div>
