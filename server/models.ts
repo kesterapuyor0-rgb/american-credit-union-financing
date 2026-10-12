@@ -39,6 +39,7 @@ const userSchema = new Schema({
   },
   governmentIdUrl: { type: String, default: '', select: false },
   selfieUrl: { type: String, default: '', select: false },
+  kycStatus: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
   userSelfie: { type: String, default: '', select: false },
   userSelfieStatus: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
   verification_submission: {

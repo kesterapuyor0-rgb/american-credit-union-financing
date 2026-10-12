@@ -14,6 +14,7 @@ export interface User {
   };
   governmentIdUrl?: string;
   selfieUrl?: string;
+  kycStatus?: 'Pending' | 'Approved' | 'Rejected';
   userSelfie?: string;
   userSelfieStatus?: 'pending' | 'verified' | 'rejected';
   address?: string;

@@ -633,7 +633,7 @@ router.put('/users/:userId/wallets', updateCryptoWalletAssignments);
 router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const applicants = await User.find({ role: { $ne: 'admin' }, isAdmin: { $ne: true } })
-      .select('id email full_name phone created_at verification_status verification_rejection_reason verification_submission verificationDocument documentUrl userSelfieStatus +userSelfie +governmentIdUrl +selfieUrl')
+      .select('id email full_name phone created_at verification_status verification_rejection_reason verification_submission verificationDocument documentUrl userSelfieStatus kycStatus +userSelfie +governmentIdUrl +selfieUrl')
       .sort({ created_at: -1 })
       .lean<any[]>();
     res.json({
@@ -642,6 +642,7 @@ router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): 
         verification_status: applicant.verification_status || 'approved',
         verification_rejection_reason: applicant.verification_rejection_reason || '',
         userSelfieStatus: applicant.userSelfieStatus || 'pending',
+        kycStatus: applicant.kycStatus || 'Pending',
         governmentIdUrl: applicant.governmentIdUrl || (
           applicant.verificationDocument?.data && applicant.verificationDocument?.contentType
             ? `data:${applicant.verificationDocument.contentType};base64,${applicant.verificationDocument.data}`
@@ -652,6 +653,61 @@ router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): 
     });
   } catch (err) {
     res.status(500).json({ error: errorMessage(err, 'Failed to load enrollment records.') });
+  }
+});
+
+// PATCH /api/admin/verifications/:userId/kyc-status
+router.patch('/verifications/:userId/kyc-status', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = String(req.params.userId || '').trim();
+  const kycStatus = req.body?.kycStatus;
+  if (!userId || !['Approved', 'Rejected'].includes(kycStatus)) {
+    res.status(400).json({ error: 'Choose Approved or Rejected for the KYC decision.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let reviewedUser: any;
+    await session.withTransaction(async () => {
+      reviewedUser = await User.findOneAndUpdate(
+        {
+          id: userId,
+          role: { $ne: 'admin' },
+          isAdmin: { $ne: true },
+          $or: [
+            { governmentIdUrl: { $exists: true, $ne: '' } },
+            { selfieUrl: { $exists: true, $ne: '' } },
+            { verificationDocument: { $exists: true } },
+            { userSelfie: { $exists: true, $ne: '' } },
+          ],
+        },
+        {
+          $set: {
+            kycStatus,
+            userSelfieStatus: kycStatus === 'Approved' ? 'verified' : 'rejected',
+          },
+        },
+        { new: true, runValidators: true, session },
+      ).select('id email full_name kycStatus userSelfieStatus').lean<any>();
+      if (!reviewedUser) throw new Error('KYC documents were not found for this customer.');
+
+      await AuditLog.create([{
+        id: `log_kyc_review_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: `KYC_${kycStatus.toUpperCase()}`,
+        target_user_id: userId,
+        details: `${kycStatus} KYC documents for ${reviewedUser.email}.`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+    });
+    res.json({ success: true, user: reviewedUser });
+  } catch (err) {
+    const message = errorMessage(err, 'Unable to update KYC status.');
+    res.status(message === 'KYC documents were not found for this customer.' ? 404 : 500).json({ error: message });
+  } finally {
+    await session.endSession();
   }
 });
 

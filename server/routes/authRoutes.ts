@@ -479,6 +479,7 @@ router.post('/register', async (req, res): Promise<void> => {
           ? governmentIdUrl
           : `data:${documentContentType};base64,${documentData}`,
         selfieUrl: submittedSelfieUrl,
+        kycStatus: 'Pending',
         userSelfieStatus: 'pending',
         verification_submission: {
           verificationNumber: cleanVerificationNumber,

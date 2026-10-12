@@ -41,6 +41,7 @@ interface VerificationApplicant {
   verificationDocument?: User['verificationDocument'];
   governmentIdUrl?: string;
   selfieUrl?: string;
+  kycStatus?: NonNullable<User['kycStatus']>;
   userSelfie?: string;
   userSelfieStatus: NonNullable<User['userSelfieStatus']>;
   documentUrl?: string;
@@ -91,6 +92,14 @@ const getSelfieImageUrl = (selfie?: string): string | null => {
   return null;
 };
 
+const getKycDownloadFilename = (url: string, label: string, userId: string): string => {
+  const contentType = url.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,/i)?.[1]?.toLowerCase();
+  const extension = contentType?.split('/')[1] === 'jpeg'
+    ? 'jpg'
+    : contentType?.split('/')[1] || url.match(/\.(jpe?g|png|webp|gif)(?:[?#]|$)/i)?.[1]?.toLowerCase() || 'jpg';
+  return `${label}-${userId}.${extension}`;
+};
+
 export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) => {
 const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' | 'zelle' | 'verifications' | 'cards' | 'audit' | 'transactions' | 'grants'>('users');
   const [overview, setOverview] = useState<AdminOverviewData | null>(null);
@@ -103,8 +112,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
   const [verificationApplicants, setVerificationApplicants] = useState<VerificationApplicant[]>([]);
   const [verificationStatusEdits, setVerificationStatusEdits] = useState<Record<string, { status: VerificationApplicant['verification_status']; reason: string }>>({});
   const [savingVerificationId, setSavingVerificationId] = useState<string | null>(null);
-  const [savingSelfieReviewId, setSavingSelfieReviewId] = useState<string | null>(null);
-  const [selectedKycSelfie, setSelectedKycSelfie] = useState<string | null>(null);
+  const [savingKycReviewId, setSavingKycReviewId] = useState<string | null>(null);
+  const [selectedKycImage, setSelectedKycImage] = useState<{ url: string; title: string } | null>(null);
   const [issuedCards, setIssuedCards] = useState<BankCard[]>([]);
   const [savingCardColorId, setSavingCardColorId] = useState<string | null>(null);
   const [cardColorError, setCardColorError] = useState<string | null>(null);
@@ -535,32 +544,36 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
     }
   };
 
-  const reviewSelfie = async (applicant: VerificationApplicant, selfieStatus: 'verified' | 'rejected') => {
-    setSavingSelfieReviewId(applicant.id);
+  const reviewKyc = async (applicant: VerificationApplicant, kycStatus: 'Approved' | 'Rejected') => {
+    setSavingKycReviewId(applicant.id);
     setError(null);
     setSuccessMsg(null);
     try {
-      const res = await fetch(`/api/admin/verifications/${encodeURIComponent(applicant.id)}/selfie-status`, {
+      const res = await fetch(`/api/admin/verifications/${encodeURIComponent(applicant.id)}/kyc-status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           ...(activeToken ? { Authorization: 'Bearer ' + activeToken } : {}),
         },
         credentials: 'include',
-        body: JSON.stringify({ selfieStatus }),
+        body: JSON.stringify({ kycStatus }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Unable to update selfie review status.');
+      if (!res.ok) throw new Error(data.error || 'Unable to update KYC status.');
       setVerificationApplicants((current) => current.map((currentApplicant) =>
         currentApplicant.id === applicant.id
-          ? { ...currentApplicant, userSelfieStatus: data.user.userSelfieStatus }
+          ? {
+            ...currentApplicant,
+            kycStatus: data.user.kycStatus,
+            userSelfieStatus: data.user.userSelfieStatus,
+          }
           : currentApplicant
       ));
-      setSuccessMsg(`${applicant.full_name}'s selfie marked ${selfieStatus}.`);
+      setSuccessMsg(`${applicant.full_name}'s KYC status set to ${kycStatus.toLowerCase()}.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update selfie review status.');
+      setError(err instanceof Error ? err.message : 'Unable to update KYC status.');
     } finally {
-      setSavingSelfieReviewId(null);
+      setSavingKycReviewId(null);
     }
   };
 
@@ -1563,66 +1576,71 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                             </dd>
                           </div>
                         </dl>
-                        <section aria-label="KYC selfie verification" className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <section aria-label="KYC verification documents" className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <h5 className="text-sm font-semibold text-slate-900">KYC Verification</h5>
+                            <h5 className="text-sm font-semibold text-slate-900">KYC Verification Documents</h5>
                             <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                              applicant.userSelfieStatus === 'verified'
+                              applicant.kycStatus === 'Approved'
                                 ? 'bg-emerald-100 text-emerald-800'
-                                : applicant.userSelfieStatus === 'rejected'
+                                : applicant.kycStatus === 'Rejected'
                                   ? 'bg-rose-100 text-rose-800'
                                   : 'bg-amber-100 text-amber-800'
                             }`}>
-                              {applicant.userSelfieStatus === 'verified'
-                                ? '[ KYC Verified ]'
-                                : applicant.userSelfieStatus === 'rejected'
-                                  ? '[ Selfie Rejected ]'
-                                  : '[ Pending Selfie Review ]'}
+                              {applicant.kycStatus || 'Pending'}
                             </span>
                           </div>
-                          {selfieUrl ? (
-                            <button type="button" onClick={() => setSelectedKycSelfie(selfieUrl)} className="block rounded border border-slate-200 bg-white p-1 text-left focus:outline-none focus:ring-2 focus:ring-[#173B70]" aria-label={`View ${applicant.full_name}'s verification selfie full-size`}>
-                              <img src={selfieUrl} alt={`${applicant.full_name} verification selfie`} className="h-36 w-36 rounded object-cover" />
-                              <span className="mt-1 block px-1 text-[10px] font-semibold text-teal-800">Click to view full size</span>
-                            </button>
-                          ) : (
-                            <p className="text-xs text-slate-600">No verification selfie was uploaded.</p>
-                          )}
-                          <div className="flex flex-wrap gap-2">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {([
+                              { label: 'Government ID', url: documentUrl, filenameLabel: 'government-id', imageClass: 'h-36 w-full object-contain' },
+                              { label: 'User Selfie', url: selfieUrl, filenameLabel: 'user-selfie', imageClass: 'h-36 w-36 rounded-full object-cover' },
+                            ]).map((document) => (
+                              <article key={document.label} className="space-y-2 rounded-md border border-slate-200 bg-white p-3">
+                                <h6 className="text-xs font-semibold text-slate-800">{document.label}</h6>
+                                {document.url ? (
+                                  <>
+                                    <img src={document.url} alt={`${applicant.full_name} ${document.label}`} className={`mx-auto rounded border border-slate-200 bg-slate-50 ${document.imageClass}`} />
+                                    <div className="flex flex-wrap gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => setSelectedKycImage({ url: document.url!, title: `${document.label} — ${applicant.full_name}` })}
+                                        className="min-h-9 rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                                      >
+                                        [ View / Expand ]
+                                      </button>
+                                      <a
+                                        href={document.url}
+                                        download={getKycDownloadFilename(document.url, document.filenameLabel, applicant.id)}
+                                        className="inline-flex min-h-9 items-center rounded-md bg-[#173B70] px-3 py-2 text-xs font-semibold text-white hover:bg-[#245B9E]"
+                                      >
+                                        [ Download ]
+                                      </a>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <p className="py-8 text-center text-xs text-slate-500">No {document.label.toLowerCase()} uploaded.</p>
+                                )}
+                              </article>
+                            ))}
+                          </div>
+                          <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
                             <button
                               type="button"
-                              disabled={!selfieUrl || savingSelfieReviewId === applicant.id || applicant.userSelfieStatus === 'verified'}
-                              onClick={() => void reviewSelfie(applicant, 'verified')}
-                              className="min-h-9 rounded-md bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+                              disabled={!documentUrl || !selfieUrl || savingKycReviewId === applicant.id || applicant.kycStatus === 'Approved'}
+                              onClick={() => void reviewKyc(applicant, 'Approved')}
+                              className="min-h-10 rounded-md bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              {savingSelfieReviewId === applicant.id ? 'Saving…' : 'Verify selfie'}
+                              {savingKycReviewId === applicant.id ? 'Saving…' : '[ Approve KYC ]'}
                             </button>
                             <button
                               type="button"
-                              disabled={!selfieUrl || savingSelfieReviewId === applicant.id || applicant.userSelfieStatus === 'rejected'}
-                              onClick={() => void reviewSelfie(applicant, 'rejected')}
-                              className="min-h-9 rounded-md border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              disabled={!documentUrl || !selfieUrl || savingKycReviewId === applicant.id || applicant.kycStatus === 'Rejected'}
+                              onClick={() => void reviewKyc(applicant, 'Rejected')}
+                              className="min-h-10 rounded-md border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              {savingSelfieReviewId === applicant.id ? 'Saving…' : 'Reject selfie'}
+                              {savingKycReviewId === applicant.id ? 'Saving…' : '[ Reject KYC ]'}
                             </button>
                           </div>
                         </section>
-                        {documentUrl && (
-                          <div className="space-y-2">
-                            <img
-                              src={documentUrl}
-                              alt="Verification ID"
-                              className="mb-2 mt-2 h-auto w-48 rounded border border-slate-200 object-cover"
-                            />
-                            <a
-                              href={documentUrl}
-                              download="verification-id.jpg"
-                              className="inline-block rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
-                            >
-                              Download Document
-                            </a>
-                          </div>
-                        )}
                         {!documentUrl && applicant.verification_submission?.sampleFileName && (
                           <p className="mt-2 text-xs text-amber-800">
                             This existing record contains document metadata only; no stored image is available to preview or download.
@@ -2691,11 +2709,12 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
           </form>
         </div>
       )}
-      {selectedKycSelfie && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/80 p-4" role="presentation" onClick={() => setSelectedKycSelfie(null)}>
-          <section role="dialog" aria-modal="true" aria-label="Full-size KYC selfie" onClick={(event) => event.stopPropagation()} className="relative max-h-[90dvh] max-w-4xl rounded-xl bg-white p-3 shadow-2xl">
-            <button type="button" onClick={() => setSelectedKycSelfie(null)} aria-label="Close full-size selfie" className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-sm font-semibold text-slate-800 shadow">Close</button>
-            <img src={selectedKycSelfie} alt="Full-size KYC verification selfie" className="max-h-[84dvh] max-w-full rounded-lg object-contain" />
+      {selectedKycImage && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/80 p-4" role="presentation" onClick={() => setSelectedKycImage(null)}>
+          <section role="dialog" aria-modal="true" aria-label={selectedKycImage.title} onClick={(event) => event.stopPropagation()} className="relative max-h-[90dvh] max-w-4xl rounded-xl bg-white p-3 shadow-2xl">
+            <button type="button" onClick={() => setSelectedKycImage(null)} aria-label="Close full-size document preview" className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-sm font-semibold text-slate-800 shadow">Close</button>
+            <h2 className="mb-2 pr-16 text-sm font-semibold text-slate-900">{selectedKycImage.title}</h2>
+            <img src={selectedKycImage.url} alt={selectedKycImage.title} className="max-h-[84dvh] max-w-full rounded-lg object-contain" />
           </section>
         </div>
       )}
