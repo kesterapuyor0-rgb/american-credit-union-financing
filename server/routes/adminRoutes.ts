@@ -913,6 +913,14 @@ router.post('/card-applications/decision', async (req: AuthenticatedRequest, res
           product_name: reviewedApplication.product_name,
           last4,
           masked_number: maskedCardNumber(reviewedApplication.network || 'Visa', last4),
+          card_number: `${Array.from({ length: 12 }, () => randomInt(0, 10)).join('')}${last4}`,
+          expiry_date: (() => {
+            const expiry = new Date();
+            expiry.setFullYear(expiry.getFullYear() + 4);
+            return `${String(expiry.getMonth() + 1).padStart(2, '0')}/${String(expiry.getFullYear()).slice(-2)}`;
+          })(),
+          cvv: String(randomInt(100, 1000)),
+          canViewCardDetails: false,
           status: 'Active',
           credit_limit: reviewedApplication.card_type === 'Credit' ? reviewedApplication.requested_limit : 0,
           created_at: new Date(),
@@ -1098,6 +1106,7 @@ router.get('/cards', async (_req: AuthenticatedRequest, res: Response): Promise<
       const account = accountById.get(card.account_id);
       return {
         ...card,
+        canViewCardDetails: Boolean(card.canViewCardDetails),
         last4: numericCardLastFour(card.last4),
         network: card.network || 'Visa',
         cardColor: card.cardColor || 'emerald',
@@ -1114,6 +1123,47 @@ router.get('/cards', async (_req: AuthenticatedRequest, res: Response): Promise<
     }) });
   } catch (err) {
     res.status(500).json({ error: errorMessage(err, 'Failed to load issued cards.') });
+  }
+});
+
+// PATCH /api/admin/cards/:cardId/details-permission — grants or revokes member card-detail access.
+router.patch('/cards/:cardId/details-permission', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const cardId = String(req.params.cardId || '').trim();
+  const canViewCardDetails = req.body?.canViewCardDetails;
+  if (!cardId || typeof canViewCardDetails !== 'boolean') {
+    res.status(400).json({ error: 'Provide a valid card and card-detail permission value.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let updatedCard: any;
+    await session.withTransaction(async () => {
+      updatedCard = await BankCard.findOneAndUpdate(
+        { id: cardId, status: 'Active' },
+        { $set: { canViewCardDetails } },
+        { new: true, runValidators: true, session },
+      ).select('id user_id account_id canViewCardDetails product_name').lean<any>();
+      if (!updatedCard) throw new Error('An active card could not be found.');
+
+      await AuditLog.create([{
+        id: `log_card_details_permission_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: canViewCardDetails ? 'CARD_DETAILS_PERMISSION_GRANTED' : 'CARD_DETAILS_PERMISSION_REVOKED',
+        target_user_id: updatedCard.user_id,
+        target_account_id: updatedCard.account_id,
+        details: `${canViewCardDetails ? 'Granted' : 'Revoked'} card-detail viewing permission for ${updatedCard.product_name} card ${updatedCard.id}.`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+    });
+    res.json({ success: true, card: updatedCard });
+  } catch (err) {
+    const message = errorMessage(err, 'Unable to update card-detail permission.');
+    res.status(message.includes('active card could not be found') ? 404 : 500).json({ error: message });
+  } finally {
+    await session.endSession();
   }
 });
 

@@ -136,6 +136,7 @@ export interface BankCard {
   id: string;
   user_id: string;
   account_id: string;
+  canViewCardDetails?: boolean;
   card_type: 'Debit' | 'Credit';
   network: 'Visa' | 'Mastercard';
   cardColor?: 'emerald' | 'navy' | 'crimson' | 'gold';
@@ -157,6 +158,12 @@ export interface BankCard {
   held_balance?: number;
   account_currency?: string;
   account_status?: string;
+}
+
+export interface BankCardDetails {
+  cardNumber: string;
+  expiryDate: string;
+  cvv: string;
 }
 
 export interface CardApplication {

@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { randomUUID } from 'crypto';
+import { randomInt, randomUUID } from 'crypto';
 import { User, Account, Transaction, BankCard, CardApplication } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { requireApprovedUser, AuthenticatedRequest } from '../auth.js';
@@ -152,7 +152,7 @@ router.get('/summary', requireApprovedUser, async (req: AuthenticatedRequest, re
 router.get('/cards', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const issuedCards = await BankCard.find({ user_id: req.user!.id, status: { $in: ['Active', 'Locked'] } }).sort({ created_at: -1 })
-      .select('id user_id account_id card_type network cardColor product_name last4 masked_number status credit_limit created_at').lean<any[]>();
+      .select('id user_id account_id card_type network cardColor product_name last4 masked_number canViewCardDetails status credit_limit created_at').lean<any[]>();
     const accounts = await Account.find({ id: { $in: issuedCards.map((card) => card.account_id) }, user_id: req.user!.id })
       .select('id nickname account_number balance held_balance currency').lean<any[]>();
     const accountById = new Map(accounts.map((account) => [account.id, account]));
@@ -173,6 +173,48 @@ router.get('/cards', requireApprovedUser, async (req: AuthenticatedRequest, res:
     res.json({ cards });
   } catch (err) {
     res.status(500).json({ error: errorMessage(err, 'Failed to retrieve your cards.') });
+  }
+});
+
+// GET /api/user/cards/:cardId/details — returns sensitive card details only after admin authorization.
+router.get('/cards/:cardId/details', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const cardFilter = {
+      id: String(req.params.cardId || ''),
+      user_id: req.user!.id,
+      status: { $in: ['Active', 'Locked'] },
+    };
+    let card = await BankCard.findOne(cardFilter).select('+card_number +expiry_date +cvv canViewCardDetails last4').lean<any>();
+    if (!card) {
+      res.status(404).json({ error: 'Card not found or unavailable.' });
+      return;
+    }
+    if (card.canViewCardDetails !== true) {
+      res.status(403).json({ error: 'Card details are locked. Contact customer support or your bank administrator to authorize access.' });
+      return;
+    }
+
+    if (!card.card_number || !card.expiry_date || !card.cvv) {
+      const expiry = new Date();
+      expiry.setFullYear(expiry.getFullYear() + 4);
+      const generatedDetails = {
+        card_number: `${Array.from({ length: 12 }, () => randomInt(0, 10)).join('')}${String(card.last4).padStart(4, '0').slice(-4)}`,
+        expiry_date: `${String(expiry.getMonth() + 1).padStart(2, '0')}/${String(expiry.getFullYear()).slice(-2)}`,
+        cvv: String(randomInt(100, 1000)),
+      };
+      await BankCard.updateOne(cardFilter, { $set: generatedDetails });
+      card = await BankCard.findOne(cardFilter).select('+card_number +expiry_date +cvv canViewCardDetails').lean<any>();
+    }
+    if (!card?.card_number || !card.expiry_date || !card.cvv) {
+      throw new Error('Card details are unavailable.');
+    }
+    res.json({
+      cardNumber: card.card_number,
+      expiryDate: card.expiry_date,
+      cvv: card.cvv,
+    });
+  } catch (err) {
+    res.status(500).json({ error: errorMessage(err, 'Unable to retrieve card details.') });
   }
 });
 

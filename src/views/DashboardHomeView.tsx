@@ -1,6 +1,6 @@
 import React, { useMemo, useState, ChangeEvent, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { User, BankAccount, Transaction, BankCard, CardApplication } from '../types';
+import { User, BankAccount, Transaction, BankCard, BankCardDetails, CardApplication } from '../types';
 import { getAuthHeaders } from '../utils/api';
 import { formatTransactionDescription } from '../utils/transactionFormatting';
 import { PushNotificationBanner } from '../components/PushNotificationBanner';
@@ -109,6 +109,9 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [cardAction, setCardAction] = useState<'details' | 'limits' | null>(null);
   const [cardActionBusy, setCardActionBusy] = useState(false);
+  const [revealedCardDetails, setRevealedCardDetails] = useState<BankCardDetails | null>(null);
+  const [revealingCardDetails, setRevealingCardDetails] = useState(false);
+  const [cardDetailsError, setCardDetailsError] = useState('');
   const carouselRef = useRef<HTMLDivElement>(null);
   const [greeting, setGreeting] = useState(() => getLocalGreeting());
 
@@ -170,6 +173,37 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     } finally {
       setCardActionBusy(false);
     }
+  };
+
+  const revealSelectedCardDetails = async () => {
+    if (selectedCarouselItem?.kind !== 'issued' || selectedCarouselItem.card.canViewCardDetails !== true) return;
+    setRevealingCardDetails(true);
+    setCardDetailsError('');
+    try {
+      const response = await fetch(`/api/user/cards/${encodeURIComponent(selectedCarouselItem.card.id)}/details`, {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to retrieve card details.');
+      setRevealedCardDetails(data as BankCardDetails);
+    } catch (error) {
+      setCardDetailsError(error instanceof Error ? error.message : 'Unable to retrieve card details.');
+    } finally {
+      setRevealingCardDetails(false);
+    }
+  };
+
+  const openCardDetails = () => {
+    setRevealedCardDetails(null);
+    setCardDetailsError('');
+    setCardAction('details');
+  };
+
+  const closeCardAction = () => {
+    setCardAction(null);
+    setRevealedCardDetails(null);
+    setCardDetailsError('');
   };
 
   const scrollToCard = (index: number) => {
@@ -734,7 +768,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               {selectedCarouselItem?.kind === 'issued' && selectedCarouselItem.card.status === 'Locked' ? <LockKeyhole className="h-4 w-4 shrink-0" /> : <Snowflake className="h-4 w-4 shrink-0" />}
               <span>{cardActionBusy ? 'Updating…' : selectedCarouselItem?.kind === 'issued' && selectedCarouselItem.card.status === 'Locked' ? 'Unfreeze' : 'Freeze Card'}</span>
             </button>
-            <button type="button" onClick={() => setCardAction('details')} disabled={!selectedCarouselItem} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 sm:gap-2 sm:text-sm">
+            <button type="button" onClick={openCardDetails} disabled={!selectedCarouselItem} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 sm:gap-2 sm:text-sm">
               <Eye className="h-4 w-4 shrink-0" /><span className="text-center leading-tight">Show Details<br /><span className="font-normal">(CVV)</span></span>
             </button>
             <button type="button" onClick={() => setCardAction('limits')} disabled={!selectedCarouselItem} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 sm:gap-2 sm:text-sm">
@@ -768,7 +802,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         {cardMessage && <p role="status" className="text-xs text-slate-600">{cardMessage}</p>}
         {cardAction && selectedCarouselItem && (
           <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4" onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setCardAction(null);
+            if (event.target === event.currentTarget) closeCardAction();
           }}>
             <section role="dialog" aria-modal="true" aria-labelledby="card-action-title" className="w-full max-w-md space-y-4 rounded-2xl bg-white p-5 shadow-2xl">
               <div className="flex items-start justify-between gap-4">
@@ -776,21 +810,41 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                   <p className="text-xs font-semibold uppercase tracking-wider text-teal-800">Card ending in {selectedCarouselItem.kind === 'issued' ? selectedCarouselItem.card.last4 : selectedCarouselItem.account.account_number.slice(-4)}</p>
                   <h3 id="card-action-title" className="mt-1 text-lg font-semibold text-slate-950">{cardAction === 'details' ? 'Card details' : 'Manage card limits'}</h3>
                 </div>
-                <button type="button" onClick={() => setCardAction(null)} aria-label="Close dialog" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+                <button type="button" onClick={closeCardAction} aria-label="Close dialog" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
               </div>
               {cardAction === 'details' ? (
                 <>
                   <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 px-4">
                     <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Cardholder</dt><dd className="text-right font-medium text-slate-900">{user.full_name}</dd></div>
-                    <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Card number</dt><dd className="font-mono font-medium text-slate-900">{selectedCarouselItem.kind === 'issued' ? selectedCarouselItem.card.masked_number || `•••• •••• •••• ${selectedCarouselItem.card.last4}` : `•••• ${selectedCarouselItem.account.account_number.slice(-4)}`}</dd></div>
+                    <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Card number</dt><dd className="font-mono font-medium text-slate-900">{revealedCardDetails?.cardNumber || (selectedCarouselItem.kind === 'issued' ? selectedCarouselItem.card.masked_number || `•••• •••• •••• ${selectedCarouselItem.card.last4}` : `•••• ${selectedCarouselItem.account.account_number.slice(-4)}`)}</dd></div>
                     {selectedCarouselItem.kind === 'issued' && (
                       <>
                         <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Type / network</dt><dd className="text-right font-medium text-slate-900">{selectedCarouselItem.card.card_type} · {selectedCarouselItem.card.network}</dd></div>
                         <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Status</dt><dd className="font-medium text-slate-900">{selectedCarouselItem.card.status === 'Locked' ? 'Frozen' : 'Active'}</dd></div>
                       </>
                     )}
+                    {revealedCardDetails && (
+                      <>
+                        <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Expiry date</dt><dd className="font-mono font-medium text-slate-900">{revealedCardDetails.expiryDate}</dd></div>
+                        <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">CVV</dt><dd className="font-mono font-medium text-slate-900">{revealedCardDetails.cvv}</dd></div>
+                      </>
+                    )}
                   </dl>
-                  <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-900">For your protection, full card numbers and CVV are not stored or displayed in online banking. Use the secure card information provided by your card issuer.</p>
+                  {selectedCarouselItem.kind !== 'issued' || selectedCarouselItem.card.canViewCardDetails !== true ? (
+                    <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-900">Card details are locked. Please contact customer support or your bank administrator to authorize access.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => void revealSelectedCardDetails()}
+                        disabled={revealingCardDetails || Boolean(revealedCardDetails)}
+                        className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {revealingCardDetails ? 'Retrieving details…' : revealedCardDetails ? 'Card Details Revealed' : '[ Reveal CVV & Full Details ]'}
+                      </button>
+                      {cardDetailsError && <p role="alert" className="text-sm text-rose-700">{cardDetailsError}</p>}
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
