@@ -98,7 +98,7 @@ function writeDashboardCache(userId: string, payload: DashboardPayload): void {
     }));
     localStorage.setItem(dashboardCacheKey(userId), JSON.stringify({
       accounts: safeAccounts,
-      cardsSummary: { activeCount: safeCards.length, cards: safeCards },
+      cardsSummary: { activeCount: safeCards.filter((card) => card.status === 'Active').length, cards: safeCards },
       recentTransactions: safeTransactions,
       summary: payload.summary,
       cachedAt: Date.now(),

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, ChangeEvent, useEffect } from 'react';
+import React, { useMemo, useState, ChangeEvent, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { User, BankAccount, Transaction, BankCard, CardApplication } from '../types';
 import { getAuthHeaders } from '../utils/api';
@@ -15,6 +15,9 @@ import {
   CreditCard,
   Eye,
   EyeOff,
+  LockKeyhole,
+  SlidersHorizontal,
+  Snowflake,
   HandCoins,
   BriefcaseBusiness,
   Plus,
@@ -103,6 +106,10 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const [requestedLimit, setRequestedLimit] = useState('1000');
   const [submittingCard, setSubmittingCard] = useState(false);
   const [cardMessage, setCardMessage] = useState('');
+  const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const [cardAction, setCardAction] = useState<'details' | 'limits' | null>(null);
+  const [cardActionBusy, setCardActionBusy] = useState(false);
+  const carouselRef = useRef<HTMLDivElement>(null);
   const [greeting, setGreeting] = useState(() => getLocalGreeting());
 
   const checkingAndSavings = accounts.filter((account) =>
@@ -128,7 +135,55 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
       ? []
       : orderedCheckingAndSavings.filter((account) => account.account_type === accountFilter);
   const legacyCards = accounts.filter((account) => account.account_type === 'Credit Card' && account.status === 'Active');
+  const carouselItems = [
+    ...cards.map((card) => ({ kind: 'issued' as const, card })),
+    ...legacyCards.map((account) => ({ kind: 'legacy' as const, account })),
+  ];
+  const selectedCarouselItem = carouselItems[activeCardIndex] || null;
   const recentTransactions = useMemo(() => transactions.slice(0, 3), [transactions]);
+
+  useEffect(() => {
+    setActiveCardIndex((index) => Math.min(index, Math.max(0, carouselItems.length - 1)));
+  }, [cards.length, legacyCards.length]);
+
+  const freezeSelectedCard = async () => {
+    if (selectedCarouselItem?.kind !== 'issued') return;
+    const nextStatus = selectedCarouselItem.card.status === 'Locked' ? 'Active' : 'Locked';
+    const actionLabel = nextStatus === 'Locked' ? 'freeze' : 'unfreeze';
+    if (!window.confirm(`Are you sure you want to ${actionLabel} this ${selectedCarouselItem.card.card_type.toLowerCase()} card ending in ${selectedCarouselItem.card.last4}?`)) return;
+
+    setCardActionBusy(true);
+    setCardMessage('');
+    try {
+      const response = await fetch(`/api/user/cards/${encodeURIComponent(selectedCarouselItem.card.id)}/status`, {
+        method: 'PATCH',
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || `Unable to ${actionLabel} this card.`);
+      setCardMessage(`Card ending in ${selectedCarouselItem.card.last4} ${nextStatus === 'Locked' ? 'frozen' : 'unfrozen'}.`);
+      onRefresh();
+    } catch (error) {
+      setCardMessage(error instanceof Error ? error.message : `Unable to ${actionLabel} this card.`);
+    } finally {
+      setCardActionBusy(false);
+    }
+  };
+
+  const scrollToCard = (index: number) => {
+    const container = carouselRef.current;
+    const card = container?.children.item(index) as HTMLElement | null;
+    if (!container || !card) return;
+    setActiveCardIndex(index);
+    const cardRect = card.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    container.scrollTo({
+      left: container.scrollLeft + cardRect.left - containerRect.left - (container.clientWidth - card.clientWidth) / 2,
+      behavior: 'smooth',
+    });
+  };
 
   useEffect(() => {
     const refreshGreeting = () => setGreeting(getLocalGreeting());
@@ -601,47 +656,92 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           </form>
         )}
         {dashboardLoading ? (
-          <div className="grid justify-items-center gap-4 sm:grid-cols-2" aria-label="Loading active cards" aria-busy="true">
-            <div className="aspect-[1.586/1] w-full max-w-md animate-pulse rounded-2xl bg-slate-200" />
+          <div className="flex snap-x snap-mandatory gap-4 overflow-hidden pb-4" aria-label="Loading active cards" aria-busy="true">
+            <div className="aspect-[1.586/1] w-[88%] max-w-md shrink-0 snap-center animate-pulse rounded-2xl bg-slate-200" />
           </div>
-        ) : (cards.length > 0 || legacyCards.length > 0) ? (
-          <div className="grid justify-items-center gap-4 sm:grid-cols-2">
-            {cards.map((card) => (
-              <article key={card.id} className={`relative isolate flex aspect-[1.586/1] w-full max-w-md flex-col justify-between gap-2 overflow-hidden rounded-2xl p-3.5 text-white shadow-lg sm:p-4 ${CARD_COLOR_CLASSES[card.cardColor || 'emerald']}`}>
+        ) : carouselItems.length > 0 ? (
+          <>
+          <div
+            ref={carouselRef}
+            onScroll={(event) => {
+              const container = event.currentTarget;
+              const children = Array.from(container.children) as HTMLElement[];
+              const containerCenter = container.getBoundingClientRect().left + container.clientWidth / 2;
+              const nearestIndex = children.reduce((nearest, child, index) => {
+                const childCenter = child.getBoundingClientRect().left + child.clientWidth / 2;
+                const nearestCenter = children[nearest].getBoundingClientRect().left + children[nearest].clientWidth / 2;
+                return Math.abs(childCenter - containerCenter) < Math.abs(nearestCenter - containerCenter)
+                  ? index
+                  : nearest;
+              }, 0);
+              setActiveCardIndex(nearestIndex);
+            }}
+            className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4"
+            aria-label="Your cards"
+          >
+            {carouselItems.map((item) => item.kind === 'issued' ? (
+              <article key={item.card.id} className={`relative isolate flex aspect-[1.586/1] w-[88%] max-w-md shrink-0 snap-center flex-col justify-between gap-2 overflow-hidden rounded-2xl p-3.5 text-white shadow-lg sm:p-4 ${CARD_COLOR_CLASSES[item.card.cardColor || 'emerald']}`}>
                 <div aria-hidden="true" className="absolute -right-12 -top-16 -z-10 h-56 w-56 rounded-full border border-white/10" />
                 <div aria-hidden="true" className="absolute -right-4 -top-8 -z-10 h-40 w-40 rounded-full border border-white/10" />
                 <div className="relative flex min-w-0 items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/70">{card.card_type} CARD</p>
-                    <p className="mt-0.5 truncate text-xs font-semibold sm:text-sm">{card.product_name}</p>
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/70">{item.card.card_type} CARD</p>
+                    <p className="mt-0.5 break-words text-xs font-semibold leading-tight sm:text-sm">{item.card.product_name}</p>
                   </div>
-                  <span className="shrink-0 rounded-md border border-white/25 bg-white/10 px-2 py-1 text-[10px] font-bold tracking-wide sm:text-xs">{card.network || 'Visa'}</span>
+                  <span className="shrink-0 rounded-md border border-white/25 bg-white/10 px-2 py-1 text-[10px] font-bold tracking-wide sm:text-xs">{item.card.network || 'Visa'}</span>
                 </div>
                 <div className="relative flex items-center gap-2">
                   <div aria-hidden="true" className="grid h-8 w-10 grid-cols-2 gap-px overflow-hidden rounded-md border border-amber-200/40 bg-amber-200/80 p-1">
                     <span className="rounded-sm border border-amber-900/20" /><span className="rounded-sm border border-amber-900/20" /><span className="rounded-sm border border-amber-900/20" /><span className="rounded-sm border border-amber-900/20" />
                   </div>
                   <CreditCard aria-hidden="true" className="h-5 w-5 text-white/60" />
+                  <span className={`ml-auto rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-wide ${item.card.status === 'Locked' ? 'bg-rose-500/20 text-rose-100' : 'bg-white/10 text-white/80'}`}>{item.card.status === 'Locked' ? 'Frozen' : 'Active'}</span>
                 </div>
-                <p className="relative truncate font-mono text-sm tracking-[0.12em] sm:text-base sm:tracking-[0.16em]">{card.masked_number || `•••• •••• •••• ${card.last4}`}</p>
+                <p className="relative break-words font-mono text-sm leading-tight tracking-[0.12em] sm:text-base sm:tracking-[0.16em]">{item.card.masked_number || `•••• •••• •••• ${item.card.last4}`}</p>
                 <div className="relative grid grid-cols-2 gap-2 border-t border-white/20 pt-2">
-                  <div className="min-w-0"><p className="text-[8px] uppercase tracking-wider text-white/65">Cardholder</p><p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">{user.full_name}</p></div>
-                  <div className="min-w-0 text-right"><p className="truncate text-[8px] uppercase tracking-wider text-white/65">{card.card_type === 'Credit' ? 'Approved limit' : 'Linked account available'}</p><p className="mt-0.5 text-xs font-bold sm:text-sm">{formatMoney(card.card_type === 'Credit' ? card.credit_limit : (card.linked_account_available || 0))}</p></div>
+                  <div className="min-w-0"><p className="text-[8px] uppercase tracking-wider text-white/65">Cardholder</p><p className="mt-0.5 break-words text-[10px] font-semibold uppercase leading-tight tracking-wide sm:text-xs">{user.full_name}</p></div>
+                  <div className="min-w-0 text-right"><p className="text-[8px] uppercase leading-tight tracking-wider text-white/65">{item.card.card_type === 'Credit' ? 'Credit Limit' : 'Available Balance'}</p><p className="mt-0.5 break-words text-xs font-bold leading-tight tabular-nums sm:text-sm">{formatMoney(item.card.card_type === 'Credit' ? item.card.credit_limit : (item.card.linked_account_available || 0))}</p></div>
                 </div>
               </article>
-            ))}
-            {legacyCards.map((card) => (
-              <article key={card.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            ) : (
+              <article key={item.account.id} className="flex aspect-[1.586/1] w-[88%] max-w-md shrink-0 snap-center flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <CreditCard className="h-5 w-5 text-slate-600" />
-                  <span className="text-xs text-slate-500">{card.status}</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{item.account.status}</span>
                 </div>
-                <p className="mt-5 font-medium text-slate-900">{card.nickname}</p>
-                <p className="mt-1 text-sm text-slate-500">•••• {card.account_number.slice(-4)}</p>
-                <p className="mt-3 text-lg font-semibold text-slate-900">{formatMoney(card.balance)}</p>
+                <div>
+                  <p className="break-words font-medium leading-tight text-slate-900">{item.account.nickname}</p>
+                  <p className="mt-1 text-sm text-slate-500">•••• {item.account.account_number.slice(-4)}</p>
+                </div>
+                <p className="break-words text-base font-semibold leading-tight tabular-nums text-slate-900 sm:text-lg">{formatMoney(item.account.balance)}</p>
               </article>
             ))}
           </div>
+          <div className="flex justify-center gap-2" aria-label="Choose active card">
+            {carouselItems.map((item, index) => (
+              <button
+                key={item.kind === 'issued' ? item.card.id : item.account.id}
+                type="button"
+                onClick={() => scrollToCard(index)}
+                aria-label={`Show card ${index + 1} of ${carouselItems.length}`}
+                aria-current={activeCardIndex === index ? 'true' : undefined}
+                className={`h-2.5 rounded-full transition-all ${activeCardIndex === index ? 'w-6 bg-teal-700' : 'w-2.5 bg-slate-300 hover:bg-slate-400'}`}
+              />
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => void freezeSelectedCard()} disabled={cardActionBusy || selectedCarouselItem?.kind !== 'issued'} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:border-rose-200 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:text-sm">
+              {selectedCarouselItem?.kind === 'issued' && selectedCarouselItem.card.status === 'Locked' ? <LockKeyhole className="h-4 w-4 shrink-0" /> : <Snowflake className="h-4 w-4 shrink-0" />}
+              <span>{cardActionBusy ? 'Updating…' : selectedCarouselItem?.kind === 'issued' && selectedCarouselItem.card.status === 'Locked' ? 'Unfreeze' : 'Freeze Card'}</span>
+            </button>
+            <button type="button" onClick={() => setCardAction('details')} disabled={!selectedCarouselItem} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 sm:gap-2 sm:text-sm">
+              <Eye className="h-4 w-4 shrink-0" /><span className="text-center leading-tight">Show Details<br /><span className="font-normal">(CVV)</span></span>
+            </button>
+            <button type="button" onClick={() => setCardAction('limits')} disabled={!selectedCarouselItem} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 sm:gap-2 sm:text-sm">
+              <SlidersHorizontal className="h-4 w-4 shrink-0" /><span>Manage Limits</span>
+            </button>
+          </div>
+          </>
         ) : (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-5 py-8 text-center">
             <CreditCard className="mx-auto h-7 w-7 text-slate-400" />
@@ -666,6 +766,50 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           </div>
         )}
         {cardMessage && <p role="status" className="text-xs text-slate-600">{cardMessage}</p>}
+        {cardAction && selectedCarouselItem && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4" onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setCardAction(null);
+          }}>
+            <section role="dialog" aria-modal="true" aria-labelledby="card-action-title" className="w-full max-w-md space-y-4 rounded-2xl bg-white p-5 shadow-2xl">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-teal-800">Card ending in {selectedCarouselItem.kind === 'issued' ? selectedCarouselItem.card.last4 : selectedCarouselItem.account.account_number.slice(-4)}</p>
+                  <h3 id="card-action-title" className="mt-1 text-lg font-semibold text-slate-950">{cardAction === 'details' ? 'Card details' : 'Manage card limits'}</h3>
+                </div>
+                <button type="button" onClick={() => setCardAction(null)} aria-label="Close dialog" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+              </div>
+              {cardAction === 'details' ? (
+                <>
+                  <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 px-4">
+                    <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Cardholder</dt><dd className="text-right font-medium text-slate-900">{user.full_name}</dd></div>
+                    <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Card number</dt><dd className="font-mono font-medium text-slate-900">{selectedCarouselItem.kind === 'issued' ? selectedCarouselItem.card.masked_number || `•••• •••• •••• ${selectedCarouselItem.card.last4}` : `•••• ${selectedCarouselItem.account.account_number.slice(-4)}`}</dd></div>
+                    {selectedCarouselItem.kind === 'issued' && (
+                      <>
+                        <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Type / network</dt><dd className="text-right font-medium text-slate-900">{selectedCarouselItem.card.card_type} · {selectedCarouselItem.card.network}</dd></div>
+                        <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Status</dt><dd className="font-medium text-slate-900">{selectedCarouselItem.card.status === 'Locked' ? 'Frozen' : 'Active'}</dd></div>
+                      </>
+                    )}
+                  </dl>
+                  <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-900">For your protection, full card numbers and CVV are not stored or displayed in online banking. Use the secure card information provided by your card issuer.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm leading-5 text-slate-600">
+                    {selectedCarouselItem.kind === 'issued' && selectedCarouselItem.card.card_type === 'Credit'
+                      ? `Your current credit limit is ${formatMoney(selectedCarouselItem.card.credit_limit)}. Limit changes require Member Services review.`
+                      : 'This card does not have a self-service spending-limit setting. Contact Member Services for assistance.'}
+                  </p>
+                  <a
+                    href={`mailto:americancreditunion.financing@gmail.com?subject=${encodeURIComponent('Card limit request')}&body=${encodeURIComponent(`Hello Member Services,\n\nI would like assistance with the limit for the card ending in ${selectedCarouselItem.kind === 'issued' ? selectedCarouselItem.card.last4 : selectedCarouselItem.account.account_number.slice(-4)}.\n\nName: ${user.full_name}\n`)}`}
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800"
+                  >
+                    Contact Member Services
+                  </a>
+                </>
+              )}
+            </section>
+          </div>
+        )}
       </section>
 
       {!showCardsOnly && (recentTransactions.length > 0 || dashboardLoading) && (

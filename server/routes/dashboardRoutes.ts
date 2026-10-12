@@ -69,7 +69,7 @@ router.get('/summary', requireApprovedUser, async (req: AuthenticatedRequest, re
       Account.find({ user_id: userId })
         .select('id user_id account_number account_type nickname balance held_balance currency routing_number credit_limit interest_rate accrued_interest last_interest_accrual_date status created_at')
         .sort({ account_type: 1, created_at: 1 }).lean<any[]>(),
-      BankCard.find({ user_id: userId, status: 'Active' }).sort({ created_at: -1 })
+      BankCard.find({ user_id: userId, status: { $in: ['Active', 'Locked'] } }).sort({ created_at: -1 })
         .select('id user_id account_id card_type network cardColor product_name last4 masked_number status credit_limit created_at')
         .lean<any[]>(),
       Transaction.find({ user_id: userId })
@@ -140,7 +140,7 @@ router.get('/summary', requireApprovedUser, async (req: AuthenticatedRequest, re
       accounts: formattedAccounts,
       availableBalance: primaryAccount?.available_balance || 0,
       accountNumber: primaryAccount?.display_number || '',
-      cardsSummary: { activeCount: cards.length, cards },
+      cardsSummary: { activeCount: cards.filter((card) => card.status === 'Active').length, cards },
       recentTransactions,
       summary,
     });

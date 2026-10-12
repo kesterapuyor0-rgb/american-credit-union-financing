@@ -151,7 +151,7 @@ router.get('/summary', requireApprovedUser, async (req: AuthenticatedRequest, re
 // GET /api/user/cards
 router.get('/cards', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const issuedCards = await BankCard.find({ user_id: req.user!.id, status: 'Active' }).sort({ created_at: -1 })
+    const issuedCards = await BankCard.find({ user_id: req.user!.id, status: { $in: ['Active', 'Locked'] } }).sort({ created_at: -1 })
       .select('id user_id account_id card_type network cardColor product_name last4 masked_number status credit_limit created_at').lean<any[]>();
     const accounts = await Account.find({ id: { $in: issuedCards.map((card) => card.account_id) }, user_id: req.user!.id })
       .select('id nickname account_number balance held_balance currency').lean<any[]>();
@@ -173,6 +173,31 @@ router.get('/cards', requireApprovedUser, async (req: AuthenticatedRequest, res:
     res.json({ cards });
   } catch (err) {
     res.status(500).json({ error: errorMessage(err, 'Failed to retrieve your cards.') });
+  }
+});
+
+// PATCH /api/user/cards/:cardId/status
+router.patch('/cards/:cardId/status', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const status = req.body?.status;
+  if (status !== 'Active' && status !== 'Locked') {
+    res.status(400).json({ error: 'Choose Active or Locked as the card status.' });
+    return;
+  }
+
+  try {
+    const card = await BankCard.findOneAndUpdate(
+      { id: String(req.params.cardId || ''), user_id: req.user!.id, status: { $in: ['Active', 'Locked'] } },
+      { $set: { status } },
+      { new: true, runValidators: true },
+    ).select('id status').lean<any>();
+    if (!card) {
+      res.status(404).json({ error: 'Card not found or unavailable.' });
+      return;
+    }
+    res.json({ success: true, card });
+  } catch (err) {
+    console.error('Unable to update member card status:', err);
+    res.status(500).json({ error: errorMessage(err, 'Unable to update this card.') });
   }
 });
 
