@@ -230,13 +230,15 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
             <div className="mb-6">
               <div className="flex items-center gap-2 text-xs font-bold text-[#D6A832] uppercase tracking-wider mb-1">
                 <ShieldCheck className="w-4 h-4" />
-                <span>New Client Enrollment</span>
+                <span>{successData ? 'Enrollment Submitted' : 'New Client Enrollment'}</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold text-[#173B70] font-serif tracking-tight">
-                Create Your Account
+                {successData ? 'Application Received' : 'Create Your Account'}
               </h1>
               <p className="text-xs text-gray-500 mt-1">
-                Submit your member profile and verification details for review.
+                {successData
+                  ? 'Thank you for submitting your profile. Your application is now being processed by our compliance team.'
+                  : 'Submit your member profile and verification details for review.'}
               </p>
             </div>
 
