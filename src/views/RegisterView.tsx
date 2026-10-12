@@ -491,7 +491,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     </p>
                     <div className="grid gap-2 sm:grid-cols-2">
                       <label htmlFor="reg-id-camera" className="flex min-h-11 cursor-pointer items-center justify-center rounded-sm bg-[#173B70] px-3 py-2 text-center text-xs font-semibold text-white hover:bg-[#245B9E]">
-                        [ 📷 Take Photo / Open Camera ]
+                        Take Photo / Open Camera
                       </label>
                       <input
                         id="reg-id-camera"
@@ -505,7 +505,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         }}
                       />
                       <label htmlFor="reg-id-gallery" className="flex min-h-11 cursor-pointer items-center justify-center rounded-sm border border-[#173B70] px-3 py-2 text-center text-xs font-semibold text-[#173B70] hover:bg-slate-50">
-                        [ 🖼️ Upload from Gallery ]
+                        Upload from Gallery
                       </label>
                       <input
                         id="reg-id-gallery"
@@ -519,9 +519,15 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       />
                     </div>
                     {governmentIdPreview && (
-                      <div className="mt-3 flex items-start gap-3">
-                        <img src={governmentIdPreview} alt="Government ID preview" className="h-28 w-40 rounded border border-gray-300 bg-gray-100 object-cover" />
-                        <p className="text-[11px] text-gray-500">{sampleFile?.name} · {sampleFile ? Math.ceil(sampleFile.size / 1024) : 0} KB. Stored privately for enrollment review.</p>
+                      <div className="mt-3 flex items-center gap-4 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
+                        <img src={governmentIdPreview} alt="Government ID preview" className="h-24 w-36 shrink-0 rounded-md border border-slate-200 bg-white object-cover shadow-sm" />
+                        <div className="min-w-0">
+                          <p className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                            <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0 text-emerald-700" />
+                            Government ID Attached
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-emerald-800">Encrypted and stored securely for enrollment review.</p>
+                        </div>
                       </div>
                     )}
                     <p className="mt-1 text-[11px] text-gray-500">JPEG, PNG, WebP, or GIF · up to 5 MB.</p>
@@ -531,7 +537,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                   <div className="space-y-4">
                     <div>
                       <h2 className="text-sm font-bold uppercase tracking-wider text-gray-800">Selfie Verification</h2>
-                      <p className="mt-1 text-xs leading-5 text-gray-600">Take or upload a clear selfie so an administrator can compare it with your enrollment documents.</p>
+                      <p className="mt-1 text-xs leading-5 text-gray-600">Take or upload a clear photo of your face to verify your identity and complete account setup.</p>
                     </div>
                     <div>
                       <p className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-700">
@@ -539,7 +545,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       </p>
                       <div className="grid gap-2 sm:grid-cols-2">
                         <label htmlFor="reg-selfie-camera" className="flex min-h-11 cursor-pointer items-center justify-center rounded-sm bg-[#173B70] px-3 py-2 text-center text-xs font-semibold text-white hover:bg-[#245B9E]">
-                          [ 📷 Take Live Selfie ]
+                          Take Live Selfie
                         </label>
                         <input
                           id="reg-selfie-camera"
@@ -553,7 +559,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                           }}
                         />
                         <label htmlFor="reg-selfie-gallery" className="flex min-h-11 cursor-pointer items-center justify-center rounded-sm border border-[#173B70] px-3 py-2 text-center text-xs font-semibold text-[#173B70] hover:bg-slate-50">
-                          [ 🖼️ Select Selfie from Gallery ]
+                          Select from Gallery
                         </label>
                         <input
                           id="reg-selfie-gallery"
@@ -567,9 +573,15 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         />
                       </div>
                       {selfiePreview && (
-                        <div className="mt-3 flex items-center gap-3">
-                          <img src={selfiePreview} alt="Verification selfie preview" className="h-28 w-28 rounded-full border-2 border-slate-200 bg-gray-100 object-cover" />
-                          <p className="text-[11px] text-gray-500">{selfieFile?.name} · {selfieFile ? Math.ceil(selfieFile.size / 1024) : 0} KB. Stored privately for KYC review.</p>
+                        <div className="mt-3 flex items-center gap-4 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
+                          <img src={selfiePreview} alt="Verification selfie preview" className="h-24 w-24 shrink-0 rounded-full border-2 border-white bg-gray-100 object-cover shadow-sm ring-1 ring-emerald-200" />
+                          <div className="min-w-0">
+                            <p className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                              <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0 text-emerald-700" />
+                              Selfie Ready
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-emerald-800">Encrypted and stored securely for compliance verification.</p>
+                          </div>
                         </div>
                       )}
                       <p className="mt-1 text-[11px] text-gray-500">JPEG, PNG, WebP, or GIF · up to 5 MB.</p>
