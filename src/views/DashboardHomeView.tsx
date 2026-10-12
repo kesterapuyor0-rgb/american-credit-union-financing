@@ -384,67 +384,53 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   return (
     <div className="mx-auto w-full min-w-0 max-w-full space-y-7 pb-6 sm:max-w-5xl">
       {!showCardsOnly && <>
-      <header className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-amber-400 bg-emerald-50 text-teal-800 flex items-center justify-center text-lg font-semibold">
-              {user.profilePicture ? (
-                <img src={user.profilePicture} alt={`${user.full_name} profile`} className="h-full w-full object-cover" />
-              ) : (user.full_name?.charAt(0).toUpperCase() || 'U')}
+      <section aria-label="Member overview" className="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-amber-400 bg-emerald-50 text-lg font-semibold text-teal-800">
+            {user.profilePicture ? (
+              <img src={user.profilePicture} alt={`${user.full_name} profile`} className="h-full w-full object-cover" />
+            ) : (user.full_name?.charAt(0).toUpperCase() || 'U')}
           </div>
           <div className="min-w-0">
-            <p className="text-sm text-slate-500">{greeting} 👋</p>
-            <h1 className="truncate text-lg font-semibold text-slate-900">{user.full_name}</h1>
+            <p className="text-xs font-medium text-slate-500">{greeting} 👋</p>
+            <h1 className="truncate text-base font-bold text-slate-900">{user.full_name}</h1>
           </div>
         </div>
-      </header>
 
-      <PushNotificationBanner userId={user.id} />
-
-      {dashboardLoading ? (
-        <section aria-label="Loading total account balance" className="rounded-3xl border border-teal-100 bg-white p-5 shadow-sm sm:p-7" aria-busy="true">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1 space-y-2">
+        <div aria-label={dashboardLoading ? 'Loading total account balance' : 'Total account balance'} aria-busy={dashboardLoading}>
+          {dashboardLoading ? (
+            <div className="space-y-2">
               <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
-              <div className="h-4 w-28 animate-pulse rounded bg-slate-100" />
+              <div className="h-3 w-44 animate-pulse rounded bg-slate-100" />
+              <div className="mt-3 h-9 w-48 animate-pulse rounded bg-slate-200" />
             </div>
-            <div className="h-10 w-28 animate-pulse rounded-xl bg-slate-100" />
-          </div>
-          <div className="mt-8 space-y-2">
-            <div className="h-4 w-36 animate-pulse rounded bg-slate-100" />
-            <div className="h-10 w-48 animate-pulse rounded bg-slate-200 sm:h-11" />
-          </div>
-        </section>
-      ) : (
-      <section aria-label="Total account balance" className="rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-emerald-50 p-5 shadow-sm sm:p-7">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Net Worth</p>
-            <p className="mt-1 text-sm text-slate-600">Checking, savings, and investments</p>
-          </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Net Worth</span>
+                <button type="button" aria-label={balanceVisible ? 'Hide balance' : 'Show balance'} onClick={() => setBalanceVisible((visible) => !visible)} className="rounded p-1 text-slate-400 hover:text-slate-600">
+                  {balanceVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                </button>
+              </div>
+              <p className="mt-0.5 text-xs text-slate-400">Checking, savings, and investments</p>
+              <p className="mt-2 break-all text-3xl font-extrabold tracking-tight text-slate-900">
+                {!balanceVisible
+                  ? '••••••'
+                  : investmentSummaryLoading || investmentSummaryError
+                    ? '—'
+                    : formatMoney(totalNetWorth)}
+              </p>
+              {investmentSummaryError && <p role="status" className="mt-2 text-xs text-amber-800">Investment valuation is unavailable; combined total is not shown.</p>}
+            </>
+          )}
         </div>
-        <div className="mt-8">
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <span>Combined balances</span>
-            <button type="button" aria-label={balanceVisible ? 'Hide balance' : 'Show balance'} onClick={() => setBalanceVisible((visible) => !visible)} className="rounded p-1 text-slate-600 hover:bg-slate-100">
-              {balanceVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-            </button>
-          </div>
-          <p className="mt-1 break-all text-3xl font-bold tracking-tight text-teal-950 sm:text-4xl">
-            {!balanceVisible
-              ? '••••••'
-              : investmentSummaryLoading || investmentSummaryError
-                ? '—'
-                : formatMoney(totalNetWorth)}
-          </p>
-          {investmentSummaryError && <p role="status" className="mt-2 text-xs text-amber-800">Investment valuation is unavailable; combined total is not shown.</p>}
-        </div>
-        <p className="mt-5 inline-flex max-w-full flex-wrap items-center rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-[10px] font-medium leading-4 text-slate-500 sm:text-xs">
-          Investment products are Not FDIC Insured <span aria-hidden="true" className="mx-1.5 text-slate-300">•</span>
-          No Bank Guarantee <span aria-hidden="true" className="mx-1.5 text-slate-300">•</span>
-          May Lose Value
+
+        <p className="rounded-xl bg-slate-50 p-2.5 text-center text-[10px] leading-tight text-slate-400">
+          Investment products are Not FDIC Insured <span aria-hidden="true">•</span> No Bank Guarantee <span aria-hidden="true">•</span> May Lose Value
         </p>
       </section>
-      )}
+
+      <PushNotificationBanner userId={user.id} />
       <section aria-label="Quick actions" className="grid grid-cols-5 gap-2">
         <button type="button" onClick={handleReceive} className="flex min-w-0 flex-col items-center gap-2 text-center text-xs font-medium text-slate-700">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm sm:h-14 sm:w-14"><ArrowDownLeft className="h-5 w-5" /></span>
