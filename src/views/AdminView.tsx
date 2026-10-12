@@ -35,6 +35,7 @@ interface VerificationApplicant {
   email: string;
   full_name: string;
   phone: string;
+  address?: string;
   created_at: string;
   verification_status: 'under_review' | 'approved' | 'rejected';
   verification_rejection_reason?: string;
@@ -1617,9 +1618,25 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                         </div>
                         <dl className="grid gap-2 rounded-md bg-slate-50 p-3 text-xs sm:grid-cols-2">
                           <div>
-                            <dt className="text-slate-500">Verification reference</dt>
-                            <dd className="mt-1 font-mono font-bold text-slate-900">
-                              {(applicant.verification_submission?.verificationNumber || '').replace(/^[A-Z]{4}-/i, 'ACUF-') || 'Not supplied'}
+                            <dt className="text-slate-500">Full Name</dt>
+                            <dd className="mt-1 font-semibold text-slate-900">{applicant.full_name}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">Email</dt>
+                            <dd className="mt-1 break-all text-slate-900">{applicant.email}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">Phone</dt>
+                            <dd className="mt-1 text-slate-900">{applicant.phone}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">Mailing Address</dt>
+                            <dd className="mt-1 break-words text-slate-900">{applicant.address || 'Not provided'}</dd>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <dt className="text-slate-500">SSN / Tax ID</dt>
+                            <dd className="mt-1 font-mono text-slate-900">
+                              {applicant.verification_submission?.verificationNumber || 'Not provided'}
                             </dd>
                           </div>
                           <div>

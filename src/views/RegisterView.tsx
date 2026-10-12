@@ -36,6 +36,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [securityPin, setSecurityPin] = useState('');
@@ -171,6 +172,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
           fullName: fullName.trim(),
           email: email.trim().toLowerCase(),
           phone: phone.trim(),
+          address: address.trim(),
           password,
           securityPin: securityPin.trim(),
           verificationNumber: verificationNumber.trim(),
@@ -358,6 +360,28 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                   <span className="text-[11px] text-gray-500 mt-1 block">
                     Used as contact information for your profile.
                   </span>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="reg-address"
+                    className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5"
+                  >
+                    Residential / Mailing Address
+                  </label>
+                  <div className="relative">
+                    <Building2 className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                    <textarea
+                      id="reg-address"
+                      autoComplete="street-address"
+                      rows={2}
+                      maxLength={200}
+                      placeholder="e.g., 123 Financial Way, Suite 400, New York, NY 10001"
+                      value={address}
+                      onChange={(event) => setAddress(event.target.value)}
+                      className="w-full resize-y rounded-sm border border-gray-300 py-2.5 pl-9 pr-3.5 text-sm focus:border-[#173B70] focus:ring-1 focus:ring-[#173B70] outline-hidden transition-colors"
+                    />
+                  </div>
                 </div>
 
                 {/* Passcode & Confirm */}

@@ -14,6 +14,15 @@ interface ProfileForm {
   address: string;
 }
 
+const formatUsPhoneForDisplay = (phone: string): string => {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 10) return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  return phone;
+};
+
 export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdated, onSignOut }) => {
   const [form, setForm] = useState<ProfileForm>({ phone: user.phone || '', address: user.address || '' });
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -74,7 +83,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdated, o
   };
 
   return (
-    <section aria-labelledby="profile-heading" className="mx-auto w-full min-w-0 max-w-full space-y-6 sm:max-w-3xl">
+    <section aria-labelledby="profile-heading" className="mx-auto w-full min-w-0 max-w-full space-y-6 pb-32 sm:max-w-3xl">
       <header className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:flex-row sm:text-left">
         <div className="relative h-24 w-24 shrink-0">
           <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-full border-2 border-amber-400 bg-emerald-50 text-3xl font-semibold text-teal-800">
@@ -113,7 +122,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdated, o
 
           <label className="block space-y-1.5">
             <span className="flex items-center gap-2 text-sm font-medium text-slate-700"><Phone aria-hidden="true" className="h-4 w-4 text-slate-400" />Phone number</span>
-            <input type="tel" autoComplete="tel" value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} required maxLength={32} className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15" />
+            <input type="tel" autoComplete="tel" value={formatUsPhoneForDisplay(form.phone)} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} required maxLength={32} className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15" />
           </label>
 
           <label className="block space-y-1.5 sm:col-span-2">

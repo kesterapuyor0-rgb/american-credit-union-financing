@@ -264,7 +264,7 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
       filter = { id: { $in: [...new Set([...matchingAccounts.map((a) => a.user_id), ...matchingUsers.map((u) => u.id)])] } };
     }
 
-    const users = await User.find(filter).select('id email full_name role isAdmin isRestricted restrictionReason phone verification_status verification_rejection_reason assigned_btc_address assigned_usdt_address usdt_network assigned_usdt_trc20_address assigned_usdt_erc20_address created_at').sort({ created_at: -1 }).lean<any[]>();
+    const users = await User.find(filter).select('id email full_name role isAdmin isRestricted restrictionReason phone address verification_status verification_rejection_reason assigned_btc_address assigned_usdt_address usdt_network assigned_usdt_trc20_address assigned_usdt_erc20_address created_at').sort({ created_at: -1 }).lean<any[]>();
     const allAccounts = await Account.find({ user_id: { $in: users.map((u) => u.id) } }).sort({ account_type: 1 }).lean<any[]>();
     const accountsByUser = new Map<string, any[]>();
     for (const account of allAccounts) accountsByUser.set(account.user_id, [...(accountsByUser.get(account.user_id) || []), account]);
@@ -633,7 +633,7 @@ router.put('/users/:userId/wallets', updateCryptoWalletAssignments);
 router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const applicants = await User.find({ role: { $ne: 'admin' }, isAdmin: { $ne: true } })
-      .select('id email full_name phone created_at verification_status verification_rejection_reason verification_submission verificationDocument documentUrl userSelfieStatus kycStatus +userSelfie +governmentIdUrl +selfieUrl')
+      .select('id email full_name phone address created_at verification_status verification_rejection_reason verification_submission verificationDocument documentUrl userSelfieStatus kycStatus +userSelfie +governmentIdUrl +selfieUrl')
       .sort({ created_at: -1 })
       .lean<any[]>();
     res.json({

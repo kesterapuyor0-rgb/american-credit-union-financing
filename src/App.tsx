@@ -565,7 +565,7 @@ export default function App() {
         isAdminView={false}
       />
 
-      <main id="customer-view" role="tabpanel" tabIndex={-1} aria-label={`${activeTab} view`} className="mx-auto w-full max-w-full min-w-0 px-3.5 pt-5 pb-24 sm:max-w-7xl sm:px-8 sm:py-6">
+      <main id="customer-view" role="tabpanel" tabIndex={-1} aria-label={`${activeTab} view`} className="mx-auto w-full max-w-full min-w-0 px-3.5 pt-5 pb-32 sm:max-w-7xl sm:px-8 sm:py-6">
         {user.isRestricted && (
           <section role="alert" className="mb-3 flex flex-col gap-2 rounded-lg border border-red-300 bg-red-50 p-2 text-red-950 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-2.5">
             <div className="min-w-0">

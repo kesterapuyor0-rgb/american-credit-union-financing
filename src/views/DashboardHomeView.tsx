@@ -382,7 +382,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   };
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-full space-y-7 pb-6 sm:max-w-5xl">
+    <div className="mx-auto w-full min-w-0 max-w-full space-y-7 pb-32 sm:max-w-5xl">
       {!showCardsOnly && <>
       <section aria-label="Member overview" className="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
@@ -560,7 +560,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                   Includes administrative P/L valuation adjustment: {(investmentSummary?.adminProfitOffset || 0) > 0 ? '+' : ''}{formatMoney(investmentSummary?.adminProfitOffset || 0)}.
                 </span>
               )}
-              <span className="block truncate text-[10px] leading-4 text-slate-500">Not FDIC insured · No bank guarantee · May lose value</span>
+              <span className="mt-1 block whitespace-normal text-[10px] leading-tight text-slate-400">Not FDIC insured • No bank guarantee • May lose value</span>
             </span>
             <span className="flex shrink-0 items-center gap-2">
               <span className="text-right text-sm font-bold tabular-nums text-slate-950">

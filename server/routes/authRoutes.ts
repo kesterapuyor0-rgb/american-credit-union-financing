@@ -371,7 +371,7 @@ router.post('/register', async (req, res): Promise<void> => {
   res.setHeader('Content-Type', 'application/json');
 
   try {
-    const { name, fullName, email, phone, password, passcode, securityPin, verificationNumber, sampleFile, verificationDocument, governmentIdUrl, userSelfie, selfieUrl } = req.body || {};
+    const { name, fullName, email, phone, address, password, passcode, securityPin, verificationNumber, sampleFile, verificationDocument, governmentIdUrl, userSelfie, selfieUrl } = req.body || {};
     const chosenName = String(name || fullName || '').trim();
     const chosenPassword = password || passcode;
 
@@ -441,6 +441,11 @@ router.post('/register', async (req, res): Promise<void> => {
     const cleanEmail = String(email).trim().toLowerCase();
     const cleanName = String(fullName || chosenName).trim();
     const cleanPhone = String(phone).trim();
+    const cleanAddress = typeof address === 'string' ? address.trim() : '';
+    if (cleanAddress.length > 200) {
+      res.status(400).json({ success: false, error: 'Residential or mailing address must be 200 characters or fewer.' });
+      return;
+    }
     const pin = securityPin ? String(securityPin).trim() : '1234';
 
     // 1. Check if user already exists (with try/catch)
@@ -473,6 +478,7 @@ router.post('/register', async (req, res): Promise<void> => {
       await User.create({
         id: userId, email: cleanEmail, password_hash: passwordHash,
         full_name: cleanName, role: 'user', phone: cleanPhone,
+        address: cleanAddress,
         security_pin: pinHash,
         verification_status: 'under_review',
         verification_rejection_reason: '',
@@ -580,6 +586,7 @@ router.post('/register', async (req, res): Promise<void> => {
         full_name: cleanName,
         role: 'user',
         phone: cleanPhone,
+        address: cleanAddress,
         verification_status: 'under_review',
         kycStatus: 'Pending',
       },
