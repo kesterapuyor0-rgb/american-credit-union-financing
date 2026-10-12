@@ -410,12 +410,21 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
               {filteredAssets.map((asset) => (
                 <article key={asset.symbol} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-wide text-teal-800">{asset.assetType}</p><h3 className="mt-1 font-semibold text-slate-950">{asset.name}</h3><p className="mt-0.5 font-mono text-sm text-slate-500">{asset.symbol}</p></div>
-                    <p className="shrink-0 text-right font-mono font-semibold text-slate-950">{formatUSD(asset.marketPrice)}</p>
+                    <div className="min-w-0">
+                      <h3 className="break-words font-semibold leading-snug text-slate-950">{asset.name}</h3>
+                      <p className="mt-1 break-all font-mono text-sm text-slate-500">
+                        {asset.symbol.replace(/^BINANCE:/, '').replace(/USDT$/, '/USDT')}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-mono text-base font-semibold leading-tight tabular-nums text-slate-950">{formatUSD(asset.marketPrice)}</p>
+                      <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${asset.dailyChangePercent < 0 ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                        {asset.dailyChangePercent > 0 ? '+' : ''}{asset.dailyChangePercent.toFixed(2)}%
+                      </span>
+                    </div>
                   </div>
-                  <p className="mt-3 min-h-10 text-xs leading-5 text-slate-500">{asset.detail}</p>
-                  <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
-                    <span className={`text-xs font-semibold ${asset.dailyChangePercent < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{asset.dailyChangePercent > 0 ? '+' : ''}{asset.dailyChangePercent.toFixed(2)}%</span>
+                  <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{asset.assetType}</span>
                     <button type="button" disabled={!portfolio?.checkingAccount} onClick={() => setSelectedAsset(asset)} className="min-h-10 rounded-lg bg-teal-800 px-4 text-sm font-semibold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-50">Buy</button>
                   </div>
                 </article>
