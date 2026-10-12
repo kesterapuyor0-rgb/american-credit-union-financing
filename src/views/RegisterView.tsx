@@ -84,6 +84,11 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       setMetadata({ name: file.name, type: file.type, size: file.size });
       setError(null);
     };
+    reader.onerror = () => {
+      setImageUrl('');
+      setMetadata(null);
+      setError(`Unable to read the selected ${imageLabel}.`);
+    };
     reader.readAsDataURL(file);
   };
 
@@ -185,7 +190,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       }
 
       const data = result.data;
-      setSuccessData({ ...data.user, kycStatus: 'Pending' });
+      setSuccessData({ ...data.user, kycStatus: data.user.kycStatus || 'Pending' });
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred. Please try again.');
     } finally {
