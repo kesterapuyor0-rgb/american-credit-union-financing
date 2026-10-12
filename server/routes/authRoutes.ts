@@ -92,6 +92,10 @@ router.post('/login', async (req, res): Promise<void> => {
       res.status(400).json({ error: 'Please enter your Online ID / Email and Passcode.' });
       return;
     }
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      res.status(400).json({ error: 'Please enter a valid Online ID / Email and Passcode.' });
+      return;
+    }
 
     if (isLocalDevLogin(email)) {
       if (!localDevPasswordMatches(password)) {
@@ -123,7 +127,14 @@ router.post('/login', async (req, res): Promise<void> => {
       return;
     }
 
-    const user = await User.findOne({ email: String(email).trim().toLowerCase() }).select('+password_hash').lean<any>();
+    const loginIdentifier = email.trim();
+    const escapedEmail = loginIdentifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const user = await User.findOne({
+      $or: [
+        { email: { $regex: `^${escapedEmail}$`, $options: 'i' } },
+        { id: loginIdentifier },
+      ],
+    }).select('+password_hash').lean<any>();
     if (!user) {
       res.status(401).json({ error: 'The Online ID or Passcode entered does not match our records.' });
       return;
