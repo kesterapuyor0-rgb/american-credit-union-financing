@@ -1,4 +1,4 @@
-import React, { useMemo, useState, ChangeEvent, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { User, BankAccount, Transaction, BankCard, BankCardDetails, CardApplication } from '../types';
 import { getAuthHeaders } from '../utils/api';
@@ -20,7 +20,6 @@ import {
   Snowflake,
   HandCoins,
   BriefcaseBusiness,
-  Plus,
   X,
 } from 'lucide-react';
 
@@ -47,7 +46,6 @@ export interface DashboardHomeViewProps {
   onNavigateToTransfer: (fromAccountId?: string) => void;
   onNavigateToTab: (tab: string) => void;
   onNavigateToAccountTransactions: (accountId: string) => void;
-  onProfilePictureChange: (profilePicture: string) => void;
   showCardsOnly?: boolean;
 }
 
@@ -62,13 +60,10 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   onNavigateToTransfer,
   onNavigateToTab,
   onNavigateToAccountTransactions,
-  onProfilePictureChange,
   showCardsOnly = false,
 }) => {
   const [accountFilter, setAccountFilter] = useState<'All Accounts' | 'Checking' | 'Savings' | 'Investments'>('All Accounts');
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [uploadingPicture, setUploadingPicture] = useState(false);
-  const [pictureMessage, setPictureMessage] = useState('');
   const [receiveModalOpen, setReceiveModalOpen] = useState(false);
   const [investmentSummary, setInvestmentSummary] = useState<{
     totalValue: number;
@@ -325,46 +320,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     style: 'currency', currency: 'USD', minimumFractionDigits: 2,
   }).format(amount);
 
-  const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setPictureMessage('Choose an image file.');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setPictureMessage('Choose an image smaller than 5 MB.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async () => {
-      if (typeof reader.result !== 'string') return;
-      setUploadingPicture(true);
-      setPictureMessage('');
-      try {
-        const response = await fetch('/api/user/profile-picture', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-          credentials: 'include',
-          body: JSON.stringify({ profilePicture: reader.result }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Could not update your photo.');
-        const picture = data.user?.profilePicture || '';
-        onProfilePictureChange(picture);
-        setPictureMessage('Photo updated.');
-      } catch (error) {
-        setPictureMessage(error instanceof Error ? error.message : 'Could not update your photo.');
-      } finally {
-        setUploadingPicture(false);
-      }
-    };
-    reader.onerror = () => setPictureMessage('Could not read this image.');
-    reader.readAsDataURL(file);
-  };
-
   const handleReceive = () => {
     setCryptoVaultError('');
     setCryptoCopyError('');
@@ -431,21 +386,14 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
       {!showCardsOnly && <>
       <header className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="relative h-12 w-12 shrink-0">
-            <div className="h-12 w-12 overflow-hidden rounded-full bg-emerald-50 text-teal-800 ring-2 ring-[#E5B841] flex items-center justify-center text-lg font-semibold">
+          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-amber-400 bg-emerald-50 text-teal-800 flex items-center justify-center text-lg font-semibold">
               {user.profilePicture ? (
                 <img src={user.profilePicture} alt={`${user.full_name} profile`} className="h-full w-full object-cover" />
               ) : (user.full_name?.charAt(0).toUpperCase() || 'U')}
-            </div>
-            <label className="absolute -bottom-1 -right-1 grid h-6 w-6 cursor-pointer place-items-center rounded-full border border-white bg-teal-800 text-white shadow-sm" title="Change profile photo">
-              <Plus className="h-3.5 w-3.5" />
-              <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingPicture} className="sr-only" />
-            </label>
           </div>
           <div className="min-w-0">
             <p className="text-sm text-slate-500">{greeting} 👋</p>
             <h1 className="truncate text-lg font-semibold text-slate-900">{user.full_name}</h1>
-            {pictureMessage && <p role="status" className="truncate text-xs text-slate-500">{uploadingPicture ? 'Uploading photo…' : pictureMessage}</p>}
           </div>
         </div>
       </header>

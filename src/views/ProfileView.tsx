@@ -1,11 +1,10 @@
-import React, { ChangeEvent, FormEvent, useEffect, useState } from 'react';
-import { Camera, CheckCircle2, LoaderCircle, LogOut, Mail, MapPin, Phone, Save, UserRound } from 'lucide-react';
+import React, { FormEvent, useEffect, useState } from 'react';
+import { CheckCircle2, LoaderCircle, LogOut, Mail, MapPin, Phone, Save, UserRound } from 'lucide-react';
 import { User } from '../types';
 import { getAuthHeaders } from '../utils/api';
 
 interface ProfileViewProps {
   user: User;
-  onProfilePictureChange: (profilePicture: string) => void;
   onUserUpdated: (updates: Partial<User>) => void;
   onSignOut: () => void;
 }
@@ -15,11 +14,10 @@ interface ProfileForm {
   address: string;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ user, onProfilePictureChange, onUserUpdated, onSignOut }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdated, onSignOut }) => {
   const [form, setForm] = useState<ProfileForm>({ phone: user.phone || '', address: user.address || '' });
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploadingPicture, setUploadingPicture] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
@@ -37,7 +35,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onProfilePicture
             full_name: data.profile.full_name || user.full_name,
             phone: data.profile.phone || '',
             address: data.profile.address || '',
-            profilePicture: data.profile.profilePicture || user.profilePicture || '',
+            profilePicture: data.profile.profilePicture || '',
             kycStatus: data.profile.kycStatus || 'Pending',
           });
         }
@@ -75,63 +73,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onProfilePicture
     }
   };
 
-  const handleProfilePicture = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setMessage({ type: 'error', text: 'Choose an image file.' });
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setMessage({ type: 'error', text: 'Choose an image smaller than 5 MB.' });
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async () => {
-      if (typeof reader.result !== 'string') return;
-      setUploadingPicture(true);
-      setMessage(null);
-      try {
-        const response = await fetch('/api/user/profile-picture', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-          credentials: 'include',
-          body: JSON.stringify({ profilePicture: reader.result }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Unable to update your profile picture.');
-        const profilePicture = data.user?.profilePicture || '';
-        onProfilePictureChange(profilePicture);
-        onUserUpdated({ profilePicture });
-        setMessage({ type: 'success', text: 'Profile picture updated.' });
-      } catch (error) {
-        setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Unable to update your profile picture.' });
-      } finally {
-        setUploadingPicture(false);
-      }
-    };
-    reader.onerror = () => setMessage({ type: 'error', text: 'Unable to read this image file.' });
-    reader.readAsDataURL(file);
-  };
-
   return (
     <section aria-labelledby="profile-heading" className="mx-auto w-full min-w-0 max-w-full space-y-6 sm:max-w-3xl">
       <header className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:flex-row sm:text-left">
         <div className="relative h-24 w-24 shrink-0">
-          <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-full bg-emerald-50 text-3xl font-semibold text-teal-800 ring-2 ring-[#E5B841]">
+          <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-full border-2 border-amber-400 bg-emerald-50 text-3xl font-semibold text-teal-800">
             {user.profilePicture ? <img src={user.profilePicture} alt={`${user.full_name} profile`} className="h-full w-full object-cover" /> : user.full_name.charAt(0).toUpperCase() || 'U'}
           </div>
-          <label title="Change profile picture" className="absolute bottom-0 right-0 grid h-9 w-9 cursor-pointer place-items-center rounded-full border-2 border-white bg-teal-800 text-white shadow">
-            {uploadingPicture ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-            <input type="file" accept="image/*" onChange={handleProfilePicture} disabled={uploadingPicture} className="sr-only" />
-          </label>
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Personal details</p>
           <h1 id="profile-heading" className="mt-1 break-words text-2xl font-bold text-teal-900">{user.full_name}</h1>
-          <p className="mt-1 text-sm text-slate-500">Manage your contact information and profile photo.</p>
+          <p className="mt-1 text-sm text-slate-500">Manage your contact information. Your profile photo is assigned after KYC approval.</p>
           {user.kycStatus === 'Approved' && (
             <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
               <CheckCircle2 aria-hidden="true" className="h-4 w-4" />

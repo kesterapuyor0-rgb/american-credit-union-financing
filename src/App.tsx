@@ -500,7 +500,6 @@ export default function App() {
         setHistoryAccountId(accountId);
         setActiveTab('history');
       },
-      onProfilePictureChange: (profilePicture: string) => setUser((current) => current ? { ...current, profilePicture } : current),
     };
 
     switch (activeTab) {
@@ -533,7 +532,6 @@ export default function App() {
           key="profile"
           user={user}
           onSignOut={handleSignOut}
-          onProfilePictureChange={(profilePicture) => setUser((current) => current ? { ...current, profilePicture } : current)}
           onUserUpdated={(updates) => setUser((current) => current ? { ...current, ...updates } : current)}
         />;
       case 'cards':

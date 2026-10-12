@@ -693,8 +693,8 @@ router.patch('/verifications/:userId/kyc-status', async (req: AuthenticatedReque
         userSelfieStatus: kycStatus === 'Approved' ? 'verified' : 'rejected',
         verification_status: kycStatus === 'Approved' ? 'approved' : 'rejected',
         verification_rejection_reason: kycStatus === 'Approved' ? '' : 'Your KYC verification was not approved. Please contact Member Services for assistance.',
+        profilePicture: kycStatus === 'Approved' ? selfieUrl : '',
       };
-      if (kycStatus === 'Approved') updates.profilePicture = selfieUrl;
 
       reviewedUser = await User.findOneAndUpdate(
         { id: userId, role: { $ne: 'admin' }, isAdmin: { $ne: true } },

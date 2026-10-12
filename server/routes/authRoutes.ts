@@ -269,7 +269,7 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
         full_name: user.full_name,
         role: normalizedRole,
         phone: user.phone,
-        profilePicture: user.profilePicture || '',
+        profilePicture: user.kycStatus === 'Approved' ? user.profilePicture || '' : '',
         kycStatus: user.kycStatus || 'Pending',
         isRestricted: user.isRestricted === true,
         restrictionReason: user.restrictionReason || '',
@@ -350,7 +350,7 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
     res.json({
       user: {
         ...user,
-        profilePicture: user.profilePicture || '',
+        profilePicture: user.kycStatus === 'Approved' ? user.profilePicture || '' : '',
         role: isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user',
         verification_status: user.verification_status || 'approved',
       },

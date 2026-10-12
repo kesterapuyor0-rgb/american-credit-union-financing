@@ -320,7 +320,7 @@ router.get('/profile', requireApprovedUser, async (req: AuthenticatedRequest, re
         role: user.role,
         phone: user.phone,
         address: user.address || '',
-        profilePicture: user.profilePicture || '',
+        profilePicture: user.kycStatus === 'Approved' ? user.profilePicture || '' : '',
         kycStatus: user.kycStatus || 'Pending',
         created_at: user.created_at,
       },
@@ -349,47 +349,28 @@ router.put('/profile', requireApprovedUser, async (req: AuthenticatedRequest, re
       { id: req.user!.id },
       { $set: { phone, address } },
       { new: true, runValidators: true }
-    ).select('id email full_name role phone address profilePicture created_at').lean<any>();
+    ).select('id email full_name role phone address profilePicture kycStatus created_at').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User not found.' });
       return;
     }
-    res.json({ success: true, user: { ...user, address: user.address || '' } });
+    res.json({
+      success: true,
+      user: {
+        ...user,
+        address: user.address || '',
+        profilePicture: user.kycStatus === 'Approved' ? user.profilePicture || '' : '',
+        kycStatus: user.kycStatus || 'Pending',
+      },
+    });
   } catch (err) {
     res.status(500).json({ error: errorMessage(err, 'Unable to save profile details.') });
   }
 });
 
-// POST /api/user/profile-picture
+// Profile photos are assigned only by an administrator's KYC approval.
 router.post('/profile-picture', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    const profilePicture = req.body?.profilePicture;
-    if (typeof profilePicture !== 'string' || !/^data:image\/(?:png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(profilePicture)) {
-      res.status(400).json({ error: 'Please upload a valid PNG, JPEG, GIF, or WebP image.' });
-      return;
-    }
-
-    const encodedImage = profilePicture.split(',')[1];
-    if (Math.floor(encodedImage.length * 3 / 4) > 5 * 1024 * 1024) {
-      res.status(413).json({ error: 'Profile pictures must be 5 MB or smaller.' });
-      return;
-    }
-
-    const user = await User.findOneAndUpdate(
-      { id: req.user!.id },
-      { $set: { profilePicture } },
-      { new: true }
-    ).select('id email full_name role phone profilePicture').lean<any>();
-    if (!user) {
-      res.status(404).json({ error: 'User not found.' });
-      return;
-    }
-
-    res.json({ success: true, user });
-  } catch (err: any) {
-    console.error('Failed to update profile picture:', err);
-    res.status(500).json({ error: errorMessage(err, 'Failed to update profile picture.') });
-  }
+  res.status(403).json({ error: 'Profile photos can only be assigned through KYC approval.' });
 });
 
 // POST /api/user/deposit or /api/user/accounts/deposit
