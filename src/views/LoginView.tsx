@@ -56,12 +56,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
     if (data?.user?.status !== 'action_required' && data?.status !== 'action_required' && !data?.redirectTo) return;
     const feedback = {
       status: 'action_required',
+      ...data.user,
       rejectionReason: data.rejectionReason || data.user?.verification_rejection_reason || '',
       rejectionDetails: data.rejectionDetails || data.user?.verification_rejection_details || [],
       redirectTo: data.redirectTo || '/enroll/resubmit',
     };
     const feedbackJson = JSON.stringify(feedback);
     try {
+      localStorage.setItem('kyc_rejection_data', JSON.stringify(data.user));
       localStorage.setItem(`kyc-rejection-feedback:${data.user.id}`, feedbackJson);
       localStorage.setItem(`kyc-status-updated:${data.user.id}`, JSON.stringify({
         status: 'action_required',
@@ -114,6 +116,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
       }
 
       const data = result.data;
+      if (data.status === 'action_required' || data.user?.status === 'action_required' || data.redirectTo === '/enroll/resubmit') {
+        if (!data.token || !data.user) throw new Error('The re-submission sign-in response was incomplete. Please try again.');
+        if (adminOnly) throw new Error('This sign-in is restricted to authorized Member Services specialists.');
+        setStoredAuthToken(data.token);
+        saveActionRequiredFeedback(data);
+        onLoginSuccess(data.user, data.token);
+        return;
+      }
       if (data.require2FA) {
         setTempToken(data.tempToken);
         setOtpId(data.otpId);

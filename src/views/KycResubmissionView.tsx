@@ -41,9 +41,23 @@ export const KycResubmissionView: React.FC<KycResubmissionViewProps> = ({ user, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const [storedRejectionData] = useState<Partial<User> | null>(() => {
+    try {
+      const saved = localStorage.getItem('kyc_rejection_data');
+      if (!saved) return null;
+      const parsed = JSON.parse(saved) as Partial<User>;
+      return parsed.id === user.id ? parsed : null;
+    } catch (storageError) {
+      console.error('Unable to read stored KYC rejection data:', storageError);
+      return null;
+    }
+  });
+  const rejectionReason = user.verification_rejection_reason || storedRejectionData?.verification_rejection_reason || '';
   const rejectionDetails = user.verification_rejection_details?.length
     ? user.verification_rejection_details
-    : (user.verification_rejection_reason || 'Your submitted documents require an update.').split(/\r?\n/).filter(Boolean);
+    : storedRejectionData?.verification_rejection_details?.length
+      ? storedRejectionData.verification_rejection_details
+      : (rejectionReason || 'Your submitted documents require an update.').split(/\r?\n/).filter(Boolean);
   const requiresVerificationNumber = rejectionDetails.some((detail) => /SSN|Social Security|Tax ID/i.test(detail));
 
   const selectImage = async (

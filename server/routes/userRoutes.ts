@@ -48,7 +48,7 @@ router.post('/kyc-resubmission', requireAuth, async (req: AuthenticatedRequest, 
       id: req.user!.id,
       role: { $ne: 'admin' },
       isAdmin: { $ne: true },
-      verification_status: 'rejected',
+      $or: [{ verification_status: 'rejected' }, { kycStatus: 'Rejected' }],
     }).select('verification_rejection_reason verification_rejection_details').lean<any>();
     if (!rejectedUser) {
       res.status(409).json({ error: 'This account is not currently awaiting KYC re-submission. Refresh the page and try again.' });
@@ -63,7 +63,12 @@ router.post('/kyc-resubmission', requireAuth, async (req: AuthenticatedRequest, 
       return;
     }
     const user = await User.findOneAndUpdate(
-      { id: req.user!.id, role: { $ne: 'admin' }, isAdmin: { $ne: true }, verification_status: 'rejected' },
+      {
+        id: req.user!.id,
+        role: { $ne: 'admin' },
+        isAdmin: { $ne: true },
+        $or: [{ verification_status: 'rejected' }, { kycStatus: 'Rejected' }],
+      },
       {
         $set: {
           verification_status: 'under_review',

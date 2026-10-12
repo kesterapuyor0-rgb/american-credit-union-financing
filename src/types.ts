@@ -9,6 +9,8 @@ export interface User {
   verification_status?: 'under_review' | 'approved' | 'rejected';
   verification_rejection_reason?: string;
   verification_rejection_details?: string[];
+  rejectionReason?: string;
+  rejectionDetails?: string[];
   status?: 'action_required' | 'authenticated' | 'pending_review' | 'under_review' | 'approved' | 'rejected';
   verificationDocument?: {
     data: string;

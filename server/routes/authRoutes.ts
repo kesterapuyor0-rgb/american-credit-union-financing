@@ -142,6 +142,50 @@ router.post('/login', async (req, res): Promise<void> => {
     }
 
     const normalizedRole = isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user';
+    const actionRequired = normalizedRole === 'user'
+      && (user.verification_status === 'rejected' || user.kycStatus === 'Rejected' || user.status === 'action_required');
+    if (actionRequired) {
+      const authToken = signAuthToken({
+        id: user.id,
+        email: user.email,
+        role: normalizedRole,
+        full_name: user.full_name,
+        phone: user.phone,
+      });
+      const rejectionReason = user.verification_rejection_reason || '';
+      const rejectionDetails = Array.isArray(user.verification_rejection_details) && user.verification_rejection_details.length
+        ? user.verification_rejection_details
+        : rejectionReason.split(/\r?\n/).map((detail: string) => detail.trim()).filter(Boolean);
+      res.cookie('boa_token', authToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 8 * 3600 * 1000,
+      });
+      res.json({
+        success: true,
+        token: authToken,
+        status: 'action_required',
+        redirectTo: '/enroll/resubmit',
+        rejectionReason,
+        rejectionDetails,
+        user: {
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          role: normalizedRole,
+          phone: user.phone,
+          rejectionReason,
+          rejectionDetails,
+          verification_status: 'rejected',
+          verification_rejection_reason: rejectionReason,
+          verification_rejection_details: rejectionDetails,
+          status: 'action_required',
+        },
+      });
+      return;
+    }
+
     // Generate 2FA code
     const otpCode = generateOTP();
     const otpId = 'otp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
@@ -353,6 +397,8 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
             : user.verification_status || 'approved',
         rejectionReason: user.verification_rejection_reason || '',
         rejectionDetails: user.verification_rejection_details || [],
+        verification_rejection_reason: user.verification_rejection_reason || '',
+        verification_rejection_details: user.verification_rejection_details || [],
       },
     });
   } catch (err: any) {
