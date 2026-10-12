@@ -114,6 +114,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
   const [verificationStatusEdits, setVerificationStatusEdits] = useState<Record<string, { status: VerificationApplicant['verification_status']; reason: string }>>({});
   const [savingVerificationId, setSavingVerificationId] = useState<string | null>(null);
   const [savingKycReviewId, setSavingKycReviewId] = useState<string | null>(null);
+  const [kycReviewError, setKycReviewError] = useState<{ userId: string; message: string } | null>(null);
   const [selectedKycImage, setSelectedKycImage] = useState<{ url: string; title: string } | null>(null);
   const [issuedCards, setIssuedCards] = useState<BankCard[]>([]);
   const [savingCardColorId, setSavingCardColorId] = useState<string | null>(null);
@@ -545,24 +546,31 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
     }
   };
 
-  const reviewKyc = async (applicant: VerificationApplicant, kycStatus: 'Approved' | 'Rejected') => {
-    setSavingKycReviewId(applicant.id);
+  const handleUpdateKycStatus = async (userId: string, newStatus: 'Approved' | 'Rejected') => {
+    const applicant = verificationApplicants.find((currentApplicant) => currentApplicant.id === userId);
+    if (!applicant) {
+      setKycReviewError({ userId, message: 'Unable to find this customer. Refresh the review list and try again.' });
+      return;
+    }
+
+    setSavingKycReviewId(userId);
+    setKycReviewError(null);
     setError(null);
     setSuccessMsg(null);
     try {
-      const res = await fetch(`/api/admin/verifications/${encodeURIComponent(applicant.id)}/kyc-status`, {
+      const res = await fetch(`/api/admin/verifications/${encodeURIComponent(userId)}/kyc-status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           ...(activeToken ? { Authorization: 'Bearer ' + activeToken } : {}),
         },
         credentials: 'include',
-        body: JSON.stringify({ kycStatus }),
+        body: JSON.stringify({ kycStatus: newStatus }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Unable to update KYC status.');
       setVerificationApplicants((current) => current.map((currentApplicant) =>
-        currentApplicant.id === applicant.id
+        currentApplicant.id === userId
           ? {
             ...currentApplicant,
             kycStatus: data.user.kycStatus,
@@ -571,16 +579,19 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
           }
           : currentApplicant
       ));
-      if (kycStatus === 'Approved' && data.user.profilePicture) {
+      if (newStatus === 'Approved' && data.user.profilePicture) {
         setUsers((current) => current.map((currentUser) =>
-          currentUser.id === applicant.id
+          currentUser.id === userId
             ? { ...currentUser, profilePicture: data.user.profilePicture }
             : currentUser
         ));
       }
-      setSuccessMsg(`${applicant.full_name}'s KYC status set to ${kycStatus.toLowerCase()}.`);
+      setSuccessMsg(`${applicant.full_name}'s KYC status set to ${newStatus.toLowerCase()}.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update KYC status.');
+      setKycReviewError({
+        userId,
+        message: err instanceof Error ? err.message : 'Unable to update KYC status.',
+      });
     } finally {
       setSavingKycReviewId(null);
     }
@@ -1559,7 +1570,20 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                         <div>
                           <h4 className="font-semibold text-slate-900">{applicant.full_name}</h4>
                           <p className="text-xs text-slate-600">{applicant.email} · {applicant.phone}</p>
-                          <p className="mt-1 text-xs text-slate-500">Current status: <span className="font-semibold text-slate-800">{applicant.verification_status.replace('_', ' ')}</span></p>
+                          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                            Current status:
+                            <span className={`rounded-full px-2 py-0.5 font-semibold ${
+                              applicant.kycStatus === 'Approved'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : applicant.kycStatus === 'Rejected'
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {applicant.kycStatus && applicant.kycStatus !== 'Pending'
+                                ? applicant.kycStatus
+                                : applicant.verification_status.replace('_', ' ')}
+                            </span>
+                          </p>
                         </div>
                         <dl className="grid gap-2 rounded-md bg-slate-50 p-3 text-xs sm:grid-cols-2">
                           <div>
@@ -1631,11 +1655,16 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                               </article>
                             ))}
                           </div>
+                          {kycReviewError?.userId === applicant.id && (
+                            <p role="alert" className="rounded-md border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-800">
+                              {kycReviewError.message}
+                            </p>
+                          )}
                           <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
                             <button
                               type="button"
-                              disabled={!documentUrl || !selfieUrl || savingKycReviewId === applicant.id || applicant.kycStatus === 'Approved'}
-                              onClick={() => void reviewKyc(applicant, 'Approved')}
+                              disabled={savingKycReviewId === applicant.id || applicant.kycStatus === 'Approved'}
+                              onClick={() => { void handleUpdateKycStatus(applicant.id, 'Approved'); }}
                               className="min-h-10 rounded-md bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               {savingKycReviewId === applicant.id ? 'Saving…' : '[ Approve KYC ]'}
@@ -1643,7 +1672,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                             <button
                               type="button"
                               disabled={savingKycReviewId === applicant.id || applicant.kycStatus === 'Rejected'}
-                              onClick={() => void reviewKyc(applicant, 'Rejected')}
+                              onClick={() => { void handleUpdateKycStatus(applicant.id, 'Rejected'); }}
                               className="min-h-10 rounded-md border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               {savingKycReviewId === applicant.id ? 'Saving…' : '[ Reject KYC ]'}
