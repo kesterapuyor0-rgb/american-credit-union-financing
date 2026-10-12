@@ -125,10 +125,6 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     }
 
     if (step === 2) {
-      if (!/^(?:ACUF-)?[A-Z0-9]{4,12}$/.test(verificationNumber.trim().toUpperCase())) {
-        setError('Enter a verification reference with 4–12 letters or numbers, optionally prefixed with ACUF-. Do not enter a Social Security number.');
-        return;
-      }
       if (!sampleFile) {
         setError('Choose a sample image file to continue.');
         return;
@@ -158,7 +154,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
           phone: phone.trim(),
           password,
           securityPin: securityPin.trim(),
-          verificationNumber: verificationNumber.trim().toUpperCase(),
+          verificationNumber: verificationNumber.trim(),
           sampleFile: {
             name: sampleFile.name,
             type: sampleFile.type,
@@ -451,12 +447,11 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       id="reg-verification-number"
                       type="text"
                       required
-                      maxLength={17}
-                      pattern="(ACUF-)?[A-Za-z0-9]{4,12}"
+                      maxLength={100}
                       autoComplete="off"
                       placeholder="000-00-0000"
                       value={verificationNumber}
-                      onChange={(event) => setVerificationNumber(event.target.value.toUpperCase())}
+                      onChange={(event) => setVerificationNumber(event.target.value)}
                       className="w-full rounded-sm border border-gray-300 px-3 py-2.5 font-mono text-sm uppercase focus:border-[#173B70] focus:ring-1 focus:ring-[#173B70] outline-hidden"
                     />
                   </div>

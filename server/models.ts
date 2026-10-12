@@ -40,7 +40,7 @@ const userSchema = new Schema({
   userSelfie: { type: String, default: '', select: false },
   userSelfieStatus: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
   verification_submission: {
-    verificationNumber: { type: String, default: '', trim: true, maxlength: 20 },
+    verificationNumber: { type: String, default: '', trim: true, maxlength: 100 },
     sampleFileName: { type: String, default: '', maxlength: 120 },
     sampleFileType: { type: String, default: '', maxlength: 50 },
     sampleFileSize: { type: Number, default: 0, max: 5242880 },

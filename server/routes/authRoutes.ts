@@ -381,7 +381,7 @@ router.post('/register', async (req, res): Promise<void> => {
       });
       return;
     }
-    const cleanVerificationNumber = String(verificationNumber || '').trim().toUpperCase();
+    const cleanVerificationNumber = typeof verificationNumber === 'string' ? verificationNumber.trim() : '';
     const cleanFileName = typeof sampleFile?.name === 'string' ? sampleFile.name.trim().slice(0, 120) : '';
     const cleanFileType = typeof sampleFile?.type === 'string' ? sampleFile.type.trim().toLowerCase() : '';
     const sampleFileSize = Number(sampleFile?.size);
@@ -389,8 +389,8 @@ router.post('/register', async (req, res): Promise<void> => {
     const documentContentType = typeof verificationDocument?.contentType === 'string'
       ? verificationDocument.contentType.trim().toLowerCase()
       : '';
-    if (!/^(?:ACUF-)?[A-Z0-9]{4,12}$/.test(cleanVerificationNumber)) {
-      res.status(400).json({ success: false, error: 'Enter a verification reference with 4–12 letters or numbers, optionally prefixed with ACUF-. Do not enter a Social Security number.' });
+    if (!cleanVerificationNumber || cleanVerificationNumber.length > 100) {
+      res.status(400).json({ success: false, error: 'Enter an identity verification value no longer than 100 characters.' });
       return;
     }
     if (!cleanFileName || !/^image\/(jpeg|png|webp|gif)$/.test(cleanFileType)
