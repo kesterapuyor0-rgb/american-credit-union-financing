@@ -38,6 +38,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onProfilePicture
             phone: data.profile.phone || '',
             address: data.profile.address || '',
             profilePicture: data.profile.profilePicture || user.profilePicture || '',
+            kycStatus: data.profile.kycStatus || 'Pending',
           });
         }
       } catch (error) {
@@ -131,6 +132,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onProfilePicture
           <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Personal details</p>
           <h1 id="profile-heading" className="mt-1 break-words text-2xl font-bold text-teal-900">{user.full_name}</h1>
           <p className="mt-1 text-sm text-slate-500">Manage your contact information and profile photo.</p>
+          {user.kycStatus === 'Approved' && (
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+              <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+              Official Identity Verified Photo
+            </p>
+          )}
         </div>
       </header>
 

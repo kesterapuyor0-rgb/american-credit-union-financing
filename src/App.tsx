@@ -213,6 +213,18 @@ export default function App() {
       if (!Array.isArray(data.accounts) || !Array.isArray(data.cardsSummary?.cards)) {
         throw new Error('The dashboard response was incomplete.');
       }
+      const profileResponse = await fetch('/api/auth/me', { headers: authHeader, credentials: 'include' });
+      const profileData = await profileResponse.json();
+      if (!profileResponse.ok) throw new Error(profileData.error || 'Unable to refresh your profile.');
+      if (profileData.user) {
+        setUser((current) => {
+          if (!current) return current;
+          const profilePicture = profileData.user.profilePicture || '';
+          const kycStatus = profileData.user.kycStatus || 'Pending';
+          if (current.profilePicture === profilePicture && current.kycStatus === kycStatus) return current;
+          return { ...current, profilePicture, kycStatus };
+        });
+      }
       const payload: DashboardPayload = {
         accounts: data.accounts,
         cardsSummary: data.cardsSummary,

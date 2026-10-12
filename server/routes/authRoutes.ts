@@ -215,7 +215,7 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
     // Mark verified
     await VerificationCode.updateOne({ id: record.id }, { $set: { verified: true } });
 
-    const user = await User.findOne({ id: payload.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture verification_status verification_rejection_reason').lean<any>();
+    const user = await User.findOne({ id: payload.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture kycStatus verification_status verification_rejection_reason').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User profile not found.' });
       return;
@@ -270,6 +270,7 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
         role: normalizedRole,
         phone: user.phone,
         profilePicture: user.profilePicture || '',
+        kycStatus: user.kycStatus || 'Pending',
         isRestricted: user.isRestricted === true,
         restrictionReason: user.restrictionReason || '',
         verification_status: user.verification_status || 'approved',
@@ -341,7 +342,7 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
       } });
       return;
     }
-    const user = await User.findOne({ id: req.user.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture verification_status verification_rejection_reason').lean<any>();
+    const user = await User.findOne({ id: req.user.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture kycStatus verification_status verification_rejection_reason').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;

@@ -669,26 +669,36 @@ router.patch('/verifications/:userId/kyc-status', async (req: AuthenticatedReque
   try {
     let reviewedUser: any;
     await session.withTransaction(async () => {
+      const existingUser = await User.findOne({
+        id: userId,
+        role: { $ne: 'admin' },
+        isAdmin: { $ne: true },
+      })
+        .select('email verificationDocument +governmentIdUrl +selfieUrl +userSelfie')
+        .session(session)
+        .lean<any>();
+      const selfieUrl = existingUser?.selfieUrl || existingUser?.userSelfie || '';
+      const hasGovernmentId = Boolean(
+        existingUser?.governmentIdUrl || existingUser?.verificationDocument?.data
+      );
+      if (!existingUser) {
+        throw new Error('KYC documents were not found for this customer.');
+      }
+      if (kycStatus === 'Approved' && (!hasGovernmentId || !selfieUrl)) {
+        throw new Error('Both KYC documents are required before approval.');
+      }
+
+      const updates: Record<string, string> = {
+        kycStatus,
+        userSelfieStatus: kycStatus === 'Approved' ? 'verified' : 'rejected',
+      };
+      if (kycStatus === 'Approved') updates.profilePicture = selfieUrl;
+
       reviewedUser = await User.findOneAndUpdate(
-        {
-          id: userId,
-          role: { $ne: 'admin' },
-          isAdmin: { $ne: true },
-          $or: [
-            { governmentIdUrl: { $exists: true, $ne: '' } },
-            { selfieUrl: { $exists: true, $ne: '' } },
-            { verificationDocument: { $exists: true } },
-            { userSelfie: { $exists: true, $ne: '' } },
-          ],
-        },
-        {
-          $set: {
-            kycStatus,
-            userSelfieStatus: kycStatus === 'Approved' ? 'verified' : 'rejected',
-          },
-        },
+        { id: userId, role: { $ne: 'admin' }, isAdmin: { $ne: true } },
+        { $set: updates },
         { new: true, runValidators: true, session },
-      ).select('id email full_name kycStatus userSelfieStatus').lean<any>();
+      ).select('id email full_name kycStatus userSelfieStatus profilePicture').lean<any>();
       if (!reviewedUser) throw new Error('KYC documents were not found for this customer.');
 
       await AuditLog.create([{
@@ -697,7 +707,7 @@ router.patch('/verifications/:userId/kyc-status', async (req: AuthenticatedReque
         admin_email: req.user!.email,
         action: `KYC_${kycStatus.toUpperCase()}`,
         target_user_id: userId,
-        details: `${kycStatus} KYC documents for ${reviewedUser.email}.`,
+        details: `${kycStatus} KYC documents for ${reviewedUser.email}${kycStatus === 'Approved' ? '; profile picture synchronized to approved selfie' : ''}.`,
         ip_address: req.ip || '127.0.0.1',
         created_at: new Date().toISOString(),
       }], { session });
@@ -705,7 +715,12 @@ router.patch('/verifications/:userId/kyc-status', async (req: AuthenticatedReque
     res.json({ success: true, user: reviewedUser });
   } catch (err) {
     const message = errorMessage(err, 'Unable to update KYC status.');
-    res.status(message === 'KYC documents were not found for this customer.' ? 404 : 500).json({ error: message });
+    const status = message === 'KYC documents were not found for this customer.'
+      ? 404
+      : message === 'Both KYC documents are required before approval.'
+        ? 400
+        : 500;
+    res.status(status).json({ error: message });
   } finally {
     await session.endSession();
   }

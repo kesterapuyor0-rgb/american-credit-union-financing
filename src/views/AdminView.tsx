@@ -41,6 +41,7 @@ interface VerificationApplicant {
   verificationDocument?: User['verificationDocument'];
   governmentIdUrl?: string;
   selfieUrl?: string;
+  profilePicture?: string;
   kycStatus?: NonNullable<User['kycStatus']>;
   userSelfie?: string;
   userSelfieStatus: NonNullable<User['userSelfieStatus']>;
@@ -566,9 +567,17 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
             ...currentApplicant,
             kycStatus: data.user.kycStatus,
             userSelfieStatus: data.user.userSelfieStatus,
+            profilePicture: data.user.profilePicture,
           }
           : currentApplicant
       ));
+      if (kycStatus === 'Approved' && data.user.profilePicture) {
+        setUsers((current) => current.map((currentUser) =>
+          currentUser.id === applicant.id
+            ? { ...currentUser, profilePicture: data.user.profilePicture }
+            : currentUser
+        ));
+      }
       setSuccessMsg(`${applicant.full_name}'s KYC status set to ${kycStatus.toLowerCase()}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update KYC status.');
@@ -1633,7 +1642,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                             </button>
                             <button
                               type="button"
-                              disabled={!documentUrl || !selfieUrl || savingKycReviewId === applicant.id || applicant.kycStatus === 'Rejected'}
+                              disabled={savingKycReviewId === applicant.id || applicant.kycStatus === 'Rejected'}
                               onClick={() => void reviewKyc(applicant, 'Rejected')}
                               className="min-h-10 rounded-md border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                             >

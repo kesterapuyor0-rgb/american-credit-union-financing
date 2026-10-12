@@ -306,7 +306,7 @@ router.post('/card-applications', requireApprovedUser, async (req: Authenticated
 // GET /api/user/profile
 router.get('/profile', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const user = await User.findOne({ id: req.user!.id }).select('id email full_name role phone address profilePicture created_at').lean<any>();
+    const user = await User.findOne({ id: req.user!.id }).select('id email full_name role phone address profilePicture kycStatus created_at').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -321,6 +321,7 @@ router.get('/profile', requireApprovedUser, async (req: AuthenticatedRequest, re
         phone: user.phone,
         address: user.address || '',
         profilePicture: user.profilePicture || '',
+        kycStatus: user.kycStatus || 'Pending',
         created_at: user.created_at,
       },
     });
