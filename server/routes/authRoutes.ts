@@ -581,6 +581,7 @@ router.post('/register', async (req, res): Promise<void> => {
         role: 'user',
         phone: cleanPhone,
         verification_status: 'under_review',
+        kycStatus: 'Pending',
       },
       account: {
         id: accountId,

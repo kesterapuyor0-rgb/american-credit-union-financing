@@ -472,7 +472,16 @@ export default function App() {
   }
 
   if (user.verification_status === 'under_review' || user.verification_status === 'rejected') {
-    return <EnrollmentStatusView user={user} onSignOut={handleSignOut} />;
+    return (
+      <EnrollmentStatusView
+        user={user}
+        onSignOut={handleSignOut}
+        onGoToDashboard={() => {
+          setActiveTab('home');
+          navigateTo('/dashboard');
+        }}
+      />
+    );
   }
 
   const renderCustomerView = () => {

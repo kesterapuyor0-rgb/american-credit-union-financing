@@ -20,28 +20,11 @@ import {
   Clock3
 } from 'lucide-react';
 
-const readVerificationDocument = (file: File): Promise<{ data: string; contentType: string }> => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => {
-    if (typeof reader.result !== 'string') {
-      reject(new Error('Unable to read the selected image.'));
-      return;
-    }
-
-    const dataUrlPrefix = `data:${file.type};base64,`;
-    if (!reader.result.startsWith(dataUrlPrefix)) {
-      reject(new Error('Unable to convert the selected image.'));
-      return;
-    }
-
-    resolve({
-      data: reader.result.slice(dataUrlPrefix.length),
-      contentType: file.type,
-    });
-  };
-  reader.onerror = () => reject(reader.error || new Error('Unable to read the selected image.'));
-  reader.readAsDataURL(file);
-});
+interface EnrollmentImageMetadata {
+  name: string;
+  type: string;
+  size: number;
+}
 
 interface RegisterViewProps {
   onNavigateToLogin: (registeredNotice?: string) => void;
@@ -57,10 +40,10 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [securityPin, setSecurityPin] = useState('');
   const [verificationNumber, setVerificationNumber] = useState('');
-  const [sampleFile, setSampleFile] = useState<File | null>(null);
-  const [governmentIdPreview, setGovernmentIdPreview] = useState('');
-  const [selfieFile, setSelfieFile] = useState<File | null>(null);
-  const [selfiePreview, setSelfiePreview] = useState('');
+  const [governmentIdUrl, setGovernmentIdUrl] = useState('');
+  const [governmentIdMetadata, setGovernmentIdMetadata] = useState<EnrollmentImageMetadata | null>(null);
+  const [selfieUrl, setSelfieUrl] = useState('');
+  const [selfieMetadata, setSelfieMetadata] = useState<EnrollmentImageMetadata | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [showPassword, setShowPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -78,28 +61,29 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
   const handleImageSelection = (
     file: File | undefined,
-    setFile: React.Dispatch<React.SetStateAction<File | null>>,
-    setPreview: React.Dispatch<React.SetStateAction<string>>,
+    setImageUrl: React.Dispatch<React.SetStateAction<string>>,
+    setMetadata: React.Dispatch<React.SetStateAction<EnrollmentImageMetadata | null>>,
     imageLabel: string,
   ) => {
     if (!file) return;
     if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) || file.size <= 0 || file.size > 5 * 1024 * 1024) {
-      setFile(null);
-      setPreview('');
+      setImageUrl('');
+      setMetadata(null);
       setError(`Choose a JPEG, PNG, WebP, or GIF ${imageLabel} up to 5 MB.`);
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onloadend = () => {
       if (typeof reader.result !== 'string' || !reader.result.startsWith(`data:${file.type};base64,`)) {
+        setImageUrl('');
+        setMetadata(null);
         setError(`Unable to read the selected ${imageLabel}.`);
         return;
       }
-      setFile(file);
-      setPreview(reader.result);
+      setImageUrl(reader.result);
+      setMetadata({ name: file.name, type: file.type, size: file.size });
       setError(null);
     };
-    reader.onerror = () => setError(`Unable to read the selected ${imageLabel}.`);
     reader.readAsDataURL(file);
   };
 
@@ -153,14 +137,18 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     }
 
     if (step === 2) {
-      if (!sampleFile) {
+      if (!/^\d{9}$/.test(verificationNumber)) {
+        setError('Enter all 9 digits of your Social Security or Tax ID number.');
+        return;
+      }
+      if (!governmentIdUrl || !governmentIdMetadata) {
         setError('Choose a sample image file to continue.');
         return;
       }
       setStep(3);
       return;
     }
-    if (!selfieFile) {
+    if (!selfieUrl || !selfieMetadata) {
       setError('Take or upload a verification selfie to continue.');
       return;
     }
@@ -168,8 +156,6 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     setLoading(true);
 
     try {
-      const verificationDocument = await readVerificationDocument(sampleFile);
-      const selfie = await readVerificationDocument(selfieFile);
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
@@ -184,12 +170,12 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
           securityPin: securityPin.trim(),
           verificationNumber: verificationNumber.trim(),
           sampleFile: {
-            name: sampleFile.name,
-            type: sampleFile.type,
-            size: sampleFile.size,
+            name: governmentIdMetadata.name,
+            type: governmentIdMetadata.type,
+            size: governmentIdMetadata.size,
           },
-          governmentIdUrl: `data:${verificationDocument.contentType};base64,${verificationDocument.data}`,
-          selfieUrl: `data:${selfie.contentType};base64,${selfie.data}`,
+          governmentIdUrl,
+          selfieUrl,
         }),
       });
 
@@ -199,7 +185,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       }
 
       const data = result.data;
-      setSuccessData(data.user);
+      setSuccessData({ ...data.user, kycStatus: 'Pending' });
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred. Please try again.');
     } finally {
@@ -255,30 +241,27 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-700">
                   <Clock3 className="h-8 w-8" />
                 </div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-amber-800">
+                  <Clock3 aria-hidden="true" className="h-4 w-4" />
+                  Account Under Review
+                </div>
                 <div>
                   <h3 className="font-serif text-xl font-bold text-[#173B70]">
-                    Enrollment under review
+                    We're Verifying Your Information
                   </h3>
-                  <p className="mt-2 text-sm text-gray-700">
-                    Thank you, {successData.full_name}. Your enrollment is being reviewed by authorized Member Services specialists. Dashboard access will be available after review.
+                  <p className="mt-2 text-sm leading-6 text-gray-700">
+                    Your member profile, identity documents, and verification selfie have been securely submitted. Our Member Services team is reviewing your details to activate full access.
                   </p>
                 </div>
                 <div className="rounded-sm border border-blue-200 bg-blue-50 p-4 text-left text-sm leading-6 text-blue-950">
-                  To complete your registration, contact customer support at{' '}
-                  <a
-                    href="mailto:americancreditunion.financing@gmail.com"
-                    className="break-all font-semibold underline underline-offset-2"
-                  >
-                    americancreditunion.financing@gmail.com
-                  </a>
-                  .
+                  Standard review time: 1–2 business days. You will receive an update once verified.
                 </div>
                 <button
                   type="button"
-                  onClick={() => onNavigateToLogin('Your enrollment is under review by Member Services.')}
+                  onClick={() => onNavigateToLogin('Your account is under review. Sign in to view your limited member access while our Member Services team reviews your enrollment.')}
                   className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-sm bg-[#173B70] px-4 py-3 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#245B9E]"
                 >
-                  Return to Sign In
+                  Go to Member Dashboard
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
@@ -500,7 +483,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         capture="environment"
                         className="sr-only"
                         onChange={(event) => {
-                          handleImageSelection(event.target.files?.[0], setSampleFile, setGovernmentIdPreview, 'government ID image');
+                          handleImageSelection(event.target.files?.[0], setGovernmentIdUrl, setGovernmentIdMetadata, 'government ID image');
                           event.target.value = '';
                         }}
                       />
@@ -513,14 +496,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         accept="image/*"
                         className="sr-only"
                         onChange={(event) => {
-                          handleImageSelection(event.target.files?.[0], setSampleFile, setGovernmentIdPreview, 'government ID image');
+                          handleImageSelection(event.target.files?.[0], setGovernmentIdUrl, setGovernmentIdMetadata, 'government ID image');
                           event.target.value = '';
                         }}
                       />
                     </div>
-                    {governmentIdPreview && (
+                    {governmentIdUrl && (
                       <div className="mt-3 flex items-center gap-4 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
-                        <img src={governmentIdPreview} alt="Government ID preview" className="h-24 w-36 shrink-0 rounded-md border border-slate-200 bg-white object-cover shadow-sm" />
+                        <img src={governmentIdUrl} alt="Government ID preview" className="h-24 w-36 shrink-0 rounded-md border border-slate-200 bg-white object-cover shadow-sm" />
                         <div className="min-w-0">
                           <p className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
                             <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0 text-emerald-700" />
@@ -554,7 +537,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                           capture="user"
                           className="sr-only"
                           onChange={(event) => {
-                            handleImageSelection(event.target.files?.[0], setSelfieFile, setSelfiePreview, 'selfie image');
+                            handleImageSelection(event.target.files?.[0], setSelfieUrl, setSelfieMetadata, 'selfie image');
                             event.target.value = '';
                           }}
                         />
@@ -567,14 +550,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                           accept="image/*"
                           className="sr-only"
                           onChange={(event) => {
-                            handleImageSelection(event.target.files?.[0], setSelfieFile, setSelfiePreview, 'selfie image');
+                            handleImageSelection(event.target.files?.[0], setSelfieUrl, setSelfieMetadata, 'selfie image');
                             event.target.value = '';
                           }}
                         />
                       </div>
-                      {selfiePreview && (
+                      {selfieUrl && (
                         <div className="mt-3 flex items-center gap-4 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
-                          <img src={selfiePreview} alt="Verification selfie preview" className="h-24 w-24 shrink-0 rounded-full border-2 border-white bg-gray-100 object-cover shadow-sm ring-1 ring-emerald-200" />
+                          <img src={selfieUrl} alt="Verification selfie preview" className="h-24 w-24 shrink-0 rounded-full border-2 border-white bg-gray-100 object-cover shadow-sm ring-1 ring-emerald-200" />
                           <div className="min-w-0">
                             <p className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
                               <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0 text-emerald-700" />

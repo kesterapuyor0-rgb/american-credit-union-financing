@@ -576,9 +576,18 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
             kycStatus: data.user.kycStatus,
             userSelfieStatus: data.user.userSelfieStatus,
             profilePicture: data.user.profilePicture,
+            verification_status: data.user.verification_status,
+            verification_rejection_reason: data.user.verification_rejection_reason,
           }
           : currentApplicant
       ));
+      setVerificationStatusEdits((current) => ({
+        ...current,
+        [userId]: {
+          status: data.user.verification_status,
+          reason: data.user.verification_rejection_reason || '',
+        },
+      }));
       if (newStatus === 'Approved' && data.user.profilePicture) {
         setUsers((current) => current.map((currentUser) =>
           currentUser.id === userId

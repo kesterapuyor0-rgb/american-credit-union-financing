@@ -691,6 +691,8 @@ router.patch('/verifications/:userId/kyc-status', async (req: AuthenticatedReque
       const updates: Record<string, string> = {
         kycStatus,
         userSelfieStatus: kycStatus === 'Approved' ? 'verified' : 'rejected',
+        verification_status: kycStatus === 'Approved' ? 'approved' : 'rejected',
+        verification_rejection_reason: kycStatus === 'Approved' ? '' : 'Your KYC verification was not approved. Please contact Member Services for assistance.',
       };
       if (kycStatus === 'Approved') updates.profilePicture = selfieUrl;
 
@@ -698,7 +700,7 @@ router.patch('/verifications/:userId/kyc-status', async (req: AuthenticatedReque
         { id: userId, role: { $ne: 'admin' }, isAdmin: { $ne: true } },
         { $set: updates },
         { new: true, runValidators: true, session },
-      ).select('id email full_name kycStatus userSelfieStatus profilePicture').lean<any>();
+      ).select('id email full_name kycStatus userSelfieStatus profilePicture verification_status verification_rejection_reason').lean<any>();
       if (!reviewedUser) throw new Error('KYC documents were not found for this customer.');
 
       await AuditLog.create([{
