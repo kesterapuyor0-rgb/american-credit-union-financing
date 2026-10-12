@@ -21,6 +21,17 @@ interface InvestmentPortfolio {
   checkingAccount: { availableBalance: number; nickname: string } | null;
 }
 
+interface LiveHolding {
+  symbol: string;
+  name: string;
+  shares: number;
+  buyPrice: number;
+  livePrice: number;
+  currentValue: number;
+  profitLoss: number;
+  profitLossPercent: number;
+}
+
 interface InvestmentViewProps {
   onClose: () => void;
   onPurchaseComplete: () => void;
@@ -39,6 +50,10 @@ interface FinnhubQuote {
 
 function formatUSD(value: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+}
+
+function formatSignedUSD(value: number): string {
+  return `${value >= 0 ? '+' : '-'}${formatUSD(Math.abs(value))}`;
 }
 
 async function fetchFinnhubQuote(symbol: string): Promise<FinnhubQuote> {
@@ -156,6 +171,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const assetSymbols = assets.map((asset) => asset.symbol).join(',');
 
   useEffect(() => {
     let cancelled = false;
@@ -173,22 +189,6 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
         if (!cancelled) {
           const catalogAssets: InvestmentAsset[] = Array.isArray(catalogData.assets) ? catalogData.assets : [];
           setAssets(catalogAssets);
-          void Promise.all(catalogAssets.map(async (asset) => {
-            try {
-              const quote = await fetchFinnhubQuote(asset.symbol);
-              const dailyChangePercent = Number.isFinite(quote.dp)
-                ? quote.dp
-                : quote.pc > 0
-                  ? ((quote.c - quote.pc) / quote.pc) * 100
-                  : asset.dailyChangePercent;
-              return { ...asset, marketPrice: quote.c, dailyChangePercent };
-            } catch (error) {
-              console.warn(`Unable to refresh ${asset.symbol} from Finnhub; keeping its catalog price.`, error);
-              return asset;
-            }
-          })).then((pricedAssets) => {
-            if (!cancelled) setAssets(pricedAssets);
-          });
           setPortfolio(portfolioData);
         }
       } catch (error) {
@@ -200,6 +200,87 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
     void load();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!assetSymbols) return;
+
+    let cancelled = false;
+    let refreshing = false;
+    const symbols = assetSymbols.split(',');
+    const refreshPricesAndPortfolio = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const quotes = await Promise.all(symbols.map(async (symbol) => {
+          try {
+            return [symbol, await fetchFinnhubQuote(symbol)] as const;
+          } catch (error) {
+            console.warn(`Unable to refresh ${symbol} from Finnhub; keeping its last known price.`, error);
+            return [symbol, null] as const;
+          }
+        }));
+        if (cancelled) return;
+
+        const quotesBySymbol = new Map(quotes);
+        setAssets((currentAssets) => currentAssets.map((asset) => {
+          const quote = quotesBySymbol.get(asset.symbol);
+          if (!quote) return asset;
+          const dailyChangePercent = Number.isFinite(quote.dp)
+            ? quote.dp
+            : quote.pc > 0
+              ? ((quote.c - quote.pc) / quote.pc) * 100
+              : asset.dailyChangePercent;
+          return { ...asset, marketPrice: quote.c, dailyChangePercent };
+        }));
+
+        try {
+          const portfolioResponse = await fetch('/api/investments/portfolio', { headers: getAuthHeaders(), credentials: 'include' });
+          const portfolioData = await portfolioResponse.json();
+          if (!portfolioResponse.ok) throw new Error(portfolioData.error || 'Unable to refresh your portfolio.');
+          if (!cancelled) setPortfolio(portfolioData);
+        } catch (error) {
+          if (!cancelled) console.error('Unable to refresh investment holdings and account balances:', error);
+        }
+      } catch (error) {
+        if (!cancelled) console.error('Unable to refresh live investment prices and account balances:', error);
+      } finally {
+        refreshing = false;
+      }
+    };
+
+    void refreshPricesAndPortfolio();
+    const intervalId = window.setInterval(() => void refreshPricesAndPortfolio(), 20_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [assetSymbols]);
+
+  const liveHoldings = useMemo<LiveHolding[]>(() => (portfolio?.positions || []).map((position) => {
+    const shares = position.quantity;
+    const buyPrice = position.averageCost;
+    const livePrice = assets.find((asset) => asset.symbol === position.symbol)?.marketPrice ?? position.marketPrice;
+    const currentValue = shares * livePrice;
+    const costBasis = shares * buyPrice;
+    const profitLoss = currentValue - costBasis;
+    return {
+      symbol: position.symbol,
+      name: position.name,
+      shares,
+      buyPrice,
+      livePrice,
+      currentValue,
+      profitLoss,
+      profitLossPercent: costBasis > 0 ? (profitLoss / costBasis) * 100 : 0,
+    };
+  }), [assets, portfolio?.positions]);
+  const totalPortfolioValue = liveHoldings.reduce((total, holding) => total + holding.currentValue, 0);
+  const totalUnrealizedProfitLoss = liveHoldings.reduce((total, holding) => total + holding.profitLoss, 0);
+  const totalUnrealizedProfitLossPercent = totalPortfolioValue - totalUnrealizedProfitLoss > 0
+    ? (totalUnrealizedProfitLoss / (totalPortfolioValue - totalUnrealizedProfitLoss)) * 100
+    : 0;
+  const availableCash = portfolio?.checkingAccount?.availableBalance || 0;
+  const totalAccountValue = availableCash + totalPortfolioValue;
 
   const filteredAssets = useMemo(() => assets.filter((asset) => {
     const matchesCategory = category === 'All' || asset.assetType === category;
@@ -218,6 +299,9 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
       })
       .catch((error) => console.error('Unable to refresh the investment portfolio:', error));
   };
+  const liveSelectedAsset = selectedAsset
+    ? assets.find((asset) => asset.symbol === selectedAsset.symbol) || selectedAsset
+    : null;
 
   return (
     <div className={inline ? 'overflow-y-auto rounded-2xl bg-slate-100' : 'fixed inset-0 z-[80] overflow-y-auto bg-slate-100'}>
@@ -236,34 +320,50 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
           </button>
         </header>
 
-        <section aria-label="Portfolio summary" className="mt-4 grid gap-3 sm:grid-cols-3">
+        <section aria-label="Portfolio summary" className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Portfolio Value</p>
-            <p className="mt-2 text-2xl font-bold text-slate-950">{loading ? 'Loading…' : formatUSD(portfolio?.totalValue || 0)}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Account Value</p>
+            <p className="mt-2 text-2xl font-bold text-slate-950">{loading ? 'Loading…' : formatUSD(totalAccountValue)}</p>
+            <p className="mt-1 text-xs text-slate-500">Available cash + live investments</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Daily P/L</p>
-            <p className={`mt-2 flex items-center gap-1 text-2xl font-bold ${(portfolio?.dailyChangePercent || 0) < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-              {(portfolio?.dailyChangePercent || 0) < 0 ? <ArrowDownRight className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
-              {portfolio?.dailyChangePercent ? `${portfolio.dailyChangePercent > 0 ? '+' : ''}${portfolio.dailyChangePercent.toFixed(2)}%` : '0.00%'}
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Portfolio Value (Live)</p>
+            <p className="mt-2 text-2xl font-bold text-slate-950">{loading ? 'Loading…' : formatUSD(totalPortfolioValue)}</p>
+            <p className="mt-1 text-xs text-slate-500">Based on current market prices</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Profit / Loss</p>
+            <p className={`mt-2 flex items-center gap-1 text-2xl font-bold ${totalUnrealizedProfitLoss < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+              {totalUnrealizedProfitLoss < 0 ? <ArrowDownRight className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
+              {loading ? 'Loading…' : formatSignedUSD(totalUnrealizedProfitLoss)}
             </p>
-            <p className="mt-1 text-xs text-slate-500">{formatUSD(portfolio?.dailyChangeValue || 0)} daily change</p>
+            <p className={`mt-1 text-xs font-semibold ${totalUnrealizedProfitLoss < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+              {totalUnrealizedProfitLossPercent > 0 ? '+' : ''}{totalUnrealizedProfitLossPercent.toFixed(2)}% unrealized
+            </p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Available Cash</p>
-            <p className="mt-2 text-2xl font-bold text-slate-950">{loading ? 'Loading…' : formatUSD(portfolio?.checkingAccount?.availableBalance || 0)}</p>
+            <p className="mt-2 text-2xl font-bold text-slate-950">{loading ? 'Loading…' : formatUSD(availableCash)}</p>
             <p className="mt-1 text-xs text-slate-500">Available checking balance</p>
           </div>
         </section>
 
-        {portfolio?.positions?.length ? (
+        {liveHoldings.length ? (
           <section aria-label="Portfolio holdings" className="mt-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-            <h2 className="font-semibold text-slate-950">Your Holdings</h2>
+            <h2 className="font-semibold text-slate-950">Your Portfolio / Holdings</h2>
             <div className="mt-3 divide-y divide-slate-100">
-              {portfolio.positions.map((position) => (
-                <div key={position.symbol} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <div><p className="font-semibold text-slate-900">{position.name} <span className="font-mono text-xs text-slate-500">{position.symbol}</span></p><p className="mt-0.5 text-xs text-slate-500">{position.quantity.toLocaleString('en-US', { maximumFractionDigits: 6 })} units · average cost {formatUSD(position.averageCost)}</p></div>
-                  <p className="font-semibold tabular-nums text-slate-900">{formatUSD(position.marketValue)}</p>
+              {liveHoldings.map((holding) => (
+                <div key={holding.symbol} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div>
+                    <p className="font-semibold text-slate-900">{holding.name} <span className="font-mono text-xs text-slate-500">{holding.symbol}</span></p>
+                    <p className="mt-0.5 text-xs text-slate-500">{holding.shares.toLocaleString('en-US', { maximumFractionDigits: 6 })} units · live price {formatUSD(holding.livePrice)} · average cost {formatUSD(holding.buyPrice)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold tabular-nums text-slate-900">{formatUSD(holding.currentValue)}</p>
+                    <p className={`mt-0.5 text-xs font-semibold ${holding.profitLoss < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                      {formatSignedUSD(holding.profitLoss)} ({holding.profitLossPercent > 0 ? '+' : ''}{holding.profitLossPercent.toFixed(2)}%)
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -315,9 +415,9 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
         </footer>
       </div>
 
-      {selectedAsset && (
+      {liveSelectedAsset && (
         <InvestmentOrderModal
-          asset={selectedAsset}
+          asset={liveSelectedAsset}
           availableBalance={portfolio?.checkingAccount?.availableBalance || 0}
           onClose={closeOrder}
           onComplete={completeOrder}
