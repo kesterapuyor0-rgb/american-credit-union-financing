@@ -142,20 +142,22 @@ router.post('/login', async (req, res): Promise<void> => {
     }
 
     const normalizedRole = isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user';
-    const accountStatuses = [user.verification_status, user.status, user.kycStatus]
+    const accountStatuses = [user.status, user.enrollmentStatus, user.verification_status, user.kycStatus]
       .filter((status): status is string => typeof status === 'string')
       .map((status) => status.trim().toLowerCase().replace(/[\s-]+/g, '_'));
+    const incompleteEnrollment = normalizedRole === 'user' && accountStatuses.includes('incomplete');
     const actionRequired = normalizedRole === 'user'
       && accountStatuses.some((status) => status === 'rejected' || status === 'action_required');
-    const primaryStatus = [user.verification_status, user.status, user.kycStatus]
+    const primaryStatus = [user.status, user.enrollmentStatus, user.verification_status, user.kycStatus]
       .find((status): status is string => typeof status === 'string' && Boolean(status.trim()))
       ?.trim()
       .toLowerCase()
       .replace(/[\s-]+/g, '_');
     const pendingReview = normalizedRole === 'user'
+      && !incompleteEnrollment
       && !actionRequired
       && ['pending', 'pending_review', 'under_review'].includes(primaryStatus || '');
-    if (actionRequired || pendingReview) {
+    if (incompleteEnrollment || actionRequired || pendingReview) {
       const authToken = signAuthToken({
         id: user.id,
         email: user.email,
@@ -167,7 +169,10 @@ router.post('/login', async (req, res): Promise<void> => {
       const rejectionDetails = Array.isArray(user.verification_rejection_details) && user.verification_rejection_details.length
         ? user.verification_rejection_details
         : rejectionReason.split(/\r?\n/).map((detail: string) => detail.trim()).filter(Boolean);
-      const status = actionRequired ? 'action_required' : 'pending_review';
+      const savedStepValue = Number(user.lastCompletedStep ?? user.enrollmentStep ?? 0);
+      const lastCompletedStep = Number.isInteger(savedStepValue) && savedStepValue >= 0 && savedStepValue <= 3 ? savedStepValue : 0;
+      const resumeStep = Math.min(3, lastCompletedStep + 1);
+      const status = incompleteEnrollment ? 'incomplete' : actionRequired ? 'action_required' : 'pending_review';
       res.cookie('boa_token', authToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -178,18 +183,25 @@ router.post('/login', async (req, res): Promise<void> => {
         success: true,
         token: authToken,
         status,
-        redirectTo: actionRequired ? '/enroll/resubmit' : '/enrollment/status',
+        redirectTo: incompleteEnrollment
+          ? `/enroll?step=${resumeStep}`
+          : actionRequired
+            ? '/enroll/resubmit'
+            : '/enrollment/status',
         ...(actionRequired ? { rejectionReason, rejectionDetails } : {}),
+        ...(incompleteEnrollment ? { lastCompletedStep, resumeStep } : {}),
         user: {
           id: user.id,
           email: user.email,
           full_name: user.full_name,
           role: normalizedRole,
           phone: user.phone,
+          address: user.address || '',
           ...(actionRequired ? { rejectionReason, rejectionDetails } : {}),
-          verification_status: actionRequired ? 'rejected' : 'under_review',
+          verification_status: incompleteEnrollment ? 'incomplete' : actionRequired ? 'rejected' : 'under_review',
           verification_rejection_reason: rejectionReason,
           verification_rejection_details: actionRequired ? rejectionDetails : [],
+          ...(incompleteEnrollment ? { lastCompletedStep, enrollmentStep: resumeStep } : {}),
           status,
         },
       });
@@ -389,7 +401,7 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
       } });
       return;
     }
-    const user = await User.findOne({ id: req.user.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture kycStatus verification_status verification_rejection_reason verification_rejection_details').lean<any>();
+    const user = await User.findOne({ id: req.user.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone address profilePicture kycStatus status enrollmentStatus lastCompletedStep enrollmentStep verification_status verification_rejection_reason verification_rejection_details').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -400,11 +412,16 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
         profilePicture: user.kycStatus === 'Approved' ? user.profilePicture || '' : '',
         role: isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user',
         verification_status: user.verification_status || 'approved',
-        status: user.verification_status === 'rejected'
+        status: user.status === 'incomplete' || user.enrollmentStatus === 'incomplete'
+          ? 'incomplete'
+          : user.verification_status === 'rejected'
           ? 'action_required'
           : user.verification_status === 'under_review'
             ? 'pending_review'
             : user.verification_status || 'approved',
+        ...(user.status === 'incomplete' || user.enrollmentStatus === 'incomplete'
+          ? { lastCompletedStep: user.lastCompletedStep ?? user.enrollmentStep ?? 0, enrollmentStep: user.enrollmentStep }
+          : {}),
         rejectionReason: user.verification_rejection_reason || '',
         rejectionDetails: user.verification_rejection_details || [],
         verification_rejection_reason: user.verification_rejection_reason || '',
@@ -438,16 +455,93 @@ router.post('/register', async (req, res): Promise<void> => {
       });
       return;
     }
-    const cleanVerificationNumber = typeof verificationNumber === 'string' ? verificationNumber.trim() : '';
-    const cleanFileName = typeof sampleFile?.name === 'string' ? sampleFile.name.trim().slice(0, 120) : '';
-    const cleanFileType = typeof sampleFile?.type === 'string' ? sampleFile.type.trim().toLowerCase() : '';
-    const sampleFileSize = Number(sampleFile?.size);
+    if (typeof chosenPassword !== 'string') {
+      res.status(400).json({ success: false, error: 'Passcode must be provided as text.' });
+      return;
+    }
+    const cleanEmail = String(email).trim().toLowerCase();
+    let existingUser: any = null;
+    try {
+      existingUser = await User.findOne({ email: cleanEmail })
+        .select('+password_hash +governmentIdUrl +selfieUrl id email full_name phone address status enrollmentStatus verification_status kycStatus lastCompletedStep enrollmentStep verification_submission')
+        .lean<any>();
+    } catch (checkErr) {
+      console.error('Database query error checking existing enrollment:', checkErr);
+      res.status(500).json({
+        success: false,
+        error: errorMessage(checkErr, 'Database error validating email uniqueness.'),
+      });
+      return;
+    }
+    if (existingUser) {
+      const existingStatuses = [
+        existingUser.status,
+        existingUser.enrollmentStatus,
+        existingUser.verification_status,
+        existingUser.kycStatus,
+      ]
+        .filter((status): status is string => typeof status === 'string')
+        .map((status) => status.trim().toLowerCase().replace(/[\s-]+/g, '_'));
+      if (existingStatuses.some((status) => status === 'rejected' || status === 'action_required')) {
+        res.status(409).json({
+          success: false,
+          code: 'KYC_RESUBMISSION_REQUIRED',
+          error: 'An account with this email already exists and requires document re-submission. Please log in to complete your verification.',
+          redirectTo: '/login',
+        });
+        return;
+      }
+      if (existingStatuses.includes('incomplete') && req.body?.resumeEnrollment !== true) {
+        const savedStep = Number(existingUser.lastCompletedStep ?? existingUser.enrollmentStep);
+        const resumeStep = Number.isInteger(savedStep) && savedStep >= 1 && savedStep < 3 ? savedStep + 1 : 1;
+        res.status(409).json({
+          success: false,
+          code: 'ENROLLMENT_INCOMPLETE',
+          error: 'An incomplete enrollment already exists for this email. Log in to continue where you left off.',
+          lastCompletedStep: Number.isInteger(savedStep) && savedStep >= 0 ? savedStep : 0,
+          redirectTo: `/enroll?step=${resumeStep}`,
+        });
+        return;
+      }
+      if (!existingStatuses.includes('incomplete')) {
+        res.status(409).json({
+          success: false,
+          code: 'ACCOUNT_ALREADY_EXISTS',
+          error: 'An online banking profile already exists for this email address. Please sign in.',
+          redirectTo: '/login',
+        });
+        return;
+      }
+      if (typeof existingUser.password_hash !== 'string' || !await bcrypt.compare(chosenPassword, existingUser.password_hash)) {
+        res.status(401).json({
+          success: false,
+          error: 'The Online ID or Passcode entered does not match our records.',
+        });
+        return;
+      }
+    }
+
+    const existingSubmission = existingUser?.verification_submission;
+    const submittedSampleFile = sampleFile || (existingSubmission ? {
+      name: existingSubmission.sampleFileName,
+      type: existingSubmission.sampleFileType,
+      size: existingSubmission.sampleFileSize,
+    } : null);
+    const submittedGovernmentIdUrl = typeof governmentIdUrl === 'string' && governmentIdUrl
+      ? governmentIdUrl
+      : existingUser?.governmentIdUrl;
+    const cleanVerificationNumber = typeof verificationNumber === 'string' && verificationNumber.trim()
+      ? verificationNumber.trim()
+      : String(existingSubmission?.verificationNumber || '').trim();
+    const cleanFileName = typeof submittedSampleFile?.name === 'string' ? submittedSampleFile.name.trim().slice(0, 120) : '';
+    const cleanFileType = typeof submittedSampleFile?.type === 'string' ? submittedSampleFile.type.trim().toLowerCase() : '';
+    const sampleFileSize = Number(submittedSampleFile?.size);
     const legacyDocumentData = typeof verificationDocument?.data === 'string' ? verificationDocument.data : '';
     const legacyDocumentType = typeof verificationDocument?.contentType === 'string'
       ? verificationDocument.contentType.trim().toLowerCase()
       : '';
-    const governmentIdMatch = typeof governmentIdUrl === 'string'
-      ? governmentIdUrl.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$/)
+    const governmentIdMatch = typeof submittedGovernmentIdUrl === 'string'
+      ? submittedGovernmentIdUrl.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$/)
       : null;
     const documentData = governmentIdMatch?.[2] || legacyDocumentData;
     const documentContentType = governmentIdMatch?.[1] || legacyDocumentType;
@@ -471,7 +565,11 @@ router.post('/register', async (req, res): Promise<void> => {
       res.status(400).json({ success: false, error: 'The supporting image must be no larger than 5 MB and match its uploaded file.' });
       return;
     }
-    const submittedSelfieUrl = typeof selfieUrl === 'string' ? selfieUrl : userSelfie;
+    const submittedSelfieUrl = typeof selfieUrl === 'string' && selfieUrl
+      ? selfieUrl
+      : typeof userSelfie === 'string' && userSelfie
+        ? userSelfie
+        : existingUser?.selfieUrl;
     const selfieMatch = typeof submittedSelfieUrl === 'string'
       ? submittedSelfieUrl.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$/)
       : null;
@@ -494,7 +592,6 @@ router.post('/register', async (req, res): Promise<void> => {
       return;
     }
 
-    const cleanEmail = String(email).trim().toLowerCase();
     const cleanName = String(fullName || chosenName).trim();
     const cleanPhone = String(phone).trim();
     const cleanAddress = typeof address === 'string' ? address.trim() : '';
@@ -504,42 +601,25 @@ router.post('/register', async (req, res): Promise<void> => {
     }
     const pin = securityPin ? String(securityPin).trim() : '1234';
 
-    // 1. Check if user already exists (with try/catch)
-    let existing: any = null;
-    try {
-      existing = await User.exists({ email: cleanEmail });
-    } catch (checkErr: any) {
-      console.error('Database query error checking existing user:', checkErr);
-      res.status(500).json({
-        success: false,
-        error: errorMessage(checkErr, 'Database error validating email uniqueness.')
-      });
-      return;
-    }
-
-    if (existing) {
-      res.status(400).json({
-        success: false,
-        error: 'An online banking profile already exists for this email address. Please sign in.'
-      });
-      return;
-    }
-
-    const userId = 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    const userId = existingUser?.id || ('usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
     const passwordHash = bcrypt.hashSync(chosenPassword, 10);
     const createdAt = new Date().toISOString();
     const pinHash = bcrypt.hashSync(pin, 10);
 
     try {
-      await User.create({
+      const userUpdates = {
         id: userId, email: cleanEmail, password_hash: passwordHash,
         full_name: cleanName, role: 'user', phone: cleanPhone,
-        address: cleanAddress,
+        address: cleanAddress || existingUser?.address || '',
         security_pin: pinHash,
         verification_status: 'under_review',
+        status: 'pending_review',
+        enrollmentStatus: 'pending_review',
+        lastCompletedStep: 3,
+        enrollmentStep: 3,
         verification_rejection_reason: '',
         governmentIdUrl: governmentIdMatch
-          ? governmentIdUrl
+          ? submittedGovernmentIdUrl
           : `data:${documentContentType};base64,${documentData}`,
         selfieUrl: submittedSelfieUrl,
         kycStatus: 'Pending',
@@ -551,8 +631,13 @@ router.post('/register', async (req, res): Promise<void> => {
           sampleFileSize,
           submittedAt: new Date(),
         },
-        created_at: createdAt,
-      });
+        created_at: existingUser?.created_at || createdAt,
+      };
+      if (existingUser) {
+        await User.updateOne({ id: userId, email: cleanEmail }, { $set: userUpdates }, { runValidators: true });
+      } else {
+        await User.create(userUpdates);
+      }
     } catch (dbInsertErr: any) {
       console.error('MongoDB user insertion failed:', dbInsertErr);
       res.status(500).json({
@@ -593,24 +678,32 @@ router.post('/register', async (req, res): Promise<void> => {
 
     // 4. Create primary Advantage Plus Checking Account (with try/catch)
     try {
-      await Account.create({
-        id: accountId, user_id: userId, account_number: accNum,
-        account_type: 'Checking', nickname: 'Advantage Plus Checking',
-        balance: 0, currency: 'USD', routing_number: routingNumber,
-        status: 'Active', created_at: createdAt,
-      });
-      await Account.create({
-        id: savingsAccountId, user_id: userId, account_number: savingsAccountNumber,
-        account_type: 'Savings', nickname: 'Advantage Savings',
-        balance: 0, currency: 'USD', routing_number: routingNumber,
-        interest_rate: 0.015, accrued_interest: 0, last_interest_accrual_date: '',
-        status: 'Active', created_at: createdAt,
-      });
+      const existingAccounts = await Account.find({ user_id: userId, account_type: { $in: ['Checking', 'Savings'] } }).lean<any[]>();
+      const checkingAccount = existingAccounts.find((account) => account.account_type === 'Checking');
+      const savingsAccount = existingAccounts.find((account) => account.account_type === 'Savings');
+      if (checkingAccount) accNum = checkingAccount.account_number;
+      if (!checkingAccount) {
+        await Account.create({
+          id: accountId, user_id: userId, account_number: accNum,
+          account_type: 'Checking', nickname: 'Advantage Plus Checking',
+          balance: 0, currency: 'USD', routing_number: routingNumber,
+          status: 'Active', created_at: createdAt,
+        });
+      }
+      if (!savingsAccount) {
+        await Account.create({
+          id: savingsAccountId, user_id: userId, account_number: savingsAccountNumber,
+          account_type: 'Savings', nickname: 'Advantage Savings',
+          balance: 0, currency: 'USD', routing_number: routingNumber,
+          interest_rate: 0.015, accrued_interest: 0, last_interest_accrual_date: '',
+          status: 'Active', created_at: createdAt,
+        });
+      }
       await User.updateOne({ id: userId }, { $set: { account_number: accNum } });
     } catch (accErr: any) {
       console.error('MongoDB account insertion error:', accErr);
-      await Account.deleteMany({ user_id: userId });
-      await User.deleteOne({ id: userId });
+      await Account.deleteMany({ user_id: userId, created_at: createdAt });
+      if (!existingUser) await User.deleteOne({ id: userId });
       res.status(500).json({
         success: false,
         error: errorMessage(accErr, 'Failed to open the initial checking account.')

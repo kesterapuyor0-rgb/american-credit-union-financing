@@ -32,6 +32,10 @@ const userSchema = new Schema({
   pushSubscriptions: { type: [pushSubscriptionSchema], default: [], select: false },
   documentUrl: { type: String, default: '' },
   verification_status: { type: String, enum: ['under_review', 'approved', 'rejected'], default: 'under_review', index: true },
+  status: { type: String, trim: true, lowercase: true },
+  enrollmentStatus: { type: String, trim: true, lowercase: true },
+  lastCompletedStep: { type: Number, min: 0, max: 3 },
+  enrollmentStep: { type: Number, min: 0, max: 3 },
   verification_rejection_reason: { type: String, default: '', trim: true, maxlength: 500 },
   verification_rejection_details: { type: [String], default: [] },
   verificationDocument: {

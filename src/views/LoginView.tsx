@@ -30,7 +30,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 }) => {
   // Step 1: Credentials | Step 2: 2FA Verification
   const [step, setStep] = useState<'credentials' | '2fa'>('credentials');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => new URLSearchParams(window.location.search).get('email') || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberId, setRememberId] = useState(true);
@@ -127,6 +127,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
         || data.status === 'pending_review'
         || data.user?.status === 'pending_review'
         || data.redirectTo === '/enrollment/status'
+        || data.status === 'incomplete'
+        || data.user?.status === 'incomplete'
+        || /^\/enroll\?step=\d+$/.test(data.redirectTo || '')
       ) {
         if (!data.token || !data.user) throw new Error('The enrollment sign-in response was incomplete. Please try again.');
         if (adminOnly) throw new Error('This sign-in is restricted to authorized Member Services specialists.');

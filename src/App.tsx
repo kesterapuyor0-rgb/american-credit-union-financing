@@ -171,7 +171,7 @@ export default function App() {
   // Synchronize browser history / URL path
   const navigateTo = (path: string) => {
     window.history.pushState({}, '', path);
-    setCurrentPath(path);
+    setCurrentPath(window.location.pathname);
   };
 
   useEffect(() => {
@@ -403,6 +403,8 @@ export default function App() {
       navigateTo('/enroll/resubmit');
     } else if (loggedInUser.verification_status === 'under_review' || loggedInUser.status === 'pending_review') {
       navigateTo('/enrollment/status');
+    } else if (loggedInUser.verification_status === 'incomplete' || loggedInUser.status === 'incomplete') {
+      navigateTo(`/enroll?step=${loggedInUser.enrollmentStep || 1}`);
     } else {
       navigateTo('/dashboard');
       setActiveTab(grantApplicationRequested ? 'grants' : 'home');
@@ -480,14 +482,14 @@ export default function App() {
       );
     }
 
-    if (currentPath === '/register') {
+    if (currentPath === '/register' || currentPath === '/enroll') {
       return (
         <>
           <OfflineStatusBanner isOnline={isOnline} />
           <RegisterView
-            onNavigateToLogin={(notice) => {
+            onNavigateToLogin={(notice, email) => {
               setRegisterNotice(notice || null);
-              navigateTo('/login');
+              navigateTo(email ? `/login?email=${encodeURIComponent(email)}` : '/login');
             }}
           />
         </>
@@ -566,7 +568,7 @@ export default function App() {
     );
   }
 
-  if (user.verification_status === 'under_review') {
+  if (user.verification_status === 'under_review' && user.status !== 'incomplete') {
     return (
       <>
         <OfflineStatusBanner isOnline={isOnline} />
@@ -577,6 +579,21 @@ export default function App() {
             setActiveTab('home');
             navigateTo('/dashboard');
           }}
+        />
+      </>
+    );
+  }
+
+  if (user.verification_status === 'incomplete' || user.status === 'incomplete') {
+    return (
+      <>
+        <OfflineStatusBanner isOnline={isOnline} />
+        <RegisterView
+          initialEmail={user.email}
+          initialFullName={user.full_name}
+          initialPhone={user.phone}
+          initialAddress={user.address || ''}
+          onNavigateToLogin={() => { void handleSignOut(); }}
         />
       </>
     );

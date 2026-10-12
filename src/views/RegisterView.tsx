@@ -27,16 +27,24 @@ interface EnrollmentImageMetadata {
 }
 
 interface RegisterViewProps {
-  onNavigateToLogin: (registeredNotice?: string) => void;
+  onNavigateToLogin: (registeredNotice?: string, email?: string) => void;
+  initialEmail?: string;
+  initialFullName?: string;
+  initialPhone?: string;
+  initialAddress?: string;
 }
 
 export const RegisterView: React.FC<RegisterViewProps> = ({
   onNavigateToLogin,
+  initialEmail = '',
+  initialFullName = '',
+  initialPhone = '',
+  initialAddress = '',
 }) => {
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
+  const [fullName, setFullName] = useState(initialFullName);
+  const [email, setEmail] = useState(() => initialEmail || new URLSearchParams(window.location.search).get('email') || '');
+  const [phone, setPhone] = useState(initialPhone);
+  const [address, setAddress] = useState(initialAddress);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [securityPin, setSecurityPin] = useState('');
@@ -45,13 +53,18 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
   const [governmentIdMetadata, setGovernmentIdMetadata] = useState<EnrollmentImageMetadata | null>(null);
   const [selfieUrl, setSelfieUrl] = useState('');
   const [selfieMetadata, setSelfieMetadata] = useState<EnrollmentImageMetadata | null>(null);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(() => {
+    const requestedStep = Number(new URLSearchParams(window.location.search).get('step'));
+    return requestedStep === 2 || requestedStep === 3 ? requestedStep : 1;
+  });
+  const isResumingEnrollment = new URLSearchParams(window.location.search).has('step');
   const [showPassword, setShowPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successData, setSuccessData] = useState<User | null>(null);
+  const [existingAccountAction, setExistingAccountAction] = useState<{ message: string; email: string } | null>(null);
   const errorBannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -176,6 +189,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
           password,
           securityPin: securityPin.trim(),
           verificationNumber: verificationNumber.trim(),
+          ...(isResumingEnrollment ? { resumeEnrollment: true } : {}),
           sampleFile: {
             name: governmentIdMetadata.name,
             type: governmentIdMetadata.type,
@@ -188,6 +202,18 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
       const result = await safeParseResponse(res);
       if (!result.ok) {
+        if (
+          result.data?.code === 'ACCOUNT_ALREADY_EXISTS'
+          || result.data?.code === 'KYC_RESUBMISSION_REQUIRED'
+          || result.data?.code === 'ENROLLMENT_INCOMPLETE'
+        ) {
+          setExistingAccountAction({
+            message: result.error || 'An account already exists for this email.',
+            email: email.trim().toLowerCase(),
+          });
+        } else {
+          setExistingAccountAction(null);
+        }
         throw new Error(result.error || 'Registration failed. Please check your details and try again.');
       }
 
@@ -205,7 +231,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       {/* Corporate Header */}
       <header className="flex min-h-[72px] shrink-0 items-center border-b-4 border-[#D6A832] bg-[#173B70] px-4 py-3 text-white shadow-lg sm:px-8">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3">
-          <button type="button" className="min-w-0 cursor-pointer text-left" onClick={() => onNavigateToLogin()} aria-label="American Credit Union Financing home">
+          <button type="button" className="min-w-0 cursor-pointer text-left" onClick={() => onNavigateToLogin(undefined, email)} aria-label="American Credit Union Financing home">
             <BrandLogo className="min-w-0" variant="white" />
           </button>
 
@@ -213,7 +239,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
             <span className="hidden text-slate-300 sm:inline">Already registered?</span>
             <button
               type="button"
-              onClick={() => onNavigateToLogin()}
+              onClick={() => onNavigateToLogin(undefined, email)}
               className="min-h-10 rounded-sm bg-white px-3 py-2 font-bold uppercase text-[#173B70] shadow-xs transition-colors hover:bg-gray-100"
             >
               Sign In
@@ -613,7 +639,18 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       className="flex scroll-mt-4 items-start gap-2.5 rounded-r-sm border-l-4 border-[#D6A832] bg-red-50 p-3.5 text-xs text-red-800"
                     >
                       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#D6A832]" />
-                      <span className="font-medium leading-relaxed">{error}</span>
+                      <div className="space-y-3">
+                        <span className="block font-medium leading-relaxed">{error}</span>
+                        {existingAccountAction && (
+                          <button
+                            type="button"
+                            onClick={() => onNavigateToLogin(existingAccountAction.message, existingAccountAction.email)}
+                            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-sm bg-[#173B70] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#245B9E]"
+                          >
+                            Log In to Continue <ArrowRight className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                   <div className="flex gap-3">

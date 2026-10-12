@@ -6,12 +6,14 @@ export interface User {
   phone: string;
   isRestricted?: boolean;
   restrictionReason?: string;
-  verification_status?: 'under_review' | 'approved' | 'rejected';
+  verification_status?: 'incomplete' | 'under_review' | 'approved' | 'rejected';
   verification_rejection_reason?: string;
   verification_rejection_details?: string[];
   rejectionReason?: string;
   rejectionDetails?: string[];
-  status?: 'action_required' | 'authenticated' | 'pending_review' | 'under_review' | 'approved' | 'rejected';
+  status?: 'action_required' | 'authenticated' | 'incomplete' | 'pending_review' | 'under_review' | 'approved' | 'rejected';
+  enrollmentStep?: number;
+  lastCompletedStep?: number;
   verificationDocument?: {
     data: string;
     contentType: string;
