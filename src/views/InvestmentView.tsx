@@ -385,9 +385,9 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
               <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search assets" className="min-h-11 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-100" />
             </label>
           </div>
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+          <div className="mt-3 flex flex-wrap gap-2 pb-1">
             {(['All', ...assetGroups] as const).map((group) => (
-              <button key={group} type="button" onClick={() => setCategory(group)} aria-pressed={category === group} className={`min-h-10 shrink-0 rounded-full border px-4 text-sm font-semibold ${category === group ? 'border-teal-800 bg-teal-800 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}>{group}</button>
+              <button key={group} type="button" onClick={() => setCategory(group)} aria-pressed={category === group} className={`min-h-10 rounded-full border px-3 py-1.5 text-sm font-medium ${category === group ? 'border-teal-800 bg-teal-800 text-white' : 'border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100'}`}>{group}</button>
             ))}
           </div>
           {loadError && <p role="alert" className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{loadError}</p>}
