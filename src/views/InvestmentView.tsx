@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, BriefcaseBusiness, CheckCircle2, LoaderCircle, Search, X } from 'lucide-react';
 import { getAuthHeaders } from '../utils/api';
+import { fetchFinnhubQuote } from '../utils/finnhub';
 import { InvestmentAsset, InvestmentAssetType } from '../../shared/investmentCatalog';
 
 interface InvestmentPortfolio {
@@ -17,7 +18,9 @@ interface InvestmentPortfolio {
     marketValue: number;
     dailyChangePercent: number;
     detail: string;
+    profitOverride?: { mode: 'offset' | 'multiplier'; value: number; reason: string } | null;
   }>;
+  profitOverride?: { mode: 'offset' | 'multiplier'; value: number; reason: string } | null;
   checkingAccount: { availableBalance: number; nickname: string } | null;
 }
 
@@ -39,14 +42,6 @@ interface InvestmentViewProps {
 }
 
 const assetGroups: InvestmentAssetType[] = ['Equity', 'ETF', 'Mutual Fund', 'Fixed Income', 'Crypto'];
-const FINNHUB_API_KEY = import.meta.env.VITE_FINNHUB_API_KEY || 'db5quvpr01qmd5lf3v20db5quvpr01qmd5lf3v2g';
-
-interface FinnhubQuote {
-  c: number;
-  d: number;
-  dp: number;
-  pc: number;
-}
 
 function formatUSD(value: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
@@ -54,15 +49,6 @@ function formatUSD(value: number): string {
 
 function formatSignedUSD(value: number): string {
   return `${value >= 0 ? '+' : '-'}${formatUSD(Math.abs(value))}`;
-}
-
-async function fetchFinnhubQuote(symbol: string): Promise<FinnhubQuote> {
-  const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(FINNHUB_API_KEY)}`);
-  if (!response.ok) throw new Error(`Finnhub returned HTTP ${response.status}.`);
-
-  const quote = await response.json() as FinnhubQuote;
-  if (!Number.isFinite(quote.c) || quote.c <= 0) throw new Error('Finnhub returned no current market price.');
-  return quote;
 }
 
 function InvestmentOrderModal({
@@ -262,7 +248,12 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
     const livePrice = assets.find((asset) => asset.symbol === position.symbol)?.marketPrice ?? position.marketPrice;
     const currentValue = shares * livePrice;
     const costBasis = shares * buyPrice;
-    const profitLoss = currentValue - costBasis;
+    const baseProfitLoss = currentValue - costBasis;
+    const profitLoss = position.profitOverride
+      ? position.profitOverride.mode === 'offset'
+        ? baseProfitLoss + position.profitOverride.value
+        : baseProfitLoss * position.profitOverride.value
+      : baseProfitLoss;
     return {
       symbol: position.symbol,
       name: position.name,
@@ -275,9 +266,15 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
     };
   }), [assets, portfolio?.positions]);
   const totalPortfolioValue = liveHoldings.reduce((total, holding) => total + holding.currentValue, 0);
-  const totalUnrealizedProfitLoss = liveHoldings.reduce((total, holding) => total + holding.profitLoss, 0);
-  const totalUnrealizedProfitLossPercent = totalPortfolioValue - totalUnrealizedProfitLoss > 0
-    ? (totalUnrealizedProfitLoss / (totalPortfolioValue - totalUnrealizedProfitLoss)) * 100
+  const holdingsProfitLoss = liveHoldings.reduce((total, holding) => total + holding.profitLoss, 0);
+  const totalUnrealizedProfitLoss = portfolio?.profitOverride
+    ? portfolio.profitOverride.mode === 'offset'
+      ? holdingsProfitLoss + portfolio.profitOverride.value
+      : holdingsProfitLoss * portfolio.profitOverride.value
+    : holdingsProfitLoss;
+  const totalCostBasis = liveHoldings.reduce((total, holding) => total + holding.shares * holding.buyPrice, 0);
+  const totalUnrealizedProfitLossPercent = totalCostBasis > 0
+    ? (totalUnrealizedProfitLoss / totalCostBasis) * 100
     : 0;
   const availableCash = portfolio?.checkingAccount?.availableBalance || 0;
   const totalAccountValue = availableCash + totalPortfolioValue;
@@ -340,6 +337,9 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
             <p className={`mt-1 text-xs font-semibold ${totalUnrealizedProfitLoss < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
               {totalUnrealizedProfitLossPercent > 0 ? '+' : ''}{totalUnrealizedProfitLossPercent.toFixed(2)}% unrealized
             </p>
+            {(portfolio?.profitOverride || liveHoldings.some((holding) => portfolio?.positions.find((position) => position.symbol === holding.symbol)?.profitOverride)) && (
+              <p className="mt-1 text-[11px] font-semibold text-amber-800">Administrative P/L override applied; display-only.</p>
+            )}
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Available Cash</p>
@@ -363,6 +363,9 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
                     <p className={`mt-0.5 text-xs font-semibold ${holding.profitLoss < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
                       {formatSignedUSD(holding.profitLoss)} ({holding.profitLossPercent > 0 ? '+' : ''}{holding.profitLossPercent.toFixed(2)}%)
                     </p>
+                    {portfolio?.positions.find((position) => position.symbol === holding.symbol)?.profitOverride && (
+                      <p className="mt-0.5 text-[11px] font-semibold text-amber-800">Admin P/L override · display-only</p>
+                    )}
                   </div>
                 </div>
               ))}

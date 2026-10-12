@@ -3,6 +3,7 @@ import { User, AuditLog, AdminOverviewData, UserWithAccounts, BankAccount, Trans
 import { getStoredAuthToken } from '../utils/api';
 import { formatTransactionDescription } from '../utils/transactionFormatting';
 import { GrantStatusBadge } from '../components/GrantStatusBadge';
+import { AdminInvestmentManagementView } from './AdminInvestmentManagementView';
 import {
   ShieldAlert,
   Search,
@@ -78,7 +79,7 @@ const getVerificationDocumentUrl = (
 };
 
 export const AdminView: React.FC<AdminViewProps> = ({ user, token, onSignOut }) => {
-const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'verifications' | 'cards' | 'audit' | 'transactions' | 'grants'>('users');
+const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' | 'zelle' | 'verifications' | 'cards' | 'audit' | 'transactions' | 'grants'>('users');
   const [overview, setOverview] = useState<AdminOverviewData | null>(null);
   const [users, setUsers] = useState<UserWithAccounts[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -1074,6 +1075,17 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
             >
               Manage Customer Balances ({users.reduce((acc, u) => acc + (u.accounts?.length || 0), 0)} Accounts)
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('investments')}
+              className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
+                activeTab === 'investments'
+                  ? 'bg-[#173B70] text-white'
+                  : 'text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Investment Management
+            </button>
               <button
                 onClick={() => {
                   setActiveTab('pending');
@@ -1372,6 +1384,15 @@ const [activeTab, setActiveTab] = useState<'users' | 'pending' | 'zelle' | 'veri
               </table>
             </div>
           </div>
+        )}
+
+        {activeTab === 'investments' && (
+          <AdminInvestmentManagementView
+            users={users}
+            onRefreshAdminData={async () => {
+              await Promise.all([fetchUsers(), fetchTransactions(), fetchAuditLogs()]);
+            }}
+          />
         )}
 
         {activeTab === 'verifications' && (

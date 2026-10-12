@@ -2,13 +2,14 @@ import { Router, Response } from 'express';
 import { randomInt, randomUUID } from 'crypto';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { User, Account, Transaction, AuditLog, BankCard, CardApplication } from '../models.js';
+import { User, Account, Transaction, AuditLog, BankCard, CardApplication, InvestmentHolding, InvestmentProfitOverride } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { requireAdmin, AuthenticatedRequest, isAdminRole } from '../auth.js';
 import { maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
 import { createNotification } from '../notifications.js';
 import { formatCryptoAmount, getCryptoUsdRates } from '../cryptoRates.js';
 import { sendPushNotification } from '../webPush.js';
+import { getInvestmentAsset } from '../../shared/investmentCatalog.js';
 
 const router = Router();
 
@@ -287,6 +288,193 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
   } catch (err: any) {
     console.error('Error fetching users for admin:', err);
     res.status(500).json({ error: errorMessage(err, 'Failed to retrieve users.') });
+  }
+});
+
+router.get('/investment-management/:userId', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = String(req.params.userId || '').trim();
+  try {
+    const user = await User.findOne({ id: userId }).select('id full_name email role isAdmin').lean<any>();
+    if (!user || isAdminRole(user.role, user.isAdmin)) {
+      res.status(404).json({ error: 'Customer profile not found.' });
+      return;
+    }
+
+    const [accounts, holdings, overrides] = await Promise.all([
+      Account.find({
+        user_id: userId,
+        account_type: 'Checking',
+        status: 'Active',
+        currency: 'USD',
+      }).select('id nickname account_number balance held_balance currency status').sort({ created_at: 1 }).lean<any[]>(),
+      InvestmentHolding.find({ user_id: userId }).sort({ symbol: 1 }).lean<any[]>(),
+      InvestmentProfitOverride.find({ user_id: userId }).select('symbol mode value reason updated_at updated_by').lean<any[]>(),
+    ]);
+    const overridesBySymbol = new Map(overrides.map((override) => [override.symbol, {
+      mode: override.mode as 'offset' | 'multiplier',
+      value: Number(override.value),
+      reason: override.reason,
+      updatedAt: override.updated_at,
+      updatedBy: override.updated_by,
+    }]));
+    const positions = holdings.flatMap((holding) => {
+      const asset = getInvestmentAsset(holding.symbol);
+      if (!asset) return [];
+      return [{
+        symbol: asset.symbol,
+        name: asset.name,
+        assetType: asset.assetType,
+        quantity: Number(holding.quantity) || 0,
+        averageCost: Number(holding.averageCost) || 0,
+        marketPrice: asset.marketPrice,
+        profitOverride: overridesBySymbol.get(asset.symbol) || null,
+      }];
+    });
+
+    res.set('Cache-Control', 'private, no-store');
+    res.json({
+      user: { id: user.id, full_name: user.full_name, email: user.email },
+      accounts: accounts.map((account) => ({
+        id: account.id,
+        nickname: account.nickname,
+        accountLast4: String(account.account_number || '').slice(-4),
+        balance: Number(account.balance) || 0,
+        heldBalance: Number(account.held_balance) || 0,
+        availableBalance: Math.max(0, Number(account.balance) - (Number(account.held_balance) || 0)),
+      })),
+      positions,
+      profitOverride: overridesBySymbol.get('PORTFOLIO') || null,
+    });
+  } catch (error) {
+    console.error('Unable to load customer investment management details:', error);
+    res.status(500).json({ error: errorMessage(error, 'Unable to load customer investment details.') });
+  }
+});
+
+router.post('/investment-management/:userId/profit-override', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = String(req.params.userId || '').trim();
+  const scope = req.body?.scope === 'portfolio' ? 'portfolio' : req.body?.scope === 'holding' ? 'holding' : '';
+  const action = req.body?.action === 'clear' ? 'clear' : req.body?.action === 'set' ? 'set' : '';
+  const symbolInput = typeof req.body?.symbol === 'string' ? req.body.symbol.trim().toUpperCase() : '';
+  const mode = req.body?.mode === 'offset' || req.body?.mode === 'multiplier' ? req.body.mode : '';
+  const rawValue = req.body?.value;
+  const value = typeof rawValue === 'number' ? rawValue : Number.NaN;
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  const symbol = scope === 'portfolio' ? 'PORTFOLIO' : symbolInput;
+
+  if (!userId || !scope || !action || (scope === 'holding' && !symbolInput)) {
+    res.status(400).json({ error: 'Choose a customer, override scope, and a valid action.' });
+    return;
+  }
+  if (!reason || reason.length > 500) {
+    res.status(400).json({ error: 'A reason of 1 to 500 characters is required.' });
+    return;
+  }
+  if (action === 'set') {
+    if (!mode || !Number.isFinite(value)) {
+      res.status(400).json({ error: 'Choose an override mode and enter a valid value.' });
+      return;
+    }
+    if (mode === 'offset' && (Math.abs(value) > 10000000 || Math.abs(value * 100 - Math.round(value * 100)) > 1e-8)) {
+      res.status(400).json({ error: 'Dollar offsets must be within ±$10,000,000 and use at most 2 decimal places.' });
+      return;
+    }
+    if (mode === 'multiplier' && (value < 0 || value > 100 || Math.abs(value * 10000 - Math.round(value * 10000)) > 1e-8)) {
+      res.status(400).json({ error: 'Multipliers must be between 0 and 100 and use at most 4 decimal places.' });
+      return;
+    }
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let savedOverride: any = null;
+    let transactionId = '';
+    await session.withTransaction(async () => {
+      const targetUser = await User.findOne({ id: userId }).select('id full_name email role isAdmin').session(session).lean<any>();
+      if (!targetUser || isAdminRole(targetUser.role, targetUser.isAdmin)) throw new Error('CUSTOMER_NOT_FOUND');
+
+      if (scope === 'holding') {
+        const targetHolding = await InvestmentHolding.findOne({ user_id: userId, symbol }).session(session).lean<any>();
+        if (!targetHolding) throw new Error('HOLDING_NOT_FOUND');
+      }
+
+      const existingOverride = await InvestmentProfitOverride.findOne({ user_id: userId, symbol }).session(session).lean<any>();
+      if (action === 'clear') {
+        if (!existingOverride) throw new Error('OVERRIDE_NOT_FOUND');
+        await InvestmentProfitOverride.deleteOne({ id: existingOverride.id, user_id: userId }).session(session);
+      } else {
+        savedOverride = await InvestmentProfitOverride.findOneAndUpdate(
+          { user_id: userId, symbol },
+          {
+            $set: { mode, value, reason, updated_by: req.user!.id, updated_at: new Date() },
+            $setOnInsert: { id: `profit_override_${randomUUID()}` },
+          },
+          { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true, session },
+        ).lean<any>();
+      }
+
+      const scopeDescription = scope === 'portfolio' ? 'portfolio total' : `${symbol} holding`;
+      const actionDescription = action === 'clear'
+        ? `Cleared the administrative P/L override for the ${scopeDescription}. Reason: ${reason}`
+        : `Set ${scopeDescription} P/L ${mode === 'offset' ? `offset to ${value >= 0 ? '+' : '-'}$${Math.abs(value).toFixed(2)}` : `multiplier to ${value}×`}. Reason: ${reason}`;
+      transactionId = `tx_profit_override_${randomUUID()}`;
+      const firstCheckingAccount = await Account.findOne({
+        user_id: userId,
+        account_type: 'Checking',
+        status: 'Active',
+        currency: 'USD',
+      }).sort({ created_at: 1 }).select('id').session(session).lean<any>();
+      await Transaction.create([{
+        id: transactionId,
+        user_id: userId,
+        account_id: firstCheckingAccount?.id || `investment-portfolio:${userId}`,
+        type: 'admin_adjustment',
+        amount: 0,
+        currency: 'USD',
+        description: actionDescription,
+        sender_name: 'Administrator',
+        reference_id: transactionId,
+        transaction_type: 'Investment P/L Override',
+        status: 'Completed',
+        category: 'Investment P/L Override',
+        date: new Date().toISOString().slice(0, 10),
+        created_at: Date.now(),
+      }], { session });
+      await AuditLog.create([{
+        id: `log_profit_override_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: action === 'clear' ? 'INVESTMENT_PROFIT_OVERRIDE_CLEARED' : 'INVESTMENT_PROFIT_OVERRIDE_SET',
+        target_user_id: userId,
+        amount: action === 'set' && mode === 'offset' ? value : undefined,
+        details: `${actionDescription} Target member: ${targetUser.email}.`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+      await createNotification({
+        userId,
+        title: 'Investment P/L Display Updated',
+        message: 'An administrative profit/loss display adjustment was recorded. It does not change cash, asset units, or market prices.',
+        type: 'investment',
+        category: 'investments',
+        link: 'history',
+      }, session);
+    });
+
+    res.json({ success: true, override: savedOverride, transactionId });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'CUSTOMER_NOT_FOUND') {
+      res.status(404).json({ error: 'Customer profile not found.' });
+    } else if (error instanceof Error && error.message === 'HOLDING_NOT_FOUND') {
+      res.status(404).json({ error: 'The selected customer does not own that investment.' });
+    } else if (error instanceof Error && error.message === 'OVERRIDE_NOT_FOUND') {
+      res.status(404).json({ error: 'No override exists for this scope to clear.' });
+    } else {
+      console.error('Unable to update investment profit override:', error);
+      res.status(500).json({ error: errorMessage(error, 'Unable to update the investment profit override.') });
+    }
+  } finally {
+    await session.endSession();
   }
 });
 

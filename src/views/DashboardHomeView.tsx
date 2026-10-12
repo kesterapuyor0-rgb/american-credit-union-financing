@@ -70,6 +70,8 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
     totalValue: number;
     dailyChangePercent: number;
     dailyChangeValue: number;
+    unrealizedProfitLoss: number;
+    unrealizedProfitLossPercent: number;
     positions: Array<{
       symbol: string;
       name: string;
@@ -202,6 +204,8 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             totalValue: Number(data.totalValue) || 0,
             dailyChangePercent: Number(data.dailyChangePercent) || 0,
             dailyChangeValue: Number(data.dailyChangeValue) || 0,
+            unrealizedProfitLoss: Number(data.unrealizedProfitLoss) || 0,
+            unrealizedProfitLossPercent: Number(data.unrealizedProfitLossPercent) || 0,
             positions: Array.isArray(data.positions) ? data.positions : [],
           });
         }
@@ -510,6 +514,11 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                   ? 'Loading daily P/L…'
                   : `Daily P/L: ${(investmentSummary?.dailyChangeValue || 0) > 0 ? '+' : ''}${formatMoney(investmentSummary?.dailyChangeValue || 0)} (${(investmentSummary?.dailyChangePercent || 0).toFixed(2)}%)`}
               </span>
+              {!investmentSummaryError && !investmentSummaryLoading && (
+                <span className={`mt-0.5 block truncate text-xs font-semibold ${(investmentSummary?.unrealizedProfitLoss || 0) < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                  Unrealized P/L: {(investmentSummary?.unrealizedProfitLoss || 0) > 0 ? '+' : ''}{formatMoney(investmentSummary?.unrealizedProfitLoss || 0)} ({(investmentSummary?.unrealizedProfitLossPercent || 0) > 0 ? '+' : ''}{(investmentSummary?.unrealizedProfitLossPercent || 0).toFixed(2)}%)
+                </span>
+              )}
               <span className="block truncate text-[10px] leading-4 text-slate-500">Not FDIC insured · No bank guarantee · May lose value</span>
             </span>
             <span className="flex shrink-0 items-center gap-2">

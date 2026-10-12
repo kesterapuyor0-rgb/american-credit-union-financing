@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { randomUUID } from 'crypto';
 import mongoose from 'mongoose';
-import { Account, InvestmentHolding, Transaction } from '../models.js';
+import { Account, InvestmentHolding, InvestmentProfitOverride, Transaction } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { AuthenticatedRequest, requireApprovedUser } from '../auth.js';
 import { createNotification } from '../notifications.js';
@@ -65,7 +65,7 @@ router.get('/catalog', (_req: AuthenticatedRequest, res: Response): void => {
 
 router.get('/portfolio', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const [holdings, accounts] = await Promise.all([
+    const [holdings, accounts, profitOverrides] = await Promise.all([
       InvestmentHolding.find({ user_id: req.user!.id }).sort({ symbol: 1 }).lean<any[]>(),
       Account.find({
         user_id: req.user!.id,
@@ -73,12 +73,41 @@ router.get('/portfolio', async (req: AuthenticatedRequest, res: Response): Promi
         status: 'Active',
         currency: 'USD',
       }).select('id nickname account_number balance held_balance created_at').lean<any[]>(),
+      InvestmentProfitOverride.find({ user_id: req.user!.id }).select('symbol mode value reason').lean<any[]>(),
     ]);
     const checkingAccount = getPrimaryCheckingAccount(accounts);
+    const overridesBySymbol = new Map(profitOverrides.map((override) => [override.symbol, {
+      mode: override.mode as 'offset' | 'multiplier',
+      value: Number(override.value),
+      reason: override.reason,
+    }]));
     const portfolio = summarizePortfolio(holdings);
+    const positions = portfolio.positions.map((position) => ({
+      ...position,
+      profitOverride: overridesBySymbol.get(position.symbol) || null,
+    }));
+    const holdingsProfitLoss = positions.reduce((sum, position) => {
+      const costBasis = position.quantity * position.averageCost;
+      const baseProfitLoss = position.marketValue - costBasis;
+      const override = position.profitOverride;
+      return sum + (override
+        ? override.mode === 'offset' ? baseProfitLoss + override.value : baseProfitLoss * override.value
+        : baseProfitLoss);
+    }, 0);
+    const profitOverride = overridesBySymbol.get('PORTFOLIO') || null;
+    const unrealizedProfitLoss = profitOverride
+      ? profitOverride.mode === 'offset'
+        ? holdingsProfitLoss + profitOverride.value
+        : holdingsProfitLoss * profitOverride.value
+      : holdingsProfitLoss;
+    const totalCostBasis = positions.reduce((sum, position) => sum + position.quantity * position.averageCost, 0);
     res.set('Cache-Control', 'private, no-store');
     res.json({
       ...portfolio,
+      positions,
+      profitOverride,
+      unrealizedProfitLoss,
+      unrealizedProfitLossPercent: totalCostBasis > 0 ? unrealizedProfitLoss / totalCostBasis * 100 : 0,
       checkingAccount: checkingAccount ? {
         id: checkingAccount.id,
         nickname: checkingAccount.nickname,
