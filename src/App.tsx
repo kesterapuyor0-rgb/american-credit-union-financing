@@ -109,7 +109,16 @@ function writeDashboardCache(userId: string, payload: DashboardPayload): void {
   }
 }
 
+const OfflineStatusBanner: React.FC<{ isOnline: boolean }> = ({ isOnline }) => (
+  isOnline ? null : (
+    <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-900">
+      Network connection lost. Cached data may be displayed.
+    </div>
+  )
+);
+
 export default function App() {
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string>(() => getStoredAuthToken());
   const [activeTab, setActiveTab] = useState<string>(() =>
@@ -129,6 +138,17 @@ export default function App() {
   const [restrictionSupportOpen, setRestrictionSupportOpen] = useState(false);
   const [registerNotice, setRegisterNotice] = useState<string | null>(null);
   const [grantApplicationRequested, setGrantApplicationRequested] = useState(false);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const hydrateDashboardCache = (userId: string) => {
     const cached = readDashboardCache(userId);
@@ -375,13 +395,16 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-[100dvh] bg-[#F4F6F8] flex flex-col items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="w-8 h-8 text-[#173B70] animate-spin" />
-          <div className="text-sm font-bold text-[#173B70] font-serif tracking-wide">
-            American Credit Union Financing
+      <div className="min-h-[100dvh] bg-[#F4F6F8] flex flex-col">
+        <OfflineStatusBanner isOnline={isOnline} />
+        <div className="flex flex-1 flex-col items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <RefreshCw className="w-8 h-8 text-[#173B70] animate-spin" />
+            <div className="text-sm font-bold text-[#173B70] font-serif tracking-wide">
+              American Credit Union Financing
+            </div>
+            <div className="text-xs text-gray-500">Loading your account...</div>
           </div>
-          <div className="text-xs text-gray-500">Loading your account...</div>
         </div>
       </div>
     );
@@ -391,44 +414,56 @@ export default function App() {
   if (!user) {
     if (currentPath === '/admin' || currentPath === '/admin/login') {
       return (
-        <LoginView adminOnly onLoginSuccess={handleLoginSuccess} />
+        <>
+          <OfflineStatusBanner isOnline={isOnline} />
+          <LoginView adminOnly onLoginSuccess={handleLoginSuccess} />
+        </>
       );
     }
 
     if (currentPath === '/') {
       return (
-        <LandingView
-          onSignIn={() => navigateTo('/login')}
-          onEnroll={() => navigateTo('/register')}
-          onApplyGrant={() => {
-            setGrantApplicationRequested(true);
-            setRegisterNotice('Sign in to access the Business & Community Grant Program application.');
-            navigateTo('/login');
-          }}
-        />
+        <>
+          <OfflineStatusBanner isOnline={isOnline} />
+          <LandingView
+            onSignIn={() => navigateTo('/login')}
+            onEnroll={() => navigateTo('/register')}
+            onApplyGrant={() => {
+              setGrantApplicationRequested(true);
+              setRegisterNotice('Sign in to access the Business & Community Grant Program application.');
+              navigateTo('/login');
+            }}
+          />
+        </>
       );
     }
 
     if (currentPath === '/register') {
       return (
-        <RegisterView
-          onNavigateToLogin={(notice) => {
-            setRegisterNotice(notice || null);
-            navigateTo('/login');
-          }}
-        />
+        <>
+          <OfflineStatusBanner isOnline={isOnline} />
+          <RegisterView
+            onNavigateToLogin={(notice) => {
+              setRegisterNotice(notice || null);
+              navigateTo('/login');
+            }}
+          />
+        </>
       );
     }
 
     return (
-      <LoginView
-        onLoginSuccess={handleLoginSuccess}
-        onNavigateToRegister={() => {
-          setRegisterNotice(null);
-          navigateTo('/register');
-        }}
-        noticeMessage={registerNotice}
-      />
+      <>
+        <OfflineStatusBanner isOnline={isOnline} />
+        <LoginView
+          onLoginSuccess={handleLoginSuccess}
+          onNavigateToRegister={() => {
+            setRegisterNotice(null);
+            navigateTo('/register');
+          }}
+          noticeMessage={registerNotice}
+        />
+      </>
     );
   }
 
@@ -441,6 +476,7 @@ export default function App() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
         />
+        <OfflineStatusBanner isOnline={isOnline} />
         <Forbidden403View
           onRedirectToDashboard={() => {
             setForbiddenAccess(false);
@@ -463,6 +499,7 @@ export default function App() {
           setActiveTab={setActiveTab}
           isAdminView={true}
         />
+        <OfflineStatusBanner isOnline={isOnline} />
         <main className="mx-auto w-full max-w-full min-w-0 px-3.5 py-6 pb-24 sm:max-w-7xl sm:px-8 sm:pb-6">
           <AdminView user={user} token={token} onSignOut={handleSignOut} />
         </main>
@@ -473,14 +510,17 @@ export default function App() {
 
   if (user.verification_status === 'under_review' || user.verification_status === 'rejected') {
     return (
-      <EnrollmentStatusView
-        user={user}
-        onSignOut={handleSignOut}
-        onGoToDashboard={() => {
-          setActiveTab('home');
-          navigateTo('/dashboard');
-        }}
-      />
+      <>
+        <OfflineStatusBanner isOnline={isOnline} />
+        <EnrollmentStatusView
+          user={user}
+          onSignOut={handleSignOut}
+          onGoToDashboard={() => {
+            setActiveTab('home');
+            navigateTo('/dashboard');
+          }}
+        />
+      </>
     );
   }
 
@@ -500,6 +540,7 @@ export default function App() {
         setHistoryAccountId(accountId);
         setActiveTab('history');
       },
+      isOnline,
     };
 
     switch (activeTab) {
@@ -564,6 +605,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         isAdminView={false}
       />
+      <OfflineStatusBanner isOnline={isOnline} />
 
       <main id="customer-view" role="tabpanel" tabIndex={-1} aria-label={`${activeTab} view`} className="mx-auto w-full max-w-full min-w-0 px-3.5 pt-5 pb-32 sm:max-w-7xl sm:px-8 sm:py-6">
         {user.isRestricted && (

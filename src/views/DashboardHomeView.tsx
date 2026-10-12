@@ -46,6 +46,7 @@ export interface DashboardHomeViewProps {
   onNavigateToTransfer: (fromAccountId?: string) => void;
   onNavigateToTab: (tab: string) => void;
   onNavigateToAccountTransactions: (accountId: string) => void;
+  isOnline: boolean;
   showCardsOnly?: boolean;
 }
 
@@ -60,6 +61,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   onNavigateToTransfer,
   onNavigateToTab,
   onNavigateToAccountTransactions,
+  isOnline,
   showCardsOnly = false,
 }) => {
   const [accountFilter, setAccountFilter] = useState<'All Accounts' | 'Checking' | 'Savings' | 'Investments'>('All Accounts');
@@ -128,6 +130,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const totalNetWorth = totalAccountBalance
     + (investmentSummary?.totalValue || 0)
     + (investmentSummary?.adminProfitOffset || 0);
+  const investmentUnavailable = !isOnline || Boolean(investmentSummaryError);
   const visibleAccounts = accountFilter === 'All Accounts'
     ? orderedCheckingAndSavings
     : accountFilter === 'Investments'
@@ -416,11 +419,11 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               <p className="mt-2 break-all text-3xl font-extrabold tracking-tight text-slate-900">
                 {!balanceVisible
                   ? '••••••'
-                  : investmentSummaryLoading || investmentSummaryError
+                  : investmentSummaryLoading || investmentUnavailable
                     ? '—'
                     : formatMoney(totalNetWorth)}
               </p>
-              {investmentSummaryError && <p role="status" className="mt-2 text-xs text-amber-800">Investment valuation is unavailable; combined total is not shown.</p>}
+              {investmentUnavailable && <p role="status" className="mt-2 text-xs text-amber-800">Investment valuation is unavailable; combined total is not shown.</p>}
             </>
           )}
         </div>
@@ -538,24 +541,24 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateToTab('investments')}
-            aria-label={`Investment Portfolio, ${investmentSummaryLoading ? 'loading value' : investmentSummaryError ? 'value unavailable' : balanceVisible ? formatMoney(investmentSummary?.totalValue || 0) : 'value hidden'}. Open portfolio details.`}
+            aria-label={`Investment Portfolio, ${investmentSummaryLoading ? 'loading value' : investmentUnavailable ? 'value unavailable' : balanceVisible ? formatMoney(investmentSummary?.totalValue || 0) : 'value hidden'}. Open portfolio details.`}
             className="flex min-h-[72px] w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 sm:px-4"
           >
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold text-slate-900">Investment Portfolio</span>
               <span className="mt-0.5 block truncate text-xs text-slate-500">
-                {investmentSummaryError
+                {investmentUnavailable
                   ? 'Portfolio summary unavailable'
                   : investmentSummaryLoading
                   ? 'Loading daily P/L…'
                   : `Daily P/L: ${(investmentSummary?.dailyChangeValue || 0) > 0 ? '+' : ''}${formatMoney(investmentSummary?.dailyChangeValue || 0)} (${(investmentSummary?.dailyChangePercent || 0).toFixed(2)}%)`}
               </span>
-              {!investmentSummaryError && !investmentSummaryLoading && (
+              {!investmentUnavailable && !investmentSummaryLoading && (
                 <span className={`mt-0.5 block truncate text-xs font-semibold ${(investmentSummary?.unrealizedProfitLoss || 0) < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
                   Unrealized P/L: {(investmentSummary?.unrealizedProfitLoss || 0) > 0 ? '+' : ''}{formatMoney(investmentSummary?.unrealizedProfitLoss || 0)} ({(investmentSummary?.unrealizedProfitLossPercent || 0) > 0 ? '+' : ''}{(investmentSummary?.unrealizedProfitLossPercent || 0).toFixed(2)}%)
                 </span>
               )}
-              {!investmentSummaryError && !investmentSummaryLoading && (investmentSummary?.adminProfitOffset || 0) !== 0 && (
+              {!investmentUnavailable && !investmentSummaryLoading && (investmentSummary?.adminProfitOffset || 0) !== 0 && (
                 <span className="block truncate text-[11px] text-amber-800">
                   Includes administrative P/L valuation adjustment: {(investmentSummary?.adminProfitOffset || 0) > 0 ? '+' : ''}{formatMoney(investmentSummary?.adminProfitOffset || 0)}.
                 </span>
@@ -564,7 +567,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
             </span>
             <span className="flex shrink-0 items-center gap-2">
               <span className="text-right text-sm font-bold tabular-nums text-slate-950">
-                {investmentSummaryLoading || investmentSummaryError ? '—' : balanceVisible ? formatMoney(investmentSummary?.totalValue || 0) : '••••••'}
+                {investmentSummaryLoading || investmentUnavailable ? '—' : balanceVisible ? formatMoney(investmentSummary?.totalValue || 0) : '••••••'}
                 <span className="block text-[10px] font-normal text-slate-500">Portfolio value</span>
               </span>
               <ChevronRight aria-hidden="true" className="h-4 w-4 text-slate-400" />
