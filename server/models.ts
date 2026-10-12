@@ -37,6 +37,8 @@ const userSchema = new Schema({
     data: { type: String },
     contentType: { type: String },
   },
+  governmentIdUrl: { type: String, default: '', select: false },
+  selfieUrl: { type: String, default: '', select: false },
   userSelfie: { type: String, default: '', select: false },
   userSelfieStatus: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
   verification_submission: {

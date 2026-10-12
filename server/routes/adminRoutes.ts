@@ -633,7 +633,7 @@ router.put('/users/:userId/wallets', updateCryptoWalletAssignments);
 router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const applicants = await User.find({ role: { $ne: 'admin' }, isAdmin: { $ne: true } })
-      .select('id email full_name phone created_at verification_status verification_rejection_reason verification_submission verificationDocument documentUrl userSelfieStatus +userSelfie')
+      .select('id email full_name phone created_at verification_status verification_rejection_reason verification_submission verificationDocument documentUrl userSelfieStatus +userSelfie +governmentIdUrl +selfieUrl')
       .sort({ created_at: -1 })
       .lean<any[]>();
     res.json({
@@ -642,6 +642,12 @@ router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): 
         verification_status: applicant.verification_status || 'approved',
         verification_rejection_reason: applicant.verification_rejection_reason || '',
         userSelfieStatus: applicant.userSelfieStatus || 'pending',
+        governmentIdUrl: applicant.governmentIdUrl || (
+          applicant.verificationDocument?.data && applicant.verificationDocument?.contentType
+            ? `data:${applicant.verificationDocument.contentType};base64,${applicant.verificationDocument.data}`
+            : ''
+        ),
+        selfieUrl: applicant.selfieUrl || applicant.userSelfie || '',
       })),
     });
   } catch (err) {
@@ -667,7 +673,10 @@ router.patch('/verifications/:userId/selfie-status', async (req: AuthenticatedRe
           id: userId,
           role: { $ne: 'admin' },
           isAdmin: { $ne: true },
-          userSelfie: { $exists: true, $ne: '' },
+          $or: [
+            { selfieUrl: { $exists: true, $ne: '' } },
+            { userSelfie: { $exists: true, $ne: '' } },
+          ],
         },
         { $set: { userSelfieStatus: selfieStatus } },
         { new: true, runValidators: true, session },

@@ -370,7 +370,7 @@ router.post('/register', async (req, res): Promise<void> => {
   res.setHeader('Content-Type', 'application/json');
 
   try {
-    const { name, fullName, email, phone, password, passcode, securityPin, verificationNumber, sampleFile, verificationDocument, userSelfie } = req.body || {};
+    const { name, fullName, email, phone, password, passcode, securityPin, verificationNumber, sampleFile, verificationDocument, governmentIdUrl, userSelfie, selfieUrl } = req.body || {};
     const chosenName = String(name || fullName || '').trim();
     const chosenPassword = password || passcode;
 
@@ -385,10 +385,15 @@ router.post('/register', async (req, res): Promise<void> => {
     const cleanFileName = typeof sampleFile?.name === 'string' ? sampleFile.name.trim().slice(0, 120) : '';
     const cleanFileType = typeof sampleFile?.type === 'string' ? sampleFile.type.trim().toLowerCase() : '';
     const sampleFileSize = Number(sampleFile?.size);
-    const documentData = typeof verificationDocument?.data === 'string' ? verificationDocument.data : '';
-    const documentContentType = typeof verificationDocument?.contentType === 'string'
+    const legacyDocumentData = typeof verificationDocument?.data === 'string' ? verificationDocument.data : '';
+    const legacyDocumentType = typeof verificationDocument?.contentType === 'string'
       ? verificationDocument.contentType.trim().toLowerCase()
       : '';
+    const governmentIdMatch = typeof governmentIdUrl === 'string'
+      ? governmentIdUrl.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$/)
+      : null;
+    const documentData = governmentIdMatch?.[2] || legacyDocumentData;
+    const documentContentType = governmentIdMatch?.[1] || legacyDocumentType;
     if (!cleanVerificationNumber || cleanVerificationNumber.length > 100) {
       res.status(400).json({ success: false, error: 'Enter an identity verification value no longer than 100 characters.' });
       return;
@@ -409,8 +414,9 @@ router.post('/register', async (req, res): Promise<void> => {
       res.status(400).json({ success: false, error: 'The supporting image must be no larger than 5 MB and match its uploaded file.' });
       return;
     }
-    const selfieMatch = typeof userSelfie === 'string'
-      ? userSelfie.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$/)
+    const submittedSelfieUrl = typeof selfieUrl === 'string' ? selfieUrl : userSelfie;
+    const selfieMatch = typeof submittedSelfieUrl === 'string'
+      ? submittedSelfieUrl.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$/)
       : null;
     if (!selfieMatch) {
       res.status(400).json({ success: false, error: 'Upload a valid verification selfie (JPEG, PNG, WebP, or GIF).'});
@@ -469,11 +475,10 @@ router.post('/register', async (req, res): Promise<void> => {
         security_pin: pinHash,
         verification_status: 'under_review',
         verification_rejection_reason: '',
-        verificationDocument: {
-          data: documentData,
-          contentType: documentContentType,
-        },
-        userSelfie,
+        governmentIdUrl: governmentIdMatch
+          ? governmentIdUrl
+          : `data:${documentContentType};base64,${documentData}`,
+        selfieUrl: submittedSelfieUrl,
         userSelfieStatus: 'pending',
         verification_submission: {
           verificationNumber: cleanVerificationNumber,

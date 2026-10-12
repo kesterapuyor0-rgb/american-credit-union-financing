@@ -12,6 +12,8 @@ export interface User {
     data: string;
     contentType: string;
   };
+  governmentIdUrl?: string;
+  selfieUrl?: string;
   userSelfie?: string;
   userSelfieStatus?: 'pending' | 'verified' | 'rejected';
   address?: string;

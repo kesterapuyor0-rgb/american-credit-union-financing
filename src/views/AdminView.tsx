@@ -39,6 +39,8 @@ interface VerificationApplicant {
   verification_status: 'under_review' | 'approved' | 'rejected';
   verification_rejection_reason?: string;
   verificationDocument?: User['verificationDocument'];
+  governmentIdUrl?: string;
+  selfieUrl?: string;
   userSelfie?: string;
   userSelfieStatus: NonNullable<User['userSelfieStatus']>;
   documentUrl?: string;
@@ -74,6 +76,7 @@ const getVerificationDocumentUrl = (
   }
 
   const path = documentUrl?.trim();
+  if (path && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/]+=*$/i.test(path)) return path;
   if (path && (/^https?:\/\/[^\s]+$/i.test(path) || (path.startsWith('/') && !path.startsWith('//')))) {
     return path;
   }
@@ -1523,10 +1526,10 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                 {verificationApplicants.map((applicant) => {
                   const documentUrl = getVerificationDocumentUrl(
                     applicant.verificationDocument,
-                    applicant.documentUrl,
+                    applicant.governmentIdUrl || applicant.documentUrl,
                     applicant.verification_submission?.sampleFileType,
                   );
-                  const selfieUrl = getSelfieImageUrl(applicant.userSelfie);
+                  const selfieUrl = getSelfieImageUrl(applicant.selfieUrl || applicant.userSelfie);
                   return (
                   <article key={applicant.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                     <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
