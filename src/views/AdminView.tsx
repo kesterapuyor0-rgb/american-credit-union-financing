@@ -607,7 +607,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
     }
   };
 
-  const updateCardDetailsPermission = async (card: BankCard) => {
+  const toggleCardUnlock = async (card: BankCard) => {
     const cardDetailsUnlocked = card.cardDetailsUnlocked !== true;
     setSavingCardPermissionId(card.id);
     setCardPermissionError(null);
@@ -1272,6 +1272,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                 <p className="mt-1 text-xs text-gray-600">Set a customer restriction and the message shown on their dashboard.</p>
               </div>
               {restrictionError && <p role="alert" className="mb-3 rounded-sm border border-red-200 bg-red-50 p-3 text-xs text-red-800">{restrictionError}</p>}
+              {cardPermissionError && <p role="alert" className="mb-3 rounded-sm border border-red-200 bg-red-50 p-3 text-xs text-red-800">{cardPermissionError}</p>}
               <div className="space-y-3">
                 {users.map((customer) => {
                   const edit = restrictionEdits[customer.id] || {
@@ -1279,6 +1280,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                     restrictionReason: customer.restrictionReason || '',
                   };
                   const isAdminAccount = customer.role.toLowerCase() === 'admin';
+                  const customerCards = issuedCards.filter((card) => card.user_id === customer.id);
                   return (
                     <div key={customer.id} className="grid gap-3 rounded-sm border border-gray-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-center">
                       <div className="min-w-0">
@@ -1295,6 +1297,35 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                             <button type="button" onClick={() => openWalletAssignment(customer)} className="mt-1 min-h-9 rounded border border-teal-200 px-2.5 py-1.5 font-semibold text-teal-800 hover:bg-teal-50">
                               Assign crypto wallets
                             </button>
+                          </div>
+                        )}
+                        {customerCards.length > 0 && (
+                          <div className="mt-3 space-y-2">
+                            {customerCards.map((card) => (
+                              <div key={card.id} className="flex flex-col gap-2 rounded-lg bg-slate-800 p-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                  <p className="text-sm font-medium text-white">Unlock Full Card Details (CVV/Number)</p>
+                                  <p className="text-xs text-slate-300">{card.product_name} · •••• {card.last4} — Allow user to reveal card details in their dashboard</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={savingCardPermissionId === card.id}
+                                  onClick={() => void toggleCardUnlock(card)}
+                                  aria-pressed={card.cardDetailsUnlocked === true}
+                                  className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:cursor-wait disabled:opacity-60 ${
+                                    card.cardDetailsUnlocked === true
+                                      ? 'bg-emerald-600 text-white'
+                                      : 'bg-slate-700 text-slate-300'
+                                  }`}
+                                >
+                                  {savingCardPermissionId === card.id
+                                    ? 'Updating…'
+                                    : card.cardDetailsUnlocked === true
+                                      ? 'Unlocked (Active)'
+                                      : 'Locked'}
+                                </button>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -1845,7 +1876,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                             <button
                               type="button"
                               disabled={savingCardPermissionId === card.id}
-                              onClick={() => void updateCardDetailsPermission(card)}
+                              onClick={() => void toggleCardUnlock(card)}
                               className="max-w-full whitespace-normal rounded-lg border border-teal-200 bg-teal-50 px-2 py-2 text-[10px] font-semibold text-teal-800 hover:bg-teal-100 disabled:cursor-wait disabled:opacity-60 sm:px-3 sm:text-xs"
                             >
                               {savingCardPermissionId === card.id ? 'Updating…' : card.cardDetailsUnlocked === true ? '[ Lock Card Details ]' : '[ Unlock Card Details ]'}
