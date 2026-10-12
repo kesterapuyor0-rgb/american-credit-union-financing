@@ -136,7 +136,7 @@ export interface BankCard {
   id: string;
   user_id: string;
   account_id: string;
-  canViewCardDetails?: boolean;
+  cardDetailsUnlocked?: boolean;
   card_type: 'Debit' | 'Credit';
   network: 'Visa' | 'Mastercard';
   cardColor?: 'emerald' | 'navy' | 'crimson' | 'gold';

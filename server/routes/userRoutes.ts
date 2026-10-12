@@ -152,7 +152,7 @@ router.get('/summary', requireApprovedUser, async (req: AuthenticatedRequest, re
 router.get('/cards', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const issuedCards = await BankCard.find({ user_id: req.user!.id, status: { $in: ['Active', 'Locked'] } }).sort({ created_at: -1 })
-      .select('id user_id account_id card_type network cardColor product_name last4 masked_number canViewCardDetails status credit_limit created_at').lean<any[]>();
+      .select('id user_id account_id card_type network cardColor product_name last4 masked_number cardDetailsUnlocked status credit_limit created_at').lean<any[]>();
     const accounts = await Account.find({ id: { $in: issuedCards.map((card) => card.account_id) }, user_id: req.user!.id })
       .select('id nickname account_number balance held_balance currency').lean<any[]>();
     const accountById = new Map(accounts.map((account) => [account.id, account]));
@@ -184,13 +184,13 @@ router.get('/cards/:cardId/details', requireApprovedUser, async (req: Authentica
       user_id: req.user!.id,
       status: { $in: ['Active', 'Locked'] },
     };
-    let card = await BankCard.findOne(cardFilter).select('+card_number +expiry_date +cvv canViewCardDetails last4').lean<any>();
+    let card = await BankCard.findOne(cardFilter).select('+card_number +expiry_date +cvv cardDetailsUnlocked last4').lean<any>();
     if (!card) {
       res.status(404).json({ error: 'Card not found or unavailable.' });
       return;
     }
-    if (card.canViewCardDetails !== true) {
-      res.status(403).json({ error: 'Card details are locked. Contact customer support or your bank administrator to authorize access.' });
+    if (card.cardDetailsUnlocked !== true) {
+      res.status(403).json({ error: 'For your security, full card numbers, expiration dates, and CVVs are hidden. Please contact customer support to request authorization to unlock these details.' });
       return;
     }
 
@@ -203,7 +203,7 @@ router.get('/cards/:cardId/details', requireApprovedUser, async (req: Authentica
         cvv: String(randomInt(100, 1000)),
       };
       await BankCard.updateOne(cardFilter, { $set: generatedDetails });
-      card = await BankCard.findOne(cardFilter).select('+card_number +expiry_date +cvv canViewCardDetails').lean<any>();
+      card = await BankCard.findOne(cardFilter).select('+card_number +expiry_date +cvv cardDetailsUnlocked').lean<any>();
     }
     if (!card?.card_number || !card.expiry_date || !card.cvv) {
       throw new Error('Card details are unavailable.');

@@ -110,6 +110,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const [cardAction, setCardAction] = useState<'details' | 'limits' | null>(null);
   const [cardActionBusy, setCardActionBusy] = useState(false);
   const [revealedCardDetails, setRevealedCardDetails] = useState<BankCardDetails | null>(null);
+  const [cardDetailsRevealed, setCardDetailsRevealed] = useState(false);
   const [revealingCardDetails, setRevealingCardDetails] = useState(false);
   const [cardDetailsError, setCardDetailsError] = useState('');
   const carouselRef = useRef<HTMLDivElement>(null);
@@ -176,7 +177,11 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   };
 
   const revealSelectedCardDetails = async () => {
-    if (selectedCarouselItem?.kind !== 'issued' || selectedCarouselItem.card.canViewCardDetails !== true) return;
+    if (selectedCarouselItem?.kind !== 'issued' || selectedCarouselItem.card.cardDetailsUnlocked !== true) return;
+    if (revealedCardDetails) {
+      setCardDetailsRevealed((revealed) => !revealed);
+      return;
+    }
     setRevealingCardDetails(true);
     setCardDetailsError('');
     try {
@@ -187,6 +192,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Unable to retrieve card details.');
       setRevealedCardDetails(data as BankCardDetails);
+      setCardDetailsRevealed(true);
     } catch (error) {
       setCardDetailsError(error instanceof Error ? error.message : 'Unable to retrieve card details.');
     } finally {
@@ -196,6 +202,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
 
   const openCardDetails = () => {
     setRevealedCardDetails(null);
+    setCardDetailsRevealed(false);
     setCardDetailsError('');
     setCardAction('details');
   };
@@ -203,6 +210,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const closeCardAction = () => {
     setCardAction(null);
     setRevealedCardDetails(null);
+    setCardDetailsRevealed(false);
     setCardDetailsError('');
   };
 
@@ -816,31 +824,31 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                 <>
                   <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 px-4">
                     <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Cardholder</dt><dd className="text-right font-medium text-slate-900">{user.full_name}</dd></div>
-                    <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Card number</dt><dd className="font-mono font-medium text-slate-900">{revealedCardDetails?.cardNumber || (selectedCarouselItem.kind === 'issued' ? selectedCarouselItem.card.masked_number || `•••• •••• •••• ${selectedCarouselItem.card.last4}` : `•••• ${selectedCarouselItem.account.account_number.slice(-4)}`)}</dd></div>
+                    <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Card number</dt><dd className="font-mono font-medium text-slate-900">{cardDetailsRevealed && revealedCardDetails ? revealedCardDetails.cardNumber : selectedCarouselItem.kind === 'issued' ? selectedCarouselItem.card.masked_number || `•••• •••• •••• ${selectedCarouselItem.card.last4}` : `•••• ${selectedCarouselItem.account.account_number.slice(-4)}`}</dd></div>
                     {selectedCarouselItem.kind === 'issued' && (
                       <>
                         <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Type / network</dt><dd className="text-right font-medium text-slate-900">{selectedCarouselItem.card.card_type} · {selectedCarouselItem.card.network}</dd></div>
                         <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Status</dt><dd className="font-medium text-slate-900">{selectedCarouselItem.card.status === 'Locked' ? 'Frozen' : 'Active'}</dd></div>
                       </>
                     )}
-                    {revealedCardDetails && (
+                    {revealedCardDetails && cardDetailsRevealed && (
                       <>
                         <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Expiry date</dt><dd className="font-mono font-medium text-slate-900">{revealedCardDetails.expiryDate}</dd></div>
                         <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">CVV</dt><dd className="font-mono font-medium text-slate-900">{revealedCardDetails.cvv}</dd></div>
                       </>
                     )}
                   </dl>
-                  {selectedCarouselItem.kind !== 'issued' || selectedCarouselItem.card.canViewCardDetails !== true ? (
-                    <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-900">Card details are locked. Please contact customer support or your bank administrator to authorize access.</p>
+                  {selectedCarouselItem.kind !== 'issued' || selectedCarouselItem.card.cardDetailsUnlocked !== true ? (
+                    <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-900">For your security, full card numbers, expiration dates, and CVVs are hidden. Please contact customer support to request authorization to unlock these details.</p>
                   ) : (
                     <div className="space-y-2">
                       <button
                         type="button"
                         onClick={() => void revealSelectedCardDetails()}
-                        disabled={revealingCardDetails || Boolean(revealedCardDetails)}
+                        disabled={revealingCardDetails}
                         className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {revealingCardDetails ? 'Retrieving details…' : revealedCardDetails ? 'Card Details Revealed' : '[ Reveal CVV & Full Details ]'}
+                        {revealingCardDetails ? 'Retrieving details…' : cardDetailsRevealed ? '[ Hide Details & CVV ]' : '[ Reveal Details & CVV ]'}
                       </button>
                       {cardDetailsError && <p role="alert" className="text-sm text-rose-700">{cardDetailsError}</p>}
                     </div>

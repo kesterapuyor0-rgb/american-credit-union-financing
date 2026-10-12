@@ -72,7 +72,7 @@ function writeDashboardCache(userId: string, payload: DashboardPayload): void {
       product_name: card.product_name,
       last4: card.last4,
       masked_number: card.masked_number,
-      canViewCardDetails: card.canViewCardDetails ?? false,
+      cardDetailsUnlocked: card.cardDetailsUnlocked ?? false,
       linked_account_name: card.linked_account_name,
       linked_account_available: card.linked_account_available,
       currency: card.currency,

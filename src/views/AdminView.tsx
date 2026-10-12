@@ -608,7 +608,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
   };
 
   const updateCardDetailsPermission = async (card: BankCard) => {
-    const canViewCardDetails = card.canViewCardDetails !== true;
+    const cardDetailsUnlocked = card.cardDetailsUnlocked !== true;
     setSavingCardPermissionId(card.id);
     setCardPermissionError(null);
     setSuccessMsg(null);
@@ -620,16 +620,16 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
           ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
         },
         credentials: 'include',
-        body: JSON.stringify({ canViewCardDetails }),
+        body: JSON.stringify({ cardDetailsUnlocked }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Unable to update card-detail permission.');
       setIssuedCards((currentCards) => currentCards.map((currentCard) =>
         currentCard.id === card.id
-          ? { ...currentCard, canViewCardDetails: data.card.canViewCardDetails }
+          ? { ...currentCard, cardDetailsUnlocked: data.card.cardDetailsUnlocked }
           : currentCard
       ));
-      setSuccessMsg(`${canViewCardDetails ? 'Permitted' : 'Revoked'} card-detail viewing for ${card.product_name}.`);
+      setSuccessMsg(`${cardDetailsUnlocked ? 'Unlocked' : 'Locked'} card details for ${card.product_name}.`);
     } catch (err) {
       setCardPermissionError(err instanceof Error ? err.message : 'Unable to update card-detail permission.');
     } finally {
@@ -1848,7 +1848,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                               onClick={() => void updateCardDetailsPermission(card)}
                               className="max-w-full whitespace-normal rounded-lg border border-teal-200 bg-teal-50 px-2 py-2 text-[10px] font-semibold text-teal-800 hover:bg-teal-100 disabled:cursor-wait disabled:opacity-60 sm:px-3 sm:text-xs"
                             >
-                              {savingCardPermissionId === card.id ? 'Updating…' : card.canViewCardDetails === true ? '[ Revoke Card Detail View ]' : '[ Permit Card Detail View ]'}
+                              {savingCardPermissionId === card.id ? 'Updating…' : card.cardDetailsUnlocked === true ? '[ Lock Card Details ]' : '[ Unlock Card Details ]'}
                             </button>
                             <button type="button" disabled={!canDebit} onClick={() => { setCardToDebit(card); setCardDebitAmount(''); setCardDebitReason(''); setError(null); }} className="max-w-full whitespace-normal rounded-lg bg-rose-700 px-2 py-2 text-[10px] font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 sm:text-xs">Debit linked account</button>
                           </td>

@@ -96,7 +96,7 @@ const cardSchema = new Schema({
   card_number: { type: String, select: false },
   expiry_date: { type: String, select: false },
   cvv: { type: String, select: false },
-  canViewCardDetails: { type: Boolean, default: false },
+  cardDetailsUnlocked: { type: Boolean, default: false },
   status: { type: String, required: true, default: 'Active' },
   credit_limit: { type: Number, default: 0 },
   created_at: { type: Date, required: true, default: Date.now },
