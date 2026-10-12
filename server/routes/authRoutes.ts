@@ -142,15 +142,6 @@ router.post('/login', async (req, res): Promise<void> => {
     }
 
     const normalizedRole = isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user';
-    if (normalizedRole !== 'admin' && user.verification_status === 'rejected') {
-      res.status(403).json({
-        error: 'Your enrollment was not approved.',
-        verificationStatus: 'rejected',
-        rejectionReason: user.verification_rejection_reason || '',
-      });
-      return;
-    }
-
     // Generate 2FA code
     const otpCode = generateOTP();
     const otpId = 'otp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
@@ -215,21 +206,13 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
     // Mark verified
     await VerificationCode.updateOne({ id: record.id }, { $set: { verified: true } });
 
-    const user = await User.findOne({ id: payload.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture kycStatus verification_status verification_rejection_reason').lean<any>();
+    const user = await User.findOne({ id: payload.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture kycStatus verification_status verification_rejection_reason verification_rejection_details').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User profile not found.' });
       return;
     }
 
     const normalizedRole = isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user';
-    if (normalizedRole !== 'admin' && user.verification_status === 'rejected') {
-      res.status(403).json({
-        error: 'Your enrollment was not approved.',
-        verificationStatus: 'rejected',
-        rejectionReason: user.verification_rejection_reason || '',
-      });
-      return;
-    }
     const authToken = signAuthToken({
       id: user.id,
       email: user.email,
@@ -260,9 +243,17 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
       maxAge: 8 * 3600 * 1000,
     });
 
+    const actionRequired = normalizedRole === 'user' && user.verification_status === 'rejected';
+    const pendingReview = normalizedRole === 'user' && user.verification_status === 'under_review';
+    const rejectionReason = user.verification_rejection_reason || '';
+    const rejectionDetails = Array.isArray(user.verification_rejection_details) && user.verification_rejection_details.length
+      ? user.verification_rejection_details
+      : rejectionReason.split(/\r?\n/).map((detail: string) => detail.trim()).filter(Boolean);
     res.json({
       success: true,
       token: authToken,
+      status: actionRequired ? 'action_required' : pendingReview ? 'pending_review' : 'authenticated',
+      ...(actionRequired ? { rejectionReason, rejectionDetails, redirectTo: '/enroll/resubmit' } : {}),
       user: {
         id: user.id,
         email: user.email,
@@ -275,6 +266,8 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
         restrictionReason: user.restrictionReason || '',
         verification_status: user.verification_status || 'approved',
         verification_rejection_reason: user.verification_rejection_reason || '',
+        verification_rejection_details: rejectionDetails,
+        status: actionRequired ? 'action_required' : pendingReview ? 'pending_review' : 'authenticated',
       },
     });
   } catch (err: any) {
@@ -342,7 +335,7 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
       } });
       return;
     }
-    const user = await User.findOne({ id: req.user.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture kycStatus verification_status verification_rejection_reason').lean<any>();
+    const user = await User.findOne({ id: req.user.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture kycStatus verification_status verification_rejection_reason verification_rejection_details').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -353,6 +346,13 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
         profilePicture: user.kycStatus === 'Approved' ? user.profilePicture || '' : '',
         role: isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user',
         verification_status: user.verification_status || 'approved',
+        status: user.verification_status === 'rejected'
+          ? 'action_required'
+          : user.verification_status === 'under_review'
+            ? 'pending_review'
+            : user.verification_status || 'approved',
+        rejectionReason: user.verification_rejection_reason || '',
+        rejectionDetails: user.verification_rejection_details || [],
       },
     });
   } catch (err: any) {

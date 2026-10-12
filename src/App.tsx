@@ -14,6 +14,7 @@ import { LandingView } from './views/LandingView';
 import { ProfileView } from './views/ProfileView';
 import { GrantApplicationView } from './views/GrantApplicationView';
 import { InvestmentView } from './views/InvestmentView';
+import { KycResubmissionView } from './views/KycResubmissionView';
 import { ProfileModal } from './components/ProfileModal';
 import { RefreshCw } from 'lucide-react';
 import { CardsManagementView, DashboardHomeView } from './views/DashboardHomeView';
@@ -180,6 +181,43 @@ export default function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  useEffect(() => {
+    if (!user || user.role !== 'user') return;
+    const updateKycState = (value: unknown) => {
+      if (!value || typeof value !== 'object') return;
+      const state = value as Partial<User> & { userId?: string };
+      if (state.userId !== user.id && state.id !== user.id) return;
+      setUser((current) => current?.id === user.id ? {
+        ...current,
+        status: state.status,
+        verification_status: state.verification_status,
+        verification_rejection_reason: state.verification_rejection_reason,
+        verification_rejection_details: state.verification_rejection_details,
+      } : current);
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== `kyc-status-updated:${user.id}` || !event.newValue) return;
+      try {
+        updateKycState(JSON.parse(event.newValue));
+      } catch (error) {
+        console.error('Unable to read cross-tab KYC status update:', error);
+      }
+    };
+    const handleKycEvent = (event: Event) => updateKycState((event as CustomEvent).detail);
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('kyc:status-updated', handleKycEvent);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('kyc:status-updated', handleKycEvent);
+    };
+  }, [user?.id, user?.role]);
+
+  useEffect(() => {
+    if (user?.role === 'user' && user.verification_status === 'rejected' && currentPath !== '/enroll/resubmit') {
+      navigateTo('/enroll/resubmit');
+    }
+  }, [user?.id, user?.role, user?.verification_status, currentPath]);
 
   useEffect(() => {
     if (user && user.role !== 'admin') {
@@ -361,6 +399,8 @@ export default function App() {
 
     if (loggedInUser.role === 'admin') {
       navigateTo('/admin');
+    } else if (loggedInUser.verification_status === 'rejected' || loggedInUser.status === 'action_required') {
+      navigateTo('/enroll/resubmit');
     } else {
       navigateTo('/dashboard');
       setActiveTab(grantApplicationRequested ? 'grants' : 'home');
@@ -508,7 +548,23 @@ export default function App() {
     );
   }
 
-  if (user.verification_status === 'under_review' || user.verification_status === 'rejected') {
+  if (user.verification_status === 'rejected') {
+    return (
+      <>
+        <OfflineStatusBanner isOnline={isOnline} />
+        <KycResubmissionView
+          user={user}
+          onSignOut={handleSignOut}
+          onSubmitted={(updates) => {
+            setUser((current) => current ? { ...current, ...updates } : current);
+            navigateTo('/dashboard');
+          }}
+        />
+      </>
+    );
+  }
+
+  if (user.verification_status === 'under_review') {
     return (
       <>
         <OfflineStatusBanner isOnline={isOnline} />

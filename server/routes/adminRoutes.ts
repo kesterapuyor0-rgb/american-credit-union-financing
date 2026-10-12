@@ -633,7 +633,7 @@ router.put('/users/:userId/wallets', updateCryptoWalletAssignments);
 router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const applicants = await User.find({ role: { $ne: 'admin' }, isAdmin: { $ne: true } })
-      .select('id email full_name phone address created_at verification_status verification_rejection_reason verification_submission verificationDocument documentUrl userSelfieStatus kycStatus +userSelfie +governmentIdUrl +selfieUrl')
+      .select('id email full_name phone address created_at verification_status verification_rejection_reason verification_rejection_details verification_submission verificationDocument documentUrl userSelfieStatus kycStatus +userSelfie +governmentIdUrl +addressProofUrl +selfieUrl')
       .sort({ created_at: -1 })
       .lean<any[]>();
     res.json({
@@ -641,6 +641,7 @@ router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): 
         ...applicant,
         verification_status: applicant.verification_status || 'approved',
         verification_rejection_reason: applicant.verification_rejection_reason || '',
+        verification_rejection_details: applicant.verification_rejection_details || [],
         userSelfieStatus: applicant.userSelfieStatus || 'pending',
         kycStatus: applicant.kycStatus || 'Pending',
         governmentIdUrl: applicant.governmentIdUrl || (
@@ -660,8 +661,18 @@ router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): 
 router.patch('/verifications/:userId/kyc-status', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userId = String(req.params.userId || '').trim();
   const kycStatus = req.body?.kycStatus;
+  const rejectionReason = typeof req.body?.rejectionReason === 'string' ? req.body.rejectionReason.trim() : '';
+  const rejectionDetails = rejectionReason.split(/\r?\n/).map((detail: string) => detail.trim()).filter(Boolean);
   if (!userId || !['Approved', 'Rejected'].includes(kycStatus)) {
     res.status(400).json({ error: 'Choose Approved or Rejected for the KYC decision.' });
+    return;
+  }
+  if (kycStatus === 'Rejected' && !rejectionDetails.length) {
+    res.status(400).json({ error: 'Enter at least one specific rejection reason, one per line.' });
+    return;
+  }
+  if (rejectionReason.length > 500) {
+    res.status(400).json({ error: 'Rejection reasons must be 500 characters or fewer.' });
     return;
   }
 
@@ -674,7 +685,7 @@ router.patch('/verifications/:userId/kyc-status', async (req: AuthenticatedReque
         role: { $ne: 'admin' },
         isAdmin: { $ne: true },
       })
-        .select('email verificationDocument +governmentIdUrl +selfieUrl +userSelfie')
+        .select('email verificationDocument +governmentIdUrl +addressProofUrl +selfieUrl +userSelfie')
         .session(session)
         .lean<any>();
       const selfieUrl = existingUser?.selfieUrl || existingUser?.userSelfie || '';
@@ -688,11 +699,12 @@ router.patch('/verifications/:userId/kyc-status', async (req: AuthenticatedReque
         throw new Error('Both KYC documents are required before approval.');
       }
 
-      const updates: Record<string, string> = {
+      const updates = {
         kycStatus,
         userSelfieStatus: kycStatus === 'Approved' ? 'verified' : 'rejected',
         verification_status: kycStatus === 'Approved' ? 'approved' : 'rejected',
-        verification_rejection_reason: kycStatus === 'Approved' ? '' : 'Your KYC verification was not approved. Please contact Member Services for assistance.',
+        verification_rejection_reason: kycStatus === 'Approved' ? '' : rejectionReason,
+        verification_rejection_details: kycStatus === 'Approved' ? [] : rejectionDetails,
         profilePicture: kycStatus === 'Approved' ? selfieUrl : '',
       };
 
@@ -700,7 +712,7 @@ router.patch('/verifications/:userId/kyc-status', async (req: AuthenticatedReque
         { id: userId, role: { $ne: 'admin' }, isAdmin: { $ne: true } },
         { $set: updates },
         { new: true, runValidators: true, session },
-      ).select('id email full_name kycStatus userSelfieStatus profilePicture verification_status verification_rejection_reason').lean<any>();
+      ).select('id email full_name kycStatus userSelfieStatus profilePicture verification_status verification_rejection_reason verification_rejection_details').lean<any>();
       if (!reviewedUser) throw new Error('KYC documents were not found for this customer.');
 
       await AuditLog.create([{
@@ -801,6 +813,9 @@ router.patch('/users/:userId/verification-status', async (req: AuthenticatedRequ
       const set: Record<string, unknown> = {
         verification_status: status,
         verification_rejection_reason: status === 'rejected' ? reason : '',
+        verification_rejection_details: status === 'rejected'
+          ? reason.split(/\r?\n/).map((detail) => detail.trim()).filter(Boolean)
+          : [],
       };
       if (status !== 'under_review') set.verification_reviewed_at = new Date();
       updatedUser = await User.findOneAndUpdate(
@@ -810,7 +825,7 @@ router.patch('/users/:userId/verification-status', async (req: AuthenticatedRequ
           ...(status === 'under_review' ? { $unset: { verification_reviewed_at: 1 } } : {}),
         },
         { new: true, session, runValidators: true },
-      ).select('id email full_name verification_status verification_rejection_reason').lean<any>();
+      ).select('id email full_name verification_status verification_rejection_reason verification_rejection_details').lean<any>();
       if (!updatedUser) throw new Error('Customer profile not found.');
 
       await AuditLog.create([{
@@ -861,11 +876,14 @@ router.post('/verifications/:userId/decision', async (req: AuthenticatedRequest,
           $set: {
             verification_status: decision === 'approve' ? 'approved' : 'rejected',
             verification_rejection_reason: decision === 'reject' ? reason : '',
+            verification_rejection_details: decision === 'reject'
+              ? reason.split(/\r?\n/).map((detail: string) => detail.trim()).filter(Boolean)
+              : [],
             verification_reviewed_at: new Date(),
           },
         },
         { new: true, session, runValidators: true },
-      ).select('id email full_name verification_status verification_rejection_reason').lean<any>();
+      ).select('id email full_name verification_status verification_rejection_reason verification_rejection_details').lean<any>();
       if (!reviewedUser) throw new Error('Applicant not found or already reviewed.');
 
       await AuditLog.create([{

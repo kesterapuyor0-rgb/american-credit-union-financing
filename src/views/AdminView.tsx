@@ -39,8 +39,10 @@ interface VerificationApplicant {
   created_at: string;
   verification_status: 'under_review' | 'approved' | 'rejected';
   verification_rejection_reason?: string;
+  verification_rejection_details?: string[];
   verificationDocument?: User['verificationDocument'];
   governmentIdUrl?: string;
+  addressProofUrl?: string;
   selfieUrl?: string;
   profilePicture?: string;
   kycStatus?: NonNullable<User['kycStatus']>;
@@ -577,7 +579,10 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
           ...(activeToken ? { Authorization: 'Bearer ' + activeToken } : {}),
         },
         credentials: 'include',
-        body: JSON.stringify({ kycStatus: newStatus }),
+        body: JSON.stringify({
+          kycStatus: newStatus,
+          rejectionReason: newStatus === 'Rejected' ? verificationStatusEdits[userId]?.reason || '' : '',
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Unable to update KYC status.');
@@ -590,6 +595,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
             profilePicture: data.user.profilePicture,
             verification_status: data.user.verification_status,
             verification_rejection_reason: data.user.verification_rejection_reason,
+            verification_rejection_details: data.user.verification_rejection_details || [],
           }
           : currentApplicant
       ));
@@ -774,6 +780,12 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
     fetchVerificationApplicants();
     fetchIssuedCards();
   }, [activeToken]);
+
+  useEffect(() => {
+    if (activeTab !== 'verifications') return;
+    const refreshTimer = window.setInterval(() => { void fetchVerificationApplicants(); }, 30_000);
+    return () => window.clearInterval(refreshTimer);
+  }, [activeTab, activeToken]);
 
   const handleCardDecision = async (applicationId: string, decision: 'approve' | 'reject') => {
     const reason = String(cardReviewReasons[applicationId] || '').trim();
@@ -1672,6 +1684,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                           <div className="grid gap-3 sm:grid-cols-2">
                             {([
                               { label: 'Government ID', url: documentUrl, filenameLabel: 'government-id', imageClass: 'h-36 w-full object-contain' },
+                              { label: 'Proof of Address', url: applicant.addressProofUrl || null, filenameLabel: 'address-proof', imageClass: 'h-36 w-full object-contain' },
                               { label: 'User Selfie', url: selfieUrl, filenameLabel: 'user-selfie', imageClass: 'h-36 w-36 rounded-full object-cover' },
                             ]).map((document) => (
                               <article key={document.label} className="space-y-2 rounded-md border border-slate-200 bg-white p-3">
@@ -1707,6 +1720,24 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                               {kycReviewError.message}
                             </p>
                           )}
+                          <label htmlFor={`verification-reason-${applicant.id}`} className="block text-xs font-semibold text-slate-700">
+                            Rejection reasons (one per line)
+                            <textarea
+                              id={`verification-reason-${applicant.id}`}
+                              rows={3}
+                              maxLength={500}
+                              placeholder={'Government ID unreadable\nAddress proof expired'}
+                              value={verificationStatusEdits[applicant.id]?.reason || ''}
+                              onChange={(event) => setVerificationStatusEdits((current) => ({
+                                ...current,
+                                [applicant.id]: {
+                                  status: current[applicant.id]?.status || applicant.verification_status,
+                                  reason: event.target.value,
+                                },
+                              }))}
+                              className="mt-1 w-full rounded-md border border-slate-200 p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#173B70]"
+                            />
+                          </label>
                           <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
                             <button
                               type="button"
@@ -1752,26 +1783,6 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                             <option value="rejected">Rejected</option>
                           </select>
                         </label>
-                        {(verificationStatusEdits[applicant.id]?.status || applicant.verification_status) === 'rejected' && (
-                          <label htmlFor={`verification-reason-${applicant.id}`} className="block text-xs font-semibold text-slate-700">
-                            Rejection reason (required)
-                            <textarea
-                              id={`verification-reason-${applicant.id}`}
-                              rows={3}
-                              maxLength={500}
-                              placeholder="Explain why this enrollment is rejected"
-                              value={verificationStatusEdits[applicant.id]?.reason || ''}
-                              onChange={(event) => setVerificationStatusEdits((current) => ({
-                                ...current,
-                                [applicant.id]: {
-                                  status: current[applicant.id]?.status || applicant.verification_status,
-                                  reason: event.target.value,
-                                },
-                              }))}
-                              className="mt-1 w-full rounded-md border border-slate-200 p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#173B70]"
-                            />
-                          </label>
-                        )}
                         <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"

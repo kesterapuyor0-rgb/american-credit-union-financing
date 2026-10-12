@@ -52,6 +52,31 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
 
+  const saveActionRequiredFeedback = (data: any) => {
+    if (data?.user?.status !== 'action_required' && data?.status !== 'action_required' && !data?.redirectTo) return;
+    const feedback = {
+      status: 'action_required',
+      rejectionReason: data.rejectionReason || data.user?.verification_rejection_reason || '',
+      rejectionDetails: data.rejectionDetails || data.user?.verification_rejection_details || [],
+      redirectTo: data.redirectTo || '/enroll/resubmit',
+    };
+    const feedbackJson = JSON.stringify(feedback);
+    try {
+      localStorage.setItem(`kyc-rejection-feedback:${data.user.id}`, feedbackJson);
+      localStorage.setItem(`kyc-status-updated:${data.user.id}`, JSON.stringify({
+        status: 'action_required',
+        verification_status: 'rejected',
+        verification_rejection_reason: feedback.rejectionReason,
+        verification_rejection_details: feedback.rejectionDetails,
+      }));
+    } catch (storageError) {
+      console.error('Unable to persist KYC rejection feedback across tabs:', storageError);
+    }
+    window.dispatchEvent(new CustomEvent('kyc:status-updated', {
+      detail: { userId: data.user.id, verification_status: 'rejected', ...feedback },
+    }));
+  };
+
   useEffect(() => {
     let timer: any;
     if (resendCooldown > 0) {
@@ -102,6 +127,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
           throw new Error('This sign-in is restricted to authorized Member Services specialists.');
         }
         setStoredAuthToken(data.token);
+        saveActionRequiredFeedback(data);
         onLoginSuccess(data.user, data.token);
       } else {
         throw new Error('The sign-in response was incomplete. Please try again.');
@@ -151,6 +177,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
         throw new Error('This sign-in is restricted to authorized Member Services specialists.');
       }
 
+      saveActionRequiredFeedback(data);
       onLoginSuccess(data.user, data.token);
     } catch (err: any) {
       setError(err.message || 'Verification failed. Please try again.');

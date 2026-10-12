@@ -1,13 +1,118 @@
 import { Router, Response } from 'express';
 import { randomInt, randomUUID } from 'crypto';
-import { User, Account, Transaction, BankCard, CardApplication } from '../models.js';
+import { User, Account, Transaction, BankCard, CardApplication, AuditLog } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
-import { requireApprovedUser, AuthenticatedRequest } from '../auth.js';
+import { requireApprovedUser, requireAuth, AuthenticatedRequest } from '../auth.js';
 import { generateCardNumber, maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
 import { formatCryptoAmount } from '../cryptoRates.js';
 
 const router = Router();
 router.use(requireDatabase);
+
+const getImageData = (value: unknown): { dataUrl: string; data: string; contentType: string } | null => {
+  if (typeof value !== 'string') return null;
+  const match = value.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$/i);
+  if (!match || !match[2] || Buffer.from(match[2], 'base64').length > 5 * 1024 * 1024) return null;
+  return { dataUrl: value, contentType: match[1].toLowerCase(), data: match[2] };
+};
+
+router.post('/kyc-resubmission', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const governmentId = getImageData(req.body?.governmentIdUrl);
+  const addressProof = getImageData(req.body?.addressProofUrl);
+  const selfie = getImageData(req.body?.selfieUrl);
+  const verificationNumber = typeof req.body?.verificationNumber === 'string'
+    ? req.body.verificationNumber.trim()
+    : '';
+  if (!governmentId || !addressProof || !selfie) {
+    res.status(400).json({ error: 'Upload a valid government ID, proof of address, and verification selfie (each up to 5 MB).' });
+    return;
+  }
+  if (verificationNumber && !/^\d{9}$/.test(verificationNumber)) {
+    res.status(400).json({ error: 'Enter all 9 digits of your Social Security or Tax ID number, or leave it blank.' });
+    return;
+  }
+  const fileMetadata = (value: unknown, fallback: string, contentType: string, size: number) => {
+    const metadata = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+    const name = typeof metadata.name === 'string' ? metadata.name.trim().slice(0, 120) : '';
+    return {
+      name: name || fallback,
+      type: contentType,
+      size,
+    };
+  };
+  const idMetadata = fileMetadata(req.body?.governmentIdMetadata, 'government-id-resubmission', governmentId.contentType, Buffer.from(governmentId.data, 'base64').length);
+  const addressMetadata = fileMetadata(req.body?.addressProofMetadata, 'address-proof-resubmission', addressProof.contentType, Buffer.from(addressProof.data, 'base64').length);
+
+  try {
+    const rejectedUser = await User.findOne({
+      id: req.user!.id,
+      role: { $ne: 'admin' },
+      isAdmin: { $ne: true },
+      verification_status: 'rejected',
+    }).select('verification_rejection_reason verification_rejection_details').lean<any>();
+    if (!rejectedUser) {
+      res.status(409).json({ error: 'This account is not currently awaiting KYC re-submission. Refresh the page and try again.' });
+      return;
+    }
+    const rejectionDetails = Array.isArray(rejectedUser.verification_rejection_details) && rejectedUser.verification_rejection_details.length
+      ? rejectedUser.verification_rejection_details
+      : String(rejectedUser.verification_rejection_reason || '').split(/\r?\n/);
+    const ssnCorrectionRequired = rejectionDetails.some((detail: string) => /SSN|Social Security|Tax ID/i.test(detail));
+    if (ssnCorrectionRequired && !verificationNumber) {
+      res.status(400).json({ error: 'Member Services requested a corrected 9-digit Social Security or Tax ID number.' });
+      return;
+    }
+    const user = await User.findOneAndUpdate(
+      { id: req.user!.id, role: { $ne: 'admin' }, isAdmin: { $ne: true }, verification_status: 'rejected' },
+      {
+        $set: {
+          verification_status: 'under_review',
+          verification_rejection_reason: '',
+          verification_rejection_details: [],
+          kycStatus: 'Pending',
+          userSelfieStatus: 'pending',
+          profilePicture: '',
+          governmentIdUrl: governmentId.dataUrl,
+          addressProofUrl: addressProof.dataUrl,
+          selfieUrl: selfie.dataUrl,
+          verificationDocument: { data: governmentId.data, contentType: governmentId.contentType },
+          'verification_submission.sampleFileName': idMetadata.name,
+          'verification_submission.sampleFileType': idMetadata.type,
+          'verification_submission.sampleFileSize': idMetadata.size,
+          'verification_submission.addressProofFileName': addressMetadata.name,
+          'verification_submission.addressProofFileType': addressMetadata.type,
+          'verification_submission.addressProofFileSize': addressMetadata.size,
+          'verification_submission.submittedAt': new Date(),
+          ...(verificationNumber ? { 'verification_submission.verificationNumber': verificationNumber } : {}),
+        },
+        $unset: { verification_reviewed_at: 1 },
+      },
+      { new: true, runValidators: true },
+    ).select('id email full_name verification_status kycStatus verification_rejection_reason verification_rejection_details').lean<any>();
+    if (!user) {
+      res.status(409).json({ error: 'This account is not currently awaiting KYC re-submission. Refresh the page and try again.' });
+      return;
+    }
+    try {
+      await AuditLog.create({
+        id: `log_kyc_resubmission_${randomUUID()}`,
+        admin_id: 'system',
+        admin_email: 'system@americancreditunion.financing',
+        action: 'KYC_RESUBMITTED',
+        target_user_id: user.id,
+        details: `Updated KYC documents submitted for review by ${user.email}.`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      });
+    } catch (auditError) {
+      console.error('KYC resubmission was saved, but the audit log could not be written:', auditError);
+    }
+    res.json({ success: true, status: 'pending_review', user: { ...user, status: 'pending_review' } });
+  } catch (err) {
+    console.error('Failed to submit KYC resubmission:', err);
+    res.status(500).json({ error: errorMessage(err, 'Unable to submit replacement KYC documents.') });
+  }
+});
 
 // GET /api/user/wallets — expose only the authenticated member's assigned deposit addresses.
 router.get('/wallets', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
