@@ -434,8 +434,8 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
           )}
         </section>
 
-        <footer className="mt-6 border-t border-slate-200 py-4 text-xs leading-5 text-slate-500">
-        Investment products are not FDIC insured • No bank guarantee • May lose value.
+        <footer className="mt-1 whitespace-normal border-t border-slate-200 py-4 text-[10px] leading-tight text-slate-400">
+          Not FDIC insured • No bank guarantee • May lose value
         </footer>
       </div>
 
