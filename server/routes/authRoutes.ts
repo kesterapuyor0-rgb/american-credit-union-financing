@@ -1,15 +1,14 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'crypto';
+import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'crypto';
 import { User, Account, VerificationCode, AuditLog } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { createNotification } from '../notifications.js';
-import { sendPasswordResetEmail } from '../../lib/email.js';
+import { sendLoginVerificationEmail, sendPasswordResetEmail } from '../../lib/email.js';
 import {
   signAuthToken,
   signTemp2FAToken,
   verifyTemp2FAToken,
-  generateOTP,
   requireAuth,
   isAdminRole,
   AuthenticatedRequest,
@@ -78,14 +77,37 @@ function maskEmail(email: string): string {
   return `${maskedName}@${parts[1]}`;
 }
 
-function maskPhone(phone: string): string {
-  if (phone.length < 4) return phone;
-  const last4 = phone.slice(-4);
-  return `(***) ***-${last4}`;
-}
-
 const hashPasswordResetToken = (token: string) => createHash('sha256').update(token).digest('hex');
 const passwordResetRequestMessage = 'If an account with that email exists, a reset link has been sent.';
+
+async function issueLoginOtp(user: { id: string; email: string; phone: string }): Promise<string> {
+  await VerificationCode.updateMany(
+    { user_id: user.id, purpose: 'login', verified: false },
+    { $set: { verified: true } },
+  );
+  const otpId = `otp_${randomUUID()}`;
+  const otpCode = randomInt(100000, 1000000).toString();
+  await VerificationCode.create({
+    id: otpId,
+    user_id: user.id,
+    email: user.email,
+    phone: user.phone,
+    code: otpCode,
+    purpose: 'login',
+    expires_at: Date.now() + 10 * 60 * 1000,
+    verified: false,
+    created_at: Date.now(),
+  });
+
+  try {
+    await sendLoginVerificationEmail({ email: user.email, code: otpCode });
+  } catch (emailError) {
+    await VerificationCode.updateOne({ id: otpId, verified: false }, { $set: { verified: true } });
+    throw emailError;
+  }
+
+  return otpId;
+}
 
 function getEnrollmentStatus(statusValues: unknown[]): 'incomplete' | 'action_required' | 'pending_review' | null {
   const statuses = statusValues
@@ -319,17 +341,6 @@ router.post('/login', async (req, res): Promise<void> => {
       return;
     }
 
-    // Generate 2FA code
-    const otpCode = generateOTP();
-    const otpId = 'otp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    await VerificationCode.create({
-      id: otpId, user_id: user.id, email: user.email, phone: user.phone,
-      code: otpCode, purpose: 'login', expires_at: expiresAt,
-      verified: false, created_at: Date.now(),
-    });
-
     const tempToken = signTemp2FAToken({
       id: user.id,
       email: user.email,
@@ -340,14 +351,8 @@ router.post('/login', async (req, res): Promise<void> => {
     res.json({
       require2FA: true,
       tempToken,
-      otpId,
       maskedEmail: maskEmail(user.email),
-      maskedPhone: maskPhone(user.phone),
-      email: user.email,
-      phone: user.phone,
-      // For developer / user testing in sandbox without real cellular carrier:
-      simulatedOtp: otpCode,
-      message: 'A security authorization code has been dispatched. Enter the 6-digit code to complete sign in.'
+      message: 'Send a security verification code to your email to complete sign in.',
     });
   } catch (err: any) {
     console.error('Login error:', err);
@@ -360,8 +365,12 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
   try {
     const { tempToken, code, otpId } = req.body;
 
-    if (!tempToken || !code) {
+    if (typeof tempToken !== 'string' || typeof code !== 'string' || typeof otpId !== 'string') {
       res.status(400).json({ error: 'Verification token and 6-digit code are required.' });
+      return;
+    }
+    if (!/^\d{6}$/.test(code)) {
+      res.status(400).json({ error: 'Enter a valid 6-digit verification code.' });
       return;
     }
 
@@ -371,17 +380,22 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
       return;
     }
 
-    const record = await VerificationCode.findOne({
-      user_id: payload.id, purpose: 'login', verified: false, expires_at: { $gt: Date.now() },
-    }).sort({ created_at: -1 }).lean<any>();
-
-    if (!record || record.code !== code.trim()) {
+    const record = await VerificationCode.findOneAndUpdate(
+      {
+        id: otpId,
+        user_id: payload.id,
+        purpose: 'login',
+        code,
+        verified: false,
+        expires_at: { $gt: Date.now() },
+      },
+      { $set: { verified: true } },
+      { new: true },
+    ).lean<any>();
+    if (!record) {
       res.status(400).json({ error: 'Invalid verification code. Please check your code and try again.' });
       return;
     }
-
-    // Mark verified
-    await VerificationCode.updateOne({ id: record.id }, { $set: { verified: true } });
 
     const user = await User.findOne({ id: payload.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture kycStatus verification_status verification_rejection_reason verification_rejection_details').lean<any>();
     if (!user) {
@@ -453,17 +467,21 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
   }
 });
 
-// POST /api/auth/resend-otp
-router.post('/resend-otp', async (req, res): Promise<void> => {
+// POST /api/auth/send-otp
+const sendLoginOtp = async (req: import('express').Request, res: Response): Promise<void> => {
   try {
-    const { tempToken, channel } = req.body;
-    if (!tempToken) {
+    const { tempToken, deliveryMethod, channel } = req.body || {};
+    if (typeof tempToken !== 'string') {
       res.status(400).json({ error: 'Session token required.' });
+      return;
+    }
+    if ((deliveryMethod ?? channel ?? 'email') !== 'email') {
+      res.status(400).json({ error: 'Only email delivery is available for sign-in verification.' });
       return;
     }
 
     const payload = verifyTemp2FAToken(tempToken);
-    if (!payload) {
+    if (!payload || payload.purpose !== 'login') {
       res.status(401).json({ error: 'Session expired. Please sign in again.' });
       return;
     }
@@ -474,28 +492,21 @@ router.post('/resend-otp', async (req, res): Promise<void> => {
       return;
     }
 
-    const otpCode = generateOTP();
-    const otpId = 'otp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-    const expiresAt = Date.now() + 10 * 60 * 1000;
-
-    await VerificationCode.create({
-      id: otpId, user_id: user.id, email: user.email, phone: user.phone,
-      code: otpCode, purpose: 'login', expires_at: expiresAt,
-      verified: false, created_at: Date.now(),
-    });
+    const otpId = await issueLoginOtp(user);
 
     res.json({
       success: true,
       otpId,
-      channel: channel || 'email',
-      simulatedOtp: otpCode,
-      message: `A fresh 6-digit verification code was sent via ${channel === 'sms' ? 'SMS text message' : 'Secure Email'}.`,
+      deliveryMethod: 'email',
+      message: 'Verification code sent to your email.',
     });
   } catch (err: any) {
-    console.error('Resend OTP error:', err);
-    res.status(500).json({ error: errorMessage(err, 'Failed to dispatch new verification code.') });
+    console.error('Sign-in OTP email delivery failed:', err);
+    res.status(503).json({ error: errorMessage(err, 'Unable to send a verification code. Please try again later.') });
   }
-});
+};
+router.post('/send-otp', sendLoginOtp);
+router.post('/resend-otp', sendLoginOtp);
 
 // GET /api/auth/me
 router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) => {

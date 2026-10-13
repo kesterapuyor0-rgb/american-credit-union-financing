@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { randomInt } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { User } from './models.js';
 
@@ -63,7 +64,7 @@ export function verifyTemp2FAToken(token: string): Temp2FAPayload | null {
 }
 
 export function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return randomInt(100000, 1000000).toString();
 }
 
 export interface AuthenticatedRequest extends Request {

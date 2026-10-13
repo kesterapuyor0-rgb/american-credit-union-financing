@@ -60,3 +60,17 @@ export async function sendPasswordResetEmail({
     htmlContent: `<p>We received a request to reset your online banking passcode.</p><p><a href="${safeResetUrl}">Reset your passcode</a></p><p>This link expires in 20 minutes. If you did not request this reset, you can ignore this email.</p>`,
   });
 }
+
+export async function sendLoginVerificationEmail({
+  email,
+  code,
+}: {
+  email: string;
+  code: string;
+}): Promise<void> {
+  await sendEmail({
+    to: email,
+    subject: 'Your Security Verification Code - American Credit Union',
+    htmlContent: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1f2937"><h1 style="font-size:22px;color:#173b70">Security verification code</h1><p>Use this one-time code to complete your sign-in:</p><p style="font-size:32px;font-weight:700;letter-spacing:8px;color:#173b70">${code}</p><p>This code expires in 10 minutes. If you did not try to sign in, you can ignore this email.</p></div>`,
+  });
+}

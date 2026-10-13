@@ -5,7 +5,6 @@ import { safeParseResponse, setStoredAuthToken } from '../utils/api';
 import {
   Lock,
   ShieldCheck,
-  Smartphone,
   Mail,
   ArrowRight,
   AlertCircle,
@@ -42,9 +41,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [otpId, setOtpId] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [maskedEmail, setMaskedEmail] = useState('');
-  const [maskedPhone, setMaskedPhone] = useState('');
-  const [selectedChannel, setSelectedChannel] = useState<'sms' | 'email'>('sms');
-  const [simulatedOtp, setSimulatedOtp] = useState('');
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -86,12 +82,30 @@ export const LoginView: React.FC<LoginViewProps> = ({
   };
 
   useEffect(() => {
-    let timer: any;
     if (resendCooldown > 0) {
-      timer = setTimeout(() => setResendCooldown((prev) => prev - 1), 1000);
+      const timer = window.setTimeout(() => setResendCooldown((prev) => prev - 1), 1000);
+      return () => window.clearTimeout(timer);
     }
-    return () => clearTimeout(timer);
   }, [resendCooldown]);
+
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
+
+  const requestLoginOtp = async (verificationToken: string): Promise<string> => {
+    const response = await fetch('/api/auth/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ tempToken: verificationToken, deliveryMethod: 'email' }),
+    });
+    const result = await safeParseResponse(response);
+    if (!result.ok) throw new Error(result.error || 'Unable to send a verification code.');
+    if (typeof result.data?.otpId !== 'string') throw new Error('The verification response was incomplete.');
+    return result.data.otpId;
+  };
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,12 +155,15 @@ export const LoginView: React.FC<LoginViewProps> = ({
         return;
       }
       if (data.require2FA) {
+        if (typeof data.tempToken !== 'string' || typeof data.maskedEmail !== 'string') {
+          throw new Error('The verification session response was incomplete. Please sign in again.');
+        }
+        const newOtpId = await requestLoginOtp(data.tempToken);
         setTempToken(data.tempToken);
-        setOtpId(data.otpId);
         setMaskedEmail(data.maskedEmail);
-        setMaskedPhone(data.maskedPhone);
-        setSimulatedOtp(data.simulatedOtp);
+        setOtpId(newOtpId);
         setStep('2fa');
+        setSuccessMessage('Verification code sent to your email.');
         setResendCooldown(30);
       } else if (data.token && data.user) {
         if (adminOnly && data.user.role !== 'admin') {
@@ -218,30 +235,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/resend-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          tempToken,
-          channel: selectedChannel,
-        }),
-      });
-
-      const result = await safeParseResponse(res);
-      if (!result.ok) {
-        throw new Error(result.error || 'Failed to resend verification code.');
-      }
-
-      const data = result.data;
-      setSimulatedOtp(data.simulatedOtp);
-      setOtpId(data.otpId);
-      setSuccessMessage(`New code sent via ${selectedChannel === 'sms' ? 'SMS Text' : 'Email'}.`);
+      const newOtpId = await requestLoginOtp(tempToken);
+      setOtpId(newOtpId);
+      setOtpCode('');
+      setSuccessMessage('Verification code sent to your email.');
       setResendCooldown(45);
-      setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err: any) {
       setError(err.message || 'Failed to resend code. Please try again.');
     } finally {
@@ -418,65 +416,19 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   Verify Your Identity
                 </h2>
                 <p className="text-xs text-gray-600 mb-4">
-                  For your security, we dispatched a one-time 6-digit authorization code.
+                  For your security, we sent a one-time 6-digit authorization code to your email.
                 </p>
 
-                {/* Delivery Channel Radio / Info */}
+                {/* Email delivery information */}
                 <div className="p-3 bg-gray-50 border border-gray-200 rounded-sm mb-4 text-xs">
-                  <div className="font-semibold text-gray-700 mb-2">Delivery Method:</div>
-                  <div className="space-y-1.5">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="channel"
-                        checked={selectedChannel === 'sms'}
-                        onChange={() => setSelectedChannel('sms')}
-                        className="text-[#173B70] focus:ring-[#173B70]"
-                      />
-                      <Smartphone className="w-3.5 h-3.5 text-gray-500" />
-                      <span>Text Message (SMS) to {maskedPhone}</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="channel"
-                        checked={selectedChannel === 'email'}
-                        onChange={() => setSelectedChannel('email')}
-                        className="text-[#173B70] focus:ring-[#173B70]"
-                      />
-                      <Mail className="w-3.5 h-3.5 text-gray-500" />
-                      <span>Email to {maskedEmail}</span>
-                    </label>
+                  <div className="flex items-center gap-2 font-semibold text-gray-700">
+                    <Mail className="w-3.5 h-3.5 text-gray-500" />
+                    <span>Email to {maskedEmail}</span>
                   </div>
                 </div>
 
-                {/* Simulated Notification Banner */}
-                {simulatedOtp && (
-                  <div className="mb-4 p-3 bg-emerald-50 border border-emerald-300 rounded-sm">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                        <span>Simulated {selectedChannel.toUpperCase()} Dispatch:</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setOtpCode(simulatedOtp)}
-                        className="text-[11px] font-bold text-emerald-700 underline hover:text-emerald-900 cursor-pointer"
-                      >
-                        Auto-fill
-                      </button>
-                    </div>
-                    <div className="mt-1 flex items-baseline gap-2">
-                      <span className="text-xs text-emerald-700">Code:</span>
-                      <span className="text-base font-mono font-bold tracking-widest text-[#173B70] bg-white px-2.5 py-0.5 rounded-sm border border-emerald-200">
-                        {simulatedOtp}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
                 {successMessage && (
-                  <div className="mb-4 p-2.5 bg-blue-50 border-l-4 border-blue-600 text-blue-800 text-xs flex items-center gap-2">
+                  <div role="status" aria-live="polite" className="mb-4 p-2.5 bg-blue-50 border-l-4 border-blue-600 text-blue-800 text-xs flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
                     <span>{successMessage}</span>
                   </div>
@@ -500,7 +452,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     <input
                       id="input-otp"
                       type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]{6}"
                       maxLength={6}
+                      autoComplete="one-time-code"
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                       required
@@ -521,7 +476,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       <span>
                         {resendCooldown > 0
                           ? `Resend in ${resendCooldown}s`
-                          : 'Send new code'}
+                          : 'Resend code'}
                       </span>
                     </button>
 

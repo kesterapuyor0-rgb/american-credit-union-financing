@@ -31,7 +31,7 @@ The previous local `bank.sqlite` file is no longer read or modified, and its rec
 
 ## Password recovery email
 
-Set `RESEND_API_KEY` and `NEXT_PUBLIC_APP_URL` in local and deployment environments. The API key must only be configured as a server-side secret and must never be committed. Password recovery emails are sent through Resend from `American Credit Union <onboarding@resend.dev>`. Reset links expire after 20 minutes, and only a SHA-256 digest of each reset token is stored in MongoDB. For production delivery, ensure the sender address is authorized for the Resend account.
+Set `RESEND_API_KEY` and `NEXT_PUBLIC_APP_URL` in local and deployment environments. The API key must only be configured as a server-side secret and must never be committed. Password recovery and sign-in verification emails are sent through Resend from `American Credit Union <onboarding@resend.dev>`. Reset links expire after 20 minutes, and sign-in verification codes expire after 10 minutes. For production delivery, ensure the sender address is authorized for the Resend account.
 
 ## Customer enrollment review
 
