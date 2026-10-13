@@ -882,7 +882,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                     </p>
                     {isCryptoTransaction && transaction.formatted_amount && (
                       <p className="truncate text-xs font-medium text-slate-500">
-                        {transaction.formatted_amount} {transaction.currency}
+                        {transaction.formatted_amount}
                       </p>
                     )}
                   </div>
