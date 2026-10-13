@@ -356,17 +356,17 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
         body: JSON.stringify({ profilePicture }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Unable to update profile picture.');
+      if (!response.ok) throw new Error(data.error || 'Unable to update profile selfie.');
       setUsers((currentUsers) => currentUsers.map((currentUser) =>
         currentUser.id === targetUser.id
           ? { ...currentUser, profilePicture: data.user.profilePicture, hasProfilePicture: true }
           : currentUser
       ));
-      setSuccessMsg(`Profile picture updated for ${targetUser.full_name}.`);
+      setSuccessMsg(`Profile selfie updated for ${targetUser.full_name}.`);
     } catch (err) {
       setProfilePictureErrors((current) => ({
         ...current,
-        [targetUser.id]: err instanceof Error ? err.message : 'Unable to update profile picture.',
+        [targetUser.id]: err instanceof Error ? err.message : 'Unable to update profile selfie.',
       }));
     } finally {
       setSavingProfilePictureId(null);
@@ -1470,7 +1470,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                               className={`inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded border border-blue-200 px-2.5 py-1.5 font-semibold text-blue-800 hover:bg-blue-50 ${savingProfilePictureId === customer.id ? 'cursor-wait opacity-60' : ''}`}
                             >
                               <Upload aria-hidden="true" className="h-3.5 w-3.5" />
-                              {savingProfilePictureId === customer.id ? 'Uploading…' : customer.hasProfilePicture ? 'Update profile picture' : 'Upload profile picture'}
+                              {savingProfilePictureId === customer.id ? 'Uploading…' : customer.hasProfilePicture ? 'Replace profile selfie' : 'Upload profile selfie'}
                               <input
                                 id={`profile-picture-${customer.id}`}
                                 type="file"

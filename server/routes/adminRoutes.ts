@@ -322,13 +322,13 @@ router.patch('/users/:userId/profile-picture', async (req: AuthenticatedRequest,
   const profilePicture = typeof req.body?.profilePicture === 'string' ? req.body.profilePicture.trim() : '';
   const match = profilePicture.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$/i);
   if (!userId || !match || !match[2]) {
-    res.status(400).json({ error: 'Upload a valid JPEG, PNG, WebP, or GIF profile picture.' });
+    res.status(400).json({ error: 'Upload a valid JPEG, PNG, WebP, or GIF profile selfie.' });
     return;
   }
 
   const imageData = Buffer.from(match[2], 'base64');
   if (imageData.length === 0 || imageData.length > 5 * 1024 * 1024 || imageData.toString('base64') !== match[2]) {
-    res.status(400).json({ error: 'The profile picture must be no larger than 5 MB and match its uploaded file.' });
+    res.status(400).json({ error: 'The profile selfie must be no larger than 5 MB and match its uploaded file.' });
     return;
   }
 
@@ -357,7 +357,7 @@ router.patch('/users/:userId/profile-picture', async (req: AuthenticatedRequest,
     });
     res.json({ success: true, user: updatedUser });
   } catch (err) {
-    const message = errorMessage(err, 'Unable to update profile picture.');
+    const message = errorMessage(err, 'Unable to update profile selfie.');
     res.status(message === 'Customer profile not found.' ? 404 : 500).json({ error: message });
   } finally {
     await session.endSession();
