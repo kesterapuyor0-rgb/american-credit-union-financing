@@ -15,22 +15,32 @@ export async function sendEmail({
   }
 
   const resend = new Resend(apiKey);
-  const result = await resend.emails.send({
-    from: 'American Credit Union <onboarding@resend.dev>',
-    to: [to],
-    subject,
-    html: htmlContent,
-  });
-  if (result.error) {
-    console.error('Error sending email via Resend:', result.error);
-    throw new Error(`Resend email delivery failed: ${result.error.message}`);
-  }
-  if (!result.data) {
-    throw new Error('Resend did not return an email delivery result.');
-  }
+  const devTestEmail = process.env.DEV_TEST_EMAIL;
+  const recipients = devTestEmail ? [devTestEmail] : [to];
 
-  console.log('Email sent successfully via Resend:', result.data);
-  return { success: true, data: result.data };
+  try {
+    const result = await resend.emails.send({
+      from: 'American Credit Union <onboarding@resend.dev>',
+      to: recipients,
+      subject,
+      html: htmlContent,
+    });
+    if (result.error) {
+      throw new Error(`Resend email delivery failed: ${result.error.message}`);
+    }
+    if (!result.data) {
+      throw new Error('Resend did not return an email delivery result.');
+    }
+
+    console.log('Email sent successfully via Resend:', result.data);
+    return { success: true, data: result.data };
+  } catch (error) {
+    console.error('[Email Service Error]: Failed to dispatch email');
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to dispatch email');
+  }
 }
 
 function escapeHtml(value: string): string {
