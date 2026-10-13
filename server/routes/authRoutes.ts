@@ -109,13 +109,30 @@ async function issueLoginOtp(user: { id: string; email: string; phone: string })
   return otpId;
 }
 
-function getEnrollmentStatus(statusValues: unknown[]): 'incomplete' | 'action_required' | 'pending_review' | null {
-  const statuses = statusValues
-    .filter((status): status is string => typeof status === 'string')
-    .map((status) => status.trim().toLowerCase().replace(/[\s-]+/g, '_'));
+function getEnrollmentStatus({
+  status,
+  enrollmentStatus,
+  verificationStatus,
+  kycStatus,
+}: {
+  status: unknown;
+  enrollmentStatus: unknown;
+  verificationStatus: unknown;
+  kycStatus: unknown;
+}): 'incomplete' | 'action_required' | 'pending_review' | null {
+  const normalize = (value: unknown) => typeof value === 'string'
+    ? value.trim().toLowerCase().replace(/[\s-]+/g, '_')
+    : '';
+  const statuses = [status, enrollmentStatus, verificationStatus, kycStatus].map(normalize);
+  const normalizedVerificationStatus = normalize(verificationStatus);
+  const normalizedKycStatus = normalize(kycStatus);
+  if (normalizedVerificationStatus === 'approved') return null;
+  if (normalizedVerificationStatus === 'rejected') return 'action_required';
+  if (normalizedKycStatus === 'approved') return null;
+  if (normalizedKycStatus === 'rejected') return 'action_required';
   if (statuses.includes('incomplete')) return 'incomplete';
-  if (statuses.some((status) => status === 'rejected' || status === 'action_required')) return 'action_required';
-  if (statuses.some((status) => ['pending', 'pending_review', 'under_review'].includes(status))) return 'pending_review';
+  if (statuses.some((value) => value === 'rejected' || value === 'action_required')) return 'action_required';
+  if (statuses.some((value) => ['pending', 'pending_review', 'under_review'].includes(value))) return 'pending_review';
   return null;
 }
 
@@ -285,7 +302,12 @@ router.post('/login', async (req, res): Promise<void> => {
 
     const normalizedRole = isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user';
     const enrollmentStatus = normalizedRole === 'user'
-      ? getEnrollmentStatus([user.status, user.enrollmentStatus, user.verification_status, user.kycStatus])
+      ? getEnrollmentStatus({
+        status: user.status,
+        enrollmentStatus: user.enrollmentStatus,
+        verificationStatus: user.verification_status,
+        kycStatus: user.kycStatus,
+      })
       : null;
     const incompleteEnrollment = enrollmentStatus === 'incomplete';
     const actionRequired = enrollmentStatus === 'action_required';
@@ -528,7 +550,12 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
       res.status(404).json({ error: 'User not found' });
       return;
     }
-    const enrollmentStatus = getEnrollmentStatus([user.status, user.enrollmentStatus, user.verification_status, user.kycStatus]);
+    const enrollmentStatus = getEnrollmentStatus({
+      status: user.status,
+      enrollmentStatus: user.enrollmentStatus,
+      verificationStatus: user.verification_status,
+      kycStatus: user.kycStatus,
+    });
     const verificationStatus = enrollmentStatus === 'incomplete'
       ? 'incomplete'
       : enrollmentStatus === 'action_required'

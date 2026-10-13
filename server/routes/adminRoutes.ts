@@ -703,6 +703,8 @@ router.patch('/verifications/:userId/kyc-status', async (req: AuthenticatedReque
         kycStatus,
         userSelfieStatus: kycStatus === 'Approved' ? 'verified' : 'rejected',
         verification_status: kycStatus === 'Approved' ? 'approved' : 'rejected',
+        status: kycStatus === 'Approved' ? 'approved' : 'rejected',
+        enrollmentStatus: kycStatus === 'Approved' ? 'approved' : 'rejected',
         verification_rejection_reason: kycStatus === 'Approved' ? '' : rejectionReason,
         verification_rejection_details: kycStatus === 'Approved' ? [] : rejectionDetails,
         profilePicture: kycStatus === 'Approved' ? selfieUrl : '',
@@ -812,6 +814,8 @@ router.patch('/users/:userId/verification-status', async (req: AuthenticatedRequ
     await session.withTransaction(async () => {
       const set: Record<string, unknown> = {
         verification_status: status,
+        status: status === 'under_review' ? 'pending_review' : status,
+        enrollmentStatus: status === 'under_review' ? 'pending_review' : status,
         verification_rejection_reason: status === 'rejected' ? reason : '',
         verification_rejection_details: status === 'rejected'
           ? reason.split(/\r?\n/).map((detail) => detail.trim()).filter(Boolean)
