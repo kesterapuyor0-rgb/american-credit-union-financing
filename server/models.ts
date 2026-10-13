@@ -13,6 +13,8 @@ const userSchema = new Schema({
   id: { type: String, required: true, unique: true, index: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
   password_hash: { type: String, required: true, select: false },
+  resetPasswordToken: { type: String, select: false },
+  resetPasswordExpires: { type: Date, select: false },
   full_name: { type: String, required: true, trim: true },
   role: { type: String, required: true, default: 'user', index: true },
   isAdmin: { type: Boolean, default: false, index: true },

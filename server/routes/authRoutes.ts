@@ -1,9 +1,10 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { randomUUID, timingSafeEqual } from 'crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'crypto';
 import { User, Account, VerificationCode, AuditLog } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { createNotification } from '../notifications.js';
+import { sendPasswordResetEmail } from '../../lib/email.js';
 import {
   signAuthToken,
   signTemp2FAToken,
@@ -83,6 +84,114 @@ function maskPhone(phone: string): string {
   return `(***) ***-${last4}`;
 }
 
+const hashPasswordResetToken = (token: string) => createHash('sha256').update(token).digest('hex');
+const passwordResetRequestMessage = 'If an account with that email exists, a reset link has been sent.';
+
+function getEnrollmentStatus(statusValues: unknown[]): 'incomplete' | 'action_required' | 'pending_review' | null {
+  const statuses = statusValues
+    .filter((status): status is string => typeof status === 'string')
+    .map((status) => status.trim().toLowerCase().replace(/[\s-]+/g, '_'));
+  if (statuses.includes('incomplete')) return 'incomplete';
+  if (statuses.some((status) => status === 'rejected' || status === 'action_required')) return 'action_required';
+  if (statuses.some((status) => ['pending', 'pending_review', 'under_review'].includes(status))) return 'pending_review';
+  return null;
+}
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res): Promise<void> => {
+  try {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      res.status(400).json({ error: 'Enter a valid email address.' });
+      return;
+    }
+
+    const user = await User.findOne({ email }).select('id email').lean<any>();
+    if (!user) {
+      res.json({ success: true, message: passwordResetRequestMessage });
+      return;
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = hashPasswordResetToken(token);
+    const expiresAt = new Date(Date.now() + 20 * 60 * 1000);
+    const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()
+      || process.env.APP_URL?.trim()
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')
+      || (process.env.NODE_ENV !== 'production' ? 'http://localhost:5173' : '');
+    let resetUrl: URL;
+    try {
+      resetUrl = new URL('/auth/reset-password', configuredAppUrl);
+      if (!['http:', 'https:'].includes(resetUrl.protocol)) throw new Error('Reset link URL must use HTTP or HTTPS.');
+    } catch (urlError) {
+      console.error('Password reset link URL is not configured correctly:', urlError);
+      res.status(503).json({ error: 'Unable to process the password reset right now. Please try again later.' });
+      return;
+    }
+    resetUrl.searchParams.set('token', token);
+    resetUrl.searchParams.set('email', user.email);
+
+    await User.updateOne(
+      { id: user.id },
+      { $set: { resetPasswordToken: tokenHash, resetPasswordExpires: expiresAt } },
+    );
+    try {
+      await sendPasswordResetEmail({ email: user.email, resetUrl: resetUrl.toString() });
+    } catch (mailError) {
+      await User.updateOne(
+        { id: user.id, resetPasswordToken: tokenHash },
+        { $unset: { resetPasswordToken: 1, resetPasswordExpires: 1 } },
+      );
+      throw mailError;
+    }
+
+    res.json({ success: true, message: passwordResetRequestMessage });
+  } catch (err) {
+    console.error('Password reset email request failed:', err);
+    res.status(503).json({ error: 'Unable to process the password reset right now. Please try again later.' });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res): Promise<void> => {
+  try {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const token = typeof req.body?.token === 'string' ? req.body.token : '';
+    const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^[a-f0-9]{64}$/i.test(token)) {
+      res.status(400).json({ error: 'Invalid or expired reset token.' });
+      return;
+    }
+    if (newPassword.length < 8 || newPassword.length > 128) {
+      res.status(400).json({ error: 'Your new passcode must be between 8 and 128 characters.' });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    const updatedUser = await User.findOneAndUpdate(
+      {
+        email,
+        resetPasswordToken: hashPasswordResetToken(token),
+        resetPasswordExpires: { $gt: new Date() },
+      },
+      {
+        $set: { password_hash: passwordHash },
+        $unset: { resetPasswordToken: 1, resetPasswordExpires: 1 },
+      },
+      { new: true, projection: { id: 1 } },
+    ).lean<any>();
+    if (!updatedUser) {
+      res.status(400).json({ error: 'Invalid or expired reset token.' });
+      return;
+    }
+
+    res.json({ success: true, message: 'Your passcode has been reset. You can now sign in.' });
+  } catch (err) {
+    console.error('Password reset failed:', err);
+    res.status(500).json({ error: 'Unable to reset your passcode right now. Please try again later.' });
+  }
+});
+
 // POST /api/auth/login
 router.post('/login', async (req, res): Promise<void> => {
   try {
@@ -153,21 +262,12 @@ router.post('/login', async (req, res): Promise<void> => {
     }
 
     const normalizedRole = isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user';
-    const accountStatuses = [user.status, user.enrollmentStatus, user.verification_status, user.kycStatus]
-      .filter((status): status is string => typeof status === 'string')
-      .map((status) => status.trim().toLowerCase().replace(/[\s-]+/g, '_'));
-    const incompleteEnrollment = normalizedRole === 'user' && accountStatuses.includes('incomplete');
-    const actionRequired = normalizedRole === 'user'
-      && accountStatuses.some((status) => status === 'rejected' || status === 'action_required');
-    const primaryStatus = [user.status, user.enrollmentStatus, user.verification_status, user.kycStatus]
-      .find((status): status is string => typeof status === 'string' && Boolean(status.trim()))
-      ?.trim()
-      .toLowerCase()
-      .replace(/[\s-]+/g, '_');
-    const pendingReview = normalizedRole === 'user'
-      && !incompleteEnrollment
-      && !actionRequired
-      && ['pending', 'pending_review', 'under_review'].includes(primaryStatus || '');
+    const enrollmentStatus = normalizedRole === 'user'
+      ? getEnrollmentStatus([user.status, user.enrollmentStatus, user.verification_status, user.kycStatus])
+      : null;
+    const incompleteEnrollment = enrollmentStatus === 'incomplete';
+    const actionRequired = enrollmentStatus === 'action_required';
+    const pendingReview = enrollmentStatus === 'pending_review';
     if (incompleteEnrollment || actionRequired || pendingReview) {
       const authToken = signAuthToken({
         id: user.id,
@@ -417,19 +517,21 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
       res.status(404).json({ error: 'User not found' });
       return;
     }
+    const enrollmentStatus = getEnrollmentStatus([user.status, user.enrollmentStatus, user.verification_status, user.kycStatus]);
+    const verificationStatus = enrollmentStatus === 'incomplete'
+      ? 'incomplete'
+      : enrollmentStatus === 'action_required'
+        ? 'rejected'
+        : enrollmentStatus === 'pending_review'
+          ? 'under_review'
+          : user.verification_status || 'approved';
     res.json({
       user: {
         ...user,
         profilePicture: user.kycStatus === 'Approved' ? user.profilePicture || '' : '',
         role: isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user',
-        verification_status: user.verification_status || 'approved',
-        status: user.status === 'incomplete' || user.enrollmentStatus === 'incomplete'
-          ? 'incomplete'
-          : user.verification_status === 'rejected'
-          ? 'action_required'
-          : user.verification_status === 'under_review'
-            ? 'pending_review'
-            : user.verification_status || 'approved',
+        verification_status: verificationStatus,
+        status: enrollmentStatus || user.verification_status || 'approved',
         ...(user.status === 'incomplete' || user.enrollmentStatus === 'incomplete'
           ? { lastCompletedStep: user.lastCompletedStep ?? user.enrollmentStep ?? 0, enrollmentStep: user.enrollmentStep }
           : {}),

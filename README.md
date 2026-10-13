@@ -29,6 +29,10 @@ Vercel serves the Vite build from `dist` and sends `/api/*` requests to the serv
 
 The previous local `bank.sqlite` file is no longer read or modified, and its records are not imported automatically. Export and migrate any data you need before relying on the Atlas database.
 
+## Password recovery email
+
+Set `RESEND_API_KEY` and `NEXT_PUBLIC_APP_URL` in local and deployment environments. The API key must only be configured as a server-side secret and must never be committed. Password recovery emails are sent through Resend from `American Credit Union <onboarding@resend.dev>`. Reset links expire after 20 minutes, and only a SHA-256 digest of each reset token is stored in MongoDB. For production delivery, ensure the sender address is authorized for the Resend account.
+
 ## Customer enrollment review
 
 The two-step enrollment process collects a customer profile, a verification reference, and supporting document file details. The browser does not upload document contents; MongoDB stores the verification reference and selected-file metadata (filename, MIME type, and size). Customers should not enter a Social Security number or select an actual identity document, and should contact customer support to complete registration.

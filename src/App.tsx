@@ -3,6 +3,7 @@ import { User, BankAccount, BankCard, Transaction, UserSummary } from './types';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { LoginView } from './views/LoginView';
+import { ForgotPasswordView, ResetPasswordView } from './views/PasswordRecoveryViews';
 import { TransactionHistoryView } from './views/TransactionHistoryView';
 import { TransferView } from './views/TransferView';
 import { AdminView } from './views/AdminView';
@@ -454,13 +455,45 @@ export default function App() {
     );
   }
 
+  if (currentPath === '/auth/forgot-password') {
+    return (
+      <>
+        <OfflineStatusBanner isOnline={isOnline} />
+        <ForgotPasswordView onBackToLogin={() => navigateTo(user ? '/dashboard' : '/login')} />
+      </>
+    );
+  }
+
+  if (currentPath === '/auth/reset-password') {
+    return (
+      <>
+        <OfflineStatusBanner isOnline={isOnline} />
+        <ResetPasswordView
+          onBackToLogin={() => navigateTo(user ? '/dashboard' : '/login')}
+          onPasswordReset={async () => {
+            if (user) await handleSignOut();
+            setRegisterNotice('Your passcode has been reset. Sign in with your new passcode.');
+            navigateTo('/login');
+          }}
+        />
+      </>
+    );
+  }
+
   // If not logged in, render the isolated admin login for admin paths.
   if (!user) {
     if (currentPath === '/admin' || currentPath === '/admin/login') {
       return (
         <>
           <OfflineStatusBanner isOnline={isOnline} />
-          <LoginView adminOnly onLoginSuccess={handleLoginSuccess} />
+          <LoginView
+            adminOnly
+            onLoginSuccess={handleLoginSuccess}
+            onNavigateToForgotPassword={(email) => {
+              const emailQuery = email?.trim() ? `?email=${encodeURIComponent(email.trim())}` : '';
+              navigateTo(`/auth/forgot-password${emailQuery}`);
+            }}
+          />
         </>
       );
     }
@@ -501,6 +534,10 @@ export default function App() {
         <OfflineStatusBanner isOnline={isOnline} />
         <LoginView
           onLoginSuccess={handleLoginSuccess}
+          onNavigateToForgotPassword={(email) => {
+            const emailQuery = email?.trim() ? `?email=${encodeURIComponent(email.trim())}` : '';
+            navigateTo(`/auth/forgot-password${emailQuery}`);
+          }}
           onNavigateToRegister={() => {
             setRegisterNotice(null);
             navigateTo('/register');

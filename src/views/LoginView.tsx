@@ -18,6 +18,7 @@ import {
 interface LoginViewProps {
   onLoginSuccess: (user: User, token: string) => void;
   onNavigateToRegister?: () => void;
+  onNavigateToForgotPassword?: (email?: string) => void;
   noticeMessage?: string | null;
   adminOnly?: boolean;
 }
@@ -25,6 +26,7 @@ interface LoginViewProps {
 export const LoginView: React.FC<LoginViewProps> = ({
   onLoginSuccess,
   onNavigateToRegister,
+  onNavigateToForgotPassword,
   noticeMessage,
   adminOnly = false,
 }) => {
@@ -362,9 +364,13 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       />
                       <span>Save this Online ID</span>
                     </label>
-                    <a href="#help" className="text-[#173B70] hover:underline font-semibold">
-                      Forgot ID/Passcode?
-                    </a>
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToForgotPassword?.(email)}
+                      className="font-semibold text-[#173B70] hover:underline"
+                    >
+                      Forgot Passcode?
+                    </button>
                   </div>
 
                   <button
