@@ -709,7 +709,7 @@ export default function App() {
   // Note: Hidden Admin Interfaces constraint:
   // "Ensure zero links, buttons, or visual references to the admin portal exist on the standard user interface."
   return (
-    <div className="min-h-[100dvh] bg-[#F3F4F6] flex flex-col justify-between font-sans pb-[calc(5.5rem_+_env(safe-area-inset-bottom))] sm:pb-0">
+    <div className="min-h-[100dvh] bg-[#F3F4F6] flex flex-col font-sans pb-[calc(5.5rem_+_env(safe-area-inset-bottom))] sm:pb-0">
       <Navbar
         key={user.id}
         user={user}
@@ -719,7 +719,7 @@ export default function App() {
       />
       <OfflineStatusBanner isOnline={isOnline} />
 
-      <main id="customer-view" role="tabpanel" tabIndex={-1} aria-label={`${activeTab} view`} className="mx-auto w-full max-w-full min-w-0 px-3.5 pt-5 pb-32 sm:max-w-7xl sm:px-8 sm:py-6">
+      <main id="customer-view" role="tabpanel" tabIndex={-1} aria-label={`${activeTab} view`} className="mx-auto w-full max-w-full min-w-0 flex-1 px-3.5 pt-5 pb-32 sm:max-w-7xl sm:px-8 sm:py-6">
         {user.isRestricted && (
           <section role="alert" className="mb-3 flex flex-col gap-2 rounded-lg border border-red-300 bg-red-50 p-2 text-red-950 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-2.5">
             <div className="min-w-0">

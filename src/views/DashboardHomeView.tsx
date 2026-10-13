@@ -35,6 +35,17 @@ const CARD_COLOR_CLASSES: Record<NonNullable<BankCard['cardColor']>, string> = {
   gold: 'bg-gradient-to-br from-amber-700 via-yellow-800 to-amber-950',
 };
 
+const formatRecentActivityDate = (value: string): string => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date);
+};
+
 export interface DashboardHomeViewProps {
   user: User;
   accounts: BankAccount[];
@@ -830,7 +841,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                 </div>
               ))}
             </div>
-          ) : <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white px-3 sm:px-4">
+          ) : <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
             {recentTransactions.map((transaction) => {
               const category = transaction.category?.toLowerCase() || '';
               const description = formatTransactionDescription(transaction.description).toLowerCase();
@@ -850,23 +861,31 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                 + (!isIncoming && transaction.type === 'transfer_out'
                   ? (transaction.transfer_fee || 0) + (transaction.transfer_tax || 0)
                   : 0);
+              const isCryptoTransaction = transaction.currency !== 'USD' && !isInvestmentAdjustment;
               const AmountIcon = isInvestmentAdjustment ? ArrowLeftRight : isIncoming ? ArrowDownLeft : ArrowUpRight;
               return (
-                <div key={transaction.id} className="flex min-w-0 items-center gap-3 py-3">
+                <div key={transaction.id} className="flex min-w-0 items-center justify-between gap-3 px-4 py-3">
                   <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${isInvestmentAdjustment ? 'bg-teal-50 text-teal-700' : isIncoming ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                     <AmountIcon aria-hidden="true" className="h-4 w-4" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-900">{formatTransactionDescription(transaction.description)}</p>
-                    <p className="truncate text-xs text-slate-500">{transaction.date}</p>
+                    <p className="truncate text-xs text-slate-500">{formatRecentActivityDate(transaction.date)}</p>
                   </div>
-                  <p className={`shrink-0 whitespace-nowrap text-right text-sm font-bold tabular-nums ${isInvestmentAdjustment ? 'text-teal-800' : isIncoming ? 'text-emerald-700' : 'text-slate-900'}`}>
-                    {isInvestmentAdjustment
-                      ? `P/L ${transaction.amount > 0 ? '+' : transaction.amount < 0 ? '−' : ''}${formatMoney(amount)}`
-                      : `${isIncoming ? '+' : '−'}${transaction.formatted_amount && transaction.currency !== 'USD'
-                        ? `${transaction.formatted_amount} · ${formatMoney(transaction.amount_usd ?? 0)} USD`
-                        : formatMoney(transaction.amount_usd ?? amount)}`}
-                  </p>
+                  <div className="min-w-0 shrink-0 text-right">
+                    <p className={`whitespace-nowrap text-sm font-bold tabular-nums ${isInvestmentAdjustment ? 'text-teal-800' : isIncoming ? 'text-emerald-700' : 'text-slate-900'}`}>
+                      {isInvestmentAdjustment
+                        ? `P/L ${transaction.amount > 0 ? '+' : transaction.amount < 0 ? '−' : ''}${formatMoney(amount)}`
+                        : `${isIncoming ? '+' : '−'}${isCryptoTransaction
+                          ? formatMoney(transaction.amount_usd ?? 0)
+                          : formatMoney(transaction.amount_usd ?? amount)}`}
+                    </p>
+                    {isCryptoTransaction && transaction.formatted_amount && (
+                      <p className="truncate text-xs font-medium text-slate-500">
+                        {transaction.formatted_amount} {transaction.currency}
+                      </p>
+                    )}
+                  </div>
                 </div>
               );
             })}
