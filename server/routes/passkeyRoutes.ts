@@ -15,29 +15,79 @@ import { createNotification } from '../notifications.js';
 
 const router = Router();
 const challengeLifetimeMs = 5 * 60 * 1000;
+const productionPasskeyOrigin = 'https://american-credit-union-financing.vercel.app';
 
 router.use(requireDatabase);
 
-function getWebAuthnConfig(): { rpID: string; origins: string[] } {
-  const configuredOrigins = process.env.PASSKEY_ORIGIN?.trim()
-    || (process.env.NODE_ENV !== 'production' ? 'http://localhost:5173' : '');
-  const origins = configuredOrigins.split(',').map((origin) => {
-    const parsed = new URL(origin.trim());
-    if (parsed.origin !== origin.trim() || (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:')) {
-      throw new Error('PASSKEY_ORIGIN must contain trusted origins, using HTTPS in production.');
-    }
-    return parsed.origin;
-  }).filter(Boolean);
-  if (!origins.length) throw new Error('Set PASSKEY_ORIGIN to the application origin.');
+function parseOrigin(value: string, label: string): URL {
+  const trimmed = value.trim();
+  if (!trimmed) throw new Error(`${label} must not be empty.`);
 
-  const rpID = process.env.PASSKEY_RP_ID?.trim() || new URL(origins[0]).hostname;
-  if (!rpID || origins.some((origin) => {
-    const hostname = new URL(origin).hostname;
-    return hostname !== rpID && !hostname.endsWith(`.${rpID}`);
-  })) {
-    throw new Error('PASSKEY_RP_ID must be the application domain or a parent domain of every configured origin.');
+  let parsed: URL;
+  try {
+    const hasScheme = /^[a-z][a-z\d+.-]*:\/\//i.test(trimmed);
+    const scheme = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+    parsed = new URL(hasScheme ? trimmed : `${scheme}://${trimmed}`);
+  } catch {
+    throw new Error(`${label} must be a valid origin or hostname.`);
   }
-  return { rpID, origins };
+
+  if (!['http:', 'https:'].includes(parsed.protocol)
+    || parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash
+    || (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:')) {
+    throw new Error(`${label} must be an origin without a path, using HTTPS in production.`);
+  }
+  return parsed;
+}
+
+function parseRpID(value: string): string {
+  const trimmed = value.trim();
+  let parsed: URL;
+  try {
+    parsed = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
+  } catch {
+    throw new Error('PASSKEY_RP_ID must be a valid domain name.');
+  }
+  if (parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) {
+    throw new Error('PASSKEY_RP_ID must be a domain name without a path.');
+  }
+  return parsed.hostname.toLowerCase();
+}
+
+function getWebAuthnConfig(requestOrigin?: string): { rpID: string; origin: string } {
+  const vercelOrigin = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  const defaultOrigin = process.env.NODE_ENV === 'production'
+    ? (vercelOrigin || productionPasskeyOrigin)
+    : 'http://localhost:5173';
+  const configuredOrigins = (process.env.PASSKEY_ORIGIN || defaultOrigin)
+    .split(',')
+    .map((origin) => parseOrigin(origin, 'PASSKEY_ORIGIN'));
+  const origins = [...new Set(configuredOrigins.map((origin) => origin.origin))];
+
+  let origin: string;
+  if (requestOrigin) {
+    let requested: URL;
+    try {
+      requested = new URL(requestOrigin);
+    } catch {
+      throw new Error('The request Origin header must be a valid URL.');
+    }
+    if (requested.origin !== requestOrigin) {
+      throw new Error('The request Origin header must contain only an origin.');
+    }
+    origin = origins.find((trustedOrigin) => trustedOrigin === requested.origin) || '';
+    if (!origin) throw new Error('The request origin is not configured as a trusted passkey origin.');
+  } else {
+    origin = origins[0];
+  }
+
+  const hostname = new URL(origin).hostname.toLowerCase();
+  const configuredRpID = process.env.PASSKEY_RP_ID?.trim();
+  const rpID = configuredRpID ? parseRpID(configuredRpID) : hostname;
+  if (hostname !== rpID && !hostname.endsWith(`.${rpID}`)) {
+    throw new Error('PASSKEY_RP_ID must be the application domain or a parent domain of the selected origin.');
+  }
+  return { rpID, origin };
 }
 
 function isResponseObject(value: unknown): value is Record<string, unknown> {
@@ -112,7 +162,7 @@ router.post('/register-options', requireAuth, async (req: AuthenticatedRequest, 
   try {
     const user = await findRequestUser(req);
     if (rejectIneligibleUser(user, res)) return;
-    const { rpID } = getWebAuthnConfig();
+    const { rpID, origin } = getWebAuthnConfig(req.get('origin'));
     const credentials = await PasskeyCredential.find({ userId: user.id }).select('credentialId transports').lean<any[]>();
     const options = await generateRegistrationOptions({
       rpName: 'American Credit Union Financing',
@@ -137,6 +187,8 @@ router.post('/register-options', requireAuth, async (req: AuthenticatedRequest, 
       challenge: options.challenge,
       userId: user.id,
       purpose: 'registration',
+      origin,
+      rpID,
       expiresAt: new Date(Date.now() + challengeLifetimeMs),
     });
     res.json({ challengeId, options });
@@ -168,14 +220,13 @@ router.post('/verify-registration', requireAuth, async (req: AuthenticatedReques
       return;
     }
 
-    const { rpID, origins } = getWebAuthnConfig();
     let verification;
     try {
       verification = await verifyRegistrationResponse({
         response,
         expectedChallenge: challenge.challenge,
-        expectedOrigin: origins,
-        expectedRPID: rpID,
+        expectedOrigin: challenge.origin || getWebAuthnConfig(req.get('origin')).origin,
+        expectedRPID: challenge.rpID || getWebAuthnConfig(req.get('origin')).rpID,
         requireUserVerification: true,
       });
     } catch {
@@ -258,9 +309,9 @@ router.delete('/credentials/:credentialId', requireAuth, async (req: Authenticat
   }
 });
 
-router.post('/login-options', async (_req, res: Response): Promise<void> => {
+router.post('/login-options', async (req, res: Response): Promise<void> => {
   try {
-    const { rpID } = getWebAuthnConfig();
+    const { rpID, origin } = getWebAuthnConfig(req.get('origin'));
     const options = await generateAuthenticationOptions({
       rpID,
       userVerification: 'required',
@@ -271,6 +322,8 @@ router.post('/login-options', async (_req, res: Response): Promise<void> => {
       id: challengeId,
       challenge: options.challenge,
       purpose: 'authentication',
+      origin,
+      rpID,
       expiresAt: new Date(Date.now() + challengeLifetimeMs),
     });
     res.json({ challengeId, options });
@@ -312,14 +365,13 @@ router.post('/verify-login', async (req, res: Response): Promise<void> => {
       return;
     }
 
-    const { rpID, origins } = getWebAuthnConfig();
     let verification;
     try {
       verification = await verifyAuthenticationResponse({
         response,
         expectedChallenge: challenge.challenge,
-        expectedOrigin: origins,
-        expectedRPID: rpID,
+        expectedOrigin: challenge.origin || getWebAuthnConfig(req.get('origin')).origin,
+        expectedRPID: challenge.rpID || getWebAuthnConfig(req.get('origin')).rpID,
         credential: {
           id: credential.credentialId,
           publicKey: Buffer.from(credential.publicKey, 'base64url'),

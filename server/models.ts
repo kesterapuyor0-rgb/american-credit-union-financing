@@ -240,6 +240,8 @@ const passkeyChallengeSchema = new Schema({
   challenge: { type: String, required: true },
   userId: { type: String, default: '' },
   purpose: { type: String, enum: ['registration', 'authentication'], required: true },
+  origin: { type: String, default: '' },
+  rpID: { type: String, default: '' },
   expiresAt: { type: Date, required: true },
 }, { versionKey: false, bufferCommands: false });
 passkeyChallengeSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
