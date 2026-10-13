@@ -4,6 +4,7 @@ export interface User {
   full_name: string;
   role: 'user' | 'admin';
   phone: string;
+  isActive?: boolean;
   isRestricted?: boolean;
   restrictionReason?: string;
   verification_status?: 'incomplete' | 'under_review' | 'approved' | 'rejected';

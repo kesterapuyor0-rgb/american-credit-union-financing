@@ -18,6 +18,7 @@ const userSchema = new Schema({
   full_name: { type: String, required: true, trim: true },
   role: { type: String, required: true, default: 'user', index: true },
   isAdmin: { type: Boolean, default: false, index: true },
+  isActive: { type: Boolean, default: true, required: true, index: true },
   isRestricted: { type: Boolean, default: false, index: true },
   restrictionReason: { type: String, default: '', trim: true, maxlength: 500 },
   phone: { type: String, required: true, trim: true },

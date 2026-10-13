@@ -138,6 +138,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
   const [restrictionEdits, setRestrictionEdits] = useState<Record<string, { isRestricted: boolean; restrictionReason: string }>>({});
   const [savingRestrictionId, setSavingRestrictionId] = useState<string | null>(null);
   const [restrictionError, setRestrictionError] = useState<string | null>(null);
+  const [savingAccountStatusId, setSavingAccountStatusId] = useState<string | null>(null);
+  const [accountStatusError, setAccountStatusError] = useState<string | null>(null);
   const [savingProfilePictureId, setSavingProfilePictureId] = useState<string | null>(null);
   const [profilePictureErrors, setProfilePictureErrors] = useState<Record<string, string>>({});
   const [walletUser, setWalletUser] = useState<UserWithAccounts | null>(null);
@@ -318,6 +320,37 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
       setRestrictionError(err instanceof Error ? err.message : 'Unable to update account restriction.');
     } finally {
       setSavingRestrictionId(null);
+    }
+  };
+
+  const setCustomerAccountStatus = async (targetUser: UserWithAccounts) => {
+    const isActive = targetUser.isActive === false;
+    setSavingAccountStatusId(targetUser.id);
+    setAccountStatusError(null);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(targetUser.id)}/account-status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ isActive }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to update account status.');
+      setUsers((currentUsers) => currentUsers.map((currentUser) =>
+        currentUser.id === targetUser.id
+          ? { ...currentUser, isActive: data.user.isActive }
+          : currentUser
+      ));
+      setSuccessMsg(`${targetUser.full_name}'s account has been ${isActive ? 'reactivated' : 'deactivated'}.`);
+    } catch (err) {
+      setAccountStatusError(err instanceof Error ? err.message : 'Unable to update account status.');
+    } finally {
+      setSavingAccountStatusId(null);
     }
   };
 
@@ -1437,6 +1470,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                 <p className="mt-1 text-xs text-gray-600">Set a customer restriction and the message shown on their dashboard.</p>
               </div>
               {restrictionError && <p role="alert" className="mb-3 rounded-sm border border-red-200 bg-red-50 p-3 text-xs text-red-800">{restrictionError}</p>}
+              {accountStatusError && <p role="alert" className="mb-3 rounded-sm border border-red-200 bg-red-50 p-3 text-xs text-red-800">{accountStatusError}</p>}
               {cardPermissionError && <p role="alert" className="mb-3 rounded-sm border border-red-200 bg-red-50 p-3 text-xs text-red-800">{cardPermissionError}</p>}
               <div className="space-y-3">
                 {users.map((customer) => {
@@ -1460,11 +1494,21 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                             <p className="break-all text-xs text-gray-500">{customer.email}</p>
                           </div>
                         </div>
-                        <p className={`mt-1 text-[10px] font-bold uppercase ${edit.isRestricted ? 'text-red-700' : 'text-emerald-700'}`}>
-                          {isAdminAccount ? 'Member Services account' : edit.isRestricted ? 'Restricted' : 'Active'}
+                        <p className={`mt-1 text-[10px] font-bold uppercase ${isAdminAccount ? 'text-slate-600' : customer.isActive === false ? 'text-red-700' : edit.isRestricted ? 'text-amber-700' : 'text-emerald-700'}`}>
+                          {isAdminAccount ? 'Member Services account' : customer.isActive === false ? 'Deactivated' : edit.isRestricted ? 'Restricted' : 'Active'}
                         </p>
                         {!isAdminAccount && (
                           <div className="mt-2 space-y-1 text-[10px]">
+                            <button
+                              type="button"
+                              disabled={savingAccountStatusId === customer.id}
+                              onClick={() => void setCustomerAccountStatus(customer)}
+                              className={`min-h-9 rounded border px-2.5 py-1.5 font-semibold disabled:cursor-wait disabled:opacity-50 ${customer.isActive === false ? 'border-emerald-200 text-emerald-800 hover:bg-emerald-50' : 'border-red-200 text-red-800 hover:bg-red-50'}`}
+                            >
+                              {savingAccountStatusId === customer.id
+                                ? 'Updating…'
+                                : customer.isActive === false ? 'Reactivate account' : 'Deactivate account'}
+                            </button>
                             <label
                               htmlFor={`profile-picture-${customer.id}`}
                               className={`inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded border border-blue-200 px-2.5 py-1.5 font-semibold text-blue-800 hover:bg-blue-50 ${savingProfilePictureId === customer.id ? 'cursor-wait opacity-60' : ''}`}

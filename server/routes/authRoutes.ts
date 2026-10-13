@@ -294,6 +294,10 @@ router.post('/login', async (req, res): Promise<void> => {
       res.status(401).json({ error: 'The Online ID or Passcode entered does not match our records.' });
       return;
     }
+    if (user.isActive === false) {
+      res.status(403).json({ error: 'This account is deactivated. Contact Member Services for assistance.' });
+      return;
+    }
 
     if (portal === 'admin' && !isAdminRole(user.role, user.isAdmin)) {
       res.status(403).json({ error: 'Administrator credentials are required for this portal.' });
@@ -419,9 +423,13 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
       return;
     }
 
-    const user = await User.findOne({ id: payload.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone profilePicture kycStatus verification_status verification_rejection_reason verification_rejection_details').lean<any>();
+    const user = await User.findOne({ id: payload.id }).select('id email full_name role isAdmin isActive isRestricted restrictionReason phone profilePicture kycStatus verification_status verification_rejection_reason verification_rejection_details').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User profile not found.' });
+      return;
+    }
+    if (user.isActive === false) {
+      res.status(403).json({ error: 'This account is deactivated. Contact Member Services for assistance.' });
       return;
     }
 

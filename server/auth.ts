@@ -108,8 +108,21 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
     return;
   }
 
-  req.user = decoded;
-  next();
+  void User.findOne({ id: decoded.id })
+    .select('isActive')
+    .lean<{ isActive?: boolean }>()
+    .then((user) => {
+      if (user?.isActive === false) {
+        res.status(403).json({ error: 'This account is deactivated. Contact Member Services for assistance.' });
+        return;
+      }
+      req.user = decoded;
+      next();
+    })
+    .catch((error: unknown) => {
+      console.error('Unable to verify account status:', error);
+      res.status(503).json({ error: 'Unable to verify account status right now.' });
+    });
 }
 
 export function requireApprovedUser(req: AuthenticatedRequest, res: Response, next: NextFunction): void {

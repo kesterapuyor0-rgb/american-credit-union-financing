@@ -273,6 +273,7 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
           full_name: 1,
           role: 1,
           isAdmin: 1,
+          isActive: { $ifNull: ['$isActive', true] },
           isRestricted: 1,
           restrictionReason: 1,
           phone: 1,
@@ -1040,6 +1041,59 @@ router.patch('/users/:userId/restriction', async (req: AuthenticatedRequest, res
     }
     console.error('Unable to update user restriction:', error);
     res.status(500).json({ error: errorMessage(error, 'Unable to update account restriction.') });
+  } finally {
+    await session.endSession();
+  }
+});
+
+// PATCH /api/admin/users/:userId/account-status
+router.patch('/users/:userId/account-status', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = String(req.params.userId || '').trim();
+  const isActive = req.body?.isActive;
+  if (!userId || typeof isActive !== 'boolean') {
+    res.status(400).json({ error: 'Provide a user and a boolean account status.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let updatedUser: any = null;
+    await session.withTransaction(async () => {
+      const targetUser = await User.findOne({ id: userId }).select('id email role isAdmin').session(session).lean<any>();
+      if (!targetUser) throw new Error('USER_NOT_FOUND');
+      if (isAdminRole(targetUser.role, targetUser.isAdmin)) throw new Error('ADMIN_STATUS_CHANGE_NOT_ALLOWED');
+
+      updatedUser = await User.findOneAndUpdate(
+        { id: userId, role: { $ne: 'admin' }, isAdmin: { $ne: true } },
+        { $set: { isActive } },
+        { new: true, runValidators: true, session },
+      ).select('id isActive').lean<any>();
+      if (!updatedUser) throw new Error('USER_NOT_FOUND');
+
+      await AuditLog.create([{
+        id: `log_account_status_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: isActive ? 'USER_ACCOUNT_REACTIVATED' : 'USER_ACCOUNT_DEACTIVATED',
+        target_user_id: userId,
+        details: `${isActive ? 'Reactivated' : 'Deactivated'} customer account for ${targetUser.email}.`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+    });
+
+    res.json({ success: true, user: updatedUser });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'USER_NOT_FOUND') {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+    if (error instanceof Error && error.message === 'ADMIN_STATUS_CHANGE_NOT_ALLOWED') {
+      res.status(400).json({ error: 'Administrator accounts cannot be deactivated here.' });
+      return;
+    }
+    console.error('Unable to update user account status:', error);
+    res.status(500).json({ error: errorMessage(error, 'Unable to update account status.') });
   } finally {
     await session.endSession();
   }
