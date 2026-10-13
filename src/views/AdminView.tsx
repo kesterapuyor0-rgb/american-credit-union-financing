@@ -22,6 +22,7 @@ import {
   ArrowUpCircle,
   LogOut,
   FileText,
+  Upload,
 } from 'lucide-react';
 
 interface AdminViewProps {
@@ -137,6 +138,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
   const [restrictionEdits, setRestrictionEdits] = useState<Record<string, { isRestricted: boolean; restrictionReason: string }>>({});
   const [savingRestrictionId, setSavingRestrictionId] = useState<string | null>(null);
   const [restrictionError, setRestrictionError] = useState<string | null>(null);
+  const [savingProfilePictureId, setSavingProfilePictureId] = useState<string | null>(null);
+  const [profilePictureErrors, setProfilePictureErrors] = useState<Record<string, string>>({});
   const [walletUser, setWalletUser] = useState<UserWithAccounts | null>(null);
   const [walletBtcAddress, setWalletBtcAddress] = useState('');
   const [walletUsdtTrc20Address, setWalletUsdtTrc20Address] = useState('');
@@ -315,6 +318,58 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
       setRestrictionError(err instanceof Error ? err.message : 'Unable to update account restriction.');
     } finally {
       setSavingRestrictionId(null);
+    }
+  };
+
+  const uploadCustomerProfilePicture = async (targetUser: UserWithAccounts, file: File) => {
+    setProfilePictureErrors((current) => ({ ...current, [targetUser.id]: '' }));
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) || file.size <= 0 || file.size > 5 * 1024 * 1024) {
+      setProfilePictureErrors((current) => ({
+        ...current,
+        [targetUser.id]: 'Select a JPEG, PNG, WebP, or GIF image up to 5 MB.',
+      }));
+      return;
+    }
+
+    setSavingProfilePictureId(targetUser.id);
+    try {
+      const profilePicture = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result !== 'string' || !reader.result.startsWith(`data:${file.type};base64,`)) {
+            reject(new Error('Unable to read the selected image.'));
+            return;
+          }
+          resolve(reader.result);
+        };
+        reader.onerror = () => reject(new Error('Unable to read the selected image.'));
+        reader.readAsDataURL(file);
+      });
+
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(targetUser.id)}/profile-picture`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ profilePicture }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to update profile picture.');
+      setUsers((currentUsers) => currentUsers.map((currentUser) =>
+        currentUser.id === targetUser.id
+          ? { ...currentUser, profilePicture: data.user.profilePicture, hasProfilePicture: true }
+          : currentUser
+      ));
+      setSuccessMsg(`Profile picture updated for ${targetUser.full_name}.`);
+    } catch (err) {
+      setProfilePictureErrors((current) => ({
+        ...current,
+        [targetUser.id]: err instanceof Error ? err.message : 'Unable to update profile picture.',
+      }));
+    } finally {
+      setSavingProfilePictureId(null);
     }
   };
 
@@ -1394,13 +1449,44 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                   return (
                     <div key={customer.id} className="grid gap-3 rounded-sm border border-gray-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-center">
                       <div className="min-w-0">
-                        <p className="break-words text-sm font-semibold text-gray-900">{customer.full_name}</p>
-                        <p className="break-all text-xs text-gray-500">{customer.email}</p>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
+                            {customer.profilePicture
+                              ? <img src={customer.profilePicture} alt={`${customer.full_name} profile`} className="h-full w-full object-cover" />
+                              : customer.full_name.charAt(0).toUpperCase() || 'U'}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="break-words text-sm font-semibold text-gray-900">{customer.full_name}</p>
+                            <p className="break-all text-xs text-gray-500">{customer.email}</p>
+                          </div>
+                        </div>
                         <p className={`mt-1 text-[10px] font-bold uppercase ${edit.isRestricted ? 'text-red-700' : 'text-emerald-700'}`}>
                           {isAdminAccount ? 'Member Services account' : edit.isRestricted ? 'Restricted' : 'Active'}
                         </p>
                         {!isAdminAccount && (
                           <div className="mt-2 space-y-1 text-[10px]">
+                            <label
+                              htmlFor={`profile-picture-${customer.id}`}
+                              className={`inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded border border-blue-200 px-2.5 py-1.5 font-semibold text-blue-800 hover:bg-blue-50 ${savingProfilePictureId === customer.id ? 'cursor-wait opacity-60' : ''}`}
+                            >
+                              <Upload aria-hidden="true" className="h-3.5 w-3.5" />
+                              {savingProfilePictureId === customer.id ? 'Uploading…' : customer.hasProfilePicture ? 'Update profile picture' : 'Upload profile picture'}
+                              <input
+                                id={`profile-picture-${customer.id}`}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp,image/gif"
+                                disabled={savingProfilePictureId === customer.id}
+                                className="sr-only"
+                                onChange={(event) => {
+                                  const file = event.currentTarget.files?.[0];
+                                  event.currentTarget.value = '';
+                                  if (file) void uploadCustomerProfilePicture(customer, file);
+                                }}
+                              />
+                            </label>
+                            {profilePictureErrors[customer.id] && (
+                              <p role="alert" className="max-w-xs text-xs text-red-700">{profilePictureErrors[customer.id]}</p>
+                            )}
                             <p className="break-all text-slate-600"><span className="font-semibold">BTC:</span> {customer.assigned_btc_address || 'Not assigned'}</p>
                             <p className="break-all text-slate-600"><span className="font-semibold">USDT TRC-20:</span> {customer.assigned_usdt_trc20_address || (customer.usdt_network === 'TRC-20' ? customer.assigned_usdt_address : '') || 'Not assigned'}</p>
                             <p className="break-all text-slate-600"><span className="font-semibold">USDT ERC-20:</span> {customer.assigned_usdt_erc20_address || (customer.usdt_network === 'ERC-20' ? customer.assigned_usdt_address : '') || 'Not assigned'}</p>

@@ -25,6 +25,7 @@ export interface User {
   userSelfieStatus?: 'pending' | 'verified' | 'rejected';
   address?: string;
   profilePicture?: string;
+  hasProfilePicture?: boolean;
   assigned_btc_address?: string;
   assigned_usdt_address?: string;
   usdt_network?: '' | 'TRC-20' | 'ERC-20';

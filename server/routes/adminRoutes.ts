@@ -264,7 +264,32 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
       filter = { id: { $in: [...new Set([...matchingAccounts.map((a) => a.user_id), ...matchingUsers.map((u) => u.id)])] } };
     }
 
-    const users = await User.find(filter).select('id email full_name role isAdmin isRestricted restrictionReason phone address verification_status verification_rejection_reason assigned_btc_address assigned_usdt_address usdt_network assigned_usdt_trc20_address assigned_usdt_erc20_address created_at').sort({ created_at: -1 }).lean<any[]>();
+    const users = await User.aggregate([
+      { $match: filter },
+      {
+        $project: {
+          id: 1,
+          email: 1,
+          full_name: 1,
+          role: 1,
+          isAdmin: 1,
+          isRestricted: 1,
+          restrictionReason: 1,
+          phone: 1,
+          address: 1,
+          hasProfilePicture: { $ne: [{ $ifNull: ['$profilePicture', ''] }, ''] },
+          verification_status: 1,
+          verification_rejection_reason: 1,
+          assigned_btc_address: 1,
+          assigned_usdt_address: 1,
+          usdt_network: 1,
+          assigned_usdt_trc20_address: 1,
+          assigned_usdt_erc20_address: 1,
+          created_at: 1,
+        },
+      },
+      { $sort: { created_at: -1 } },
+    ]);
     const allAccounts = await Account.find({ user_id: { $in: users.map((u) => u.id) } }).sort({ account_type: 1 }).lean<any[]>();
     const accountsByUser = new Map<string, any[]>();
     for (const account of allAccounts) accountsByUser.set(account.user_id, [...(accountsByUser.get(account.user_id) || []), account]);
@@ -288,6 +313,54 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
   } catch (err: any) {
     console.error('Error fetching users for admin:', err);
     res.status(500).json({ error: errorMessage(err, 'Failed to retrieve users.') });
+  }
+});
+
+// PATCH /api/admin/users/:userId/profile-picture
+router.patch('/users/:userId/profile-picture', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = String(req.params.userId || '').trim();
+  const profilePicture = typeof req.body?.profilePicture === 'string' ? req.body.profilePicture.trim() : '';
+  const match = profilePicture.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$/i);
+  if (!userId || !match || !match[2]) {
+    res.status(400).json({ error: 'Upload a valid JPEG, PNG, WebP, or GIF profile picture.' });
+    return;
+  }
+
+  const imageData = Buffer.from(match[2], 'base64');
+  if (imageData.length === 0 || imageData.length > 5 * 1024 * 1024 || imageData.toString('base64') !== match[2]) {
+    res.status(400).json({ error: 'The profile picture must be no larger than 5 MB and match its uploaded file.' });
+    return;
+  }
+
+  const normalizedPicture = `data:${match[1].toLowerCase()};base64,${match[2]}`;
+  const session = await mongoose.startSession();
+  try {
+    let updatedUser: any;
+    await session.withTransaction(async () => {
+      updatedUser = await User.findOneAndUpdate(
+        { id: userId, role: { $ne: 'admin' }, isAdmin: { $ne: true } },
+        { $set: { profilePicture: normalizedPicture } },
+        { new: true, runValidators: true, session },
+      ).select('id email full_name profilePicture').lean<any>();
+      if (!updatedUser) throw new Error('Customer profile not found.');
+
+      await AuditLog.create([{
+        id: `log_profile_picture_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: 'ADMIN_PROFILE_PICTURE_UPDATED',
+        target_user_id: userId,
+        details: `Updated profile picture for ${updatedUser.email}.`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+    });
+    res.json({ success: true, user: updatedUser });
+  } catch (err) {
+    const message = errorMessage(err, 'Unable to update profile picture.');
+    res.status(message === 'Customer profile not found.' ? 404 : 500).json({ error: message });
+  } finally {
+    await session.endSession();
   }
 });
 

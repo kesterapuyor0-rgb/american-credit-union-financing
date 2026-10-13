@@ -430,7 +430,7 @@ router.get('/profile', requireApprovedUser, async (req: AuthenticatedRequest, re
         role: user.role,
         phone: user.phone,
         address: user.address || '',
-        profilePicture: user.kycStatus === 'Approved' ? user.profilePicture || '' : '',
+        profilePicture: user.profilePicture || '',
         kycStatus: user.kycStatus || 'Pending',
         created_at: user.created_at,
       },
@@ -469,7 +469,7 @@ router.put('/profile', requireApprovedUser, async (req: AuthenticatedRequest, re
       user: {
         ...user,
         address: user.address || '',
-        profilePicture: user.kycStatus === 'Approved' ? user.profilePicture || '' : '',
+        profilePicture: user.profilePicture || '',
         kycStatus: user.kycStatus || 'Pending',
       },
     });
