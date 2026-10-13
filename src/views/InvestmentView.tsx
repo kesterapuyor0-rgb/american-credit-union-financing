@@ -327,7 +327,6 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Account Value</p>
             <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums sm:text-4xl">{loading ? 'Loading…' : formatUSD(totalAccountValue)}</p>
-            <p className="mt-1 text-sm text-slate-400">Cash + live investments + admin P/L offset</p>
           </div>
           <div className="mt-5 grid grid-cols-2 gap-4 border-t border-slate-800 pt-4">
             <div className="min-w-0">
