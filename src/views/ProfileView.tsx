@@ -1,7 +1,8 @@
 import React, { FormEvent, useEffect, useState } from 'react';
-import { CheckCircle2, LoaderCircle, LogOut, Mail, MapPin, Phone, Save, UserRound } from 'lucide-react';
+import { startRegistration } from '@simplewebauthn/browser';
+import { CheckCircle2, KeyRound, LoaderCircle, LogOut, Mail, MapPin, Phone, Save, Trash2, UserRound } from 'lucide-react';
 import { User } from '../types';
-import { getAuthHeaders } from '../utils/api';
+import { getAuthHeaders, safeParseResponse } from '../utils/api';
 
 interface ProfileViewProps {
   user: User;
@@ -12,6 +13,13 @@ interface ProfileViewProps {
 interface ProfileForm {
   phone: string;
   address: string;
+}
+
+interface PasskeyCredential {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
 }
 
 const formatUsPhoneForDisplay = (phone: string): string => {
@@ -28,6 +36,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdated, o
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
+  const [passkeyName, setPasskeyName] = useState('This device');
+  const [loadingPasskeys, setLoadingPasskeys] = useState(true);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [passkeyMessage, setPasskeyMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +70,83 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdated, o
     void loadProfile();
     return () => { cancelled = true; };
   }, [user.id]);
+
+  const loadPasskeys = async () => {
+    setLoadingPasskeys(true);
+    try {
+      const response = await fetch('/api/auth/passkey/credentials', { headers: getAuthHeaders(), credentials: 'include' });
+      const result = await safeParseResponse<{ credentials?: PasskeyCredential[] }>(response);
+      if (!result.ok) throw new Error(result.error || 'Unable to load passkeys.');
+      setPasskeys(Array.isArray(result.data.credentials) ? result.data.credentials : []);
+    } catch (error) {
+      setPasskeyMessage({ type: 'error', text: error instanceof Error ? error.message : 'Unable to load passkeys.' });
+    } finally {
+      setLoadingPasskeys(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadPasskeys();
+  }, [user.id]);
+
+  const registerPasskey = async () => {
+    setPasskeyBusy(true);
+    setPasskeyMessage(null);
+    try {
+      const optionsResponse = await fetch('/api/auth/passkey/register-options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        credentials: 'include',
+      });
+      const optionsResult = await safeParseResponse(optionsResponse);
+      if (!optionsResult.ok) throw new Error(optionsResult.error || 'Unable to start passkey registration.');
+      if (typeof optionsResult.data?.challengeId !== 'string' || !optionsResult.data?.options) {
+        throw new Error('The passkey registration response was incomplete.');
+      }
+
+      const credential = await startRegistration({ optionsJSON: optionsResult.data.options });
+      const verifyResponse = await fetch('/api/auth/passkey/verify-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify({
+          challengeId: optionsResult.data.challengeId,
+          response: credential,
+          name: passkeyName.trim(),
+        }),
+      });
+      const verifyResult = await safeParseResponse(verifyResponse);
+      if (!verifyResult.ok) throw new Error(verifyResult.error || 'Unable to save this passkey.');
+      setPasskeyName('This device');
+      setPasskeyMessage({ type: 'success', text: 'Passkey added. You can now use it to sign in.' });
+      await loadPasskeys();
+    } catch (error) {
+      setPasskeyMessage({ type: 'error', text: error instanceof Error ? error.message : 'Unable to register a passkey.' });
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
+
+  const removePasskey = async (credential: PasskeyCredential) => {
+    if (!window.confirm(`Remove the passkey "${credential.name}"? It will no longer work to sign in.`)) return;
+    setPasskeyBusy(true);
+    setPasskeyMessage(null);
+    try {
+      const response = await fetch(`/api/auth/passkey/credentials/${encodeURIComponent(credential.id)}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
+      const result = await safeParseResponse(response);
+      if (!result.ok) throw new Error(result.error || 'Unable to remove this passkey.');
+      setPasskeys((current) => current.filter((passkey) => passkey.id !== credential.id));
+      setPasskeyMessage({ type: 'success', text: 'Passkey removed.' });
+    } catch (error) {
+      setPasskeyMessage({ type: 'error', text: error instanceof Error ? error.message : 'Unable to remove this passkey.' });
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
 
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -141,6 +231,67 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdated, o
           </button>
         </div>
       </form>
+      <section aria-labelledby="passkeys-heading" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+        <div>
+          <h2 id="passkeys-heading" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+            <KeyRound aria-hidden="true" className="h-5 w-5 text-teal-800" />
+            Passkeys
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">Sign in securely with Touch ID, Face ID, a fingerprint, or your device’s screen lock.</p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <label className="min-w-0 flex-1">
+            <span className="sr-only">Passkey name</span>
+            <input
+              value={passkeyName}
+              onChange={(event) => setPasskeyName(event.target.value)}
+              maxLength={50}
+              aria-label="Passkey name"
+              className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="Name this passkey"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => { void registerPasskey(); }}
+            disabled={passkeyBusy || !passkeyName.trim()}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {passkeyBusy ? <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" /> : <KeyRound aria-hidden="true" className="h-4 w-4" />}
+            Add a passkey
+          </button>
+        </div>
+        {passkeyMessage && (
+          <p role={passkeyMessage.type === 'error' ? 'alert' : 'status'} className={`rounded-lg px-3 py-2.5 text-sm ${passkeyMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>
+            {passkeyMessage.text}
+          </p>
+        )}
+        {loadingPasskeys ? (
+          <p className="text-sm text-slate-500">Loading passkeys…</p>
+        ) : passkeys.length ? (
+          <ul className="divide-y divide-slate-100">
+            {passkeys.map((passkey) => (
+              <li key={passkey.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{passkey.name}</p>
+                  <p className="text-xs text-slate-500">Added {new Date(passkey.createdAt).toLocaleDateString()}</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={passkeyBusy}
+                  onClick={() => { void removePasskey(passkey); }}
+                  className="inline-flex min-h-10 items-center justify-center gap-1.5 self-start rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50 sm:self-auto"
+                >
+                  <Trash2 aria-hidden="true" className="h-4 w-4" />
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-500">No passkeys registered for this account yet.</p>
+        )}
+      </section>
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div>
           <h2 className="text-sm font-semibold text-slate-900">Sign out</h2>

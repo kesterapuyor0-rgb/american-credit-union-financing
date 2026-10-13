@@ -15,6 +15,7 @@ import accountRoutes from './server/routes/accountRoutes.js';
 import grantRoutes from './server/routes/grantRoutes.js';
 import notificationRoutes from './server/routes/notificationRoutes.js';
 import investmentRoutes from './server/routes/investmentRoutes.js';
+import passkeyRoutes from './server/routes/passkeyRoutes.js';
 import { accrueSavingsInterest, startSavingsInterestCron } from './server/savingsInterest.js';
 import { connectDatabase } from './server/db.js';
 
@@ -56,6 +57,8 @@ app.get('/api/cron/savings-interest', async (req: Request, res: Response): Promi
 
 app.use('/api/auth', authRoutes);
 app.use('/api', authRoutes);
+app.use('/api/auth/passkey', passkeyRoutes);
+app.use('/api/passkey', passkeyRoutes);
 app.use('/api/verify', verifyRoutes);
 app.use('/api', makeAdminRoutes);
 app.use('/api/user', userRoutes);

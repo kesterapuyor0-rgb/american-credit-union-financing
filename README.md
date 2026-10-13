@@ -10,7 +10,7 @@ View your app in AI Studio: https://ai.studio/apps/f9e494df-9bc9-4253-8861-31f50
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
+**Prerequisites:** Node.js 20 or newer
 
 
 1. Install dependencies:
@@ -32,6 +32,14 @@ The previous local `bank.sqlite` file is no longer read or modified, and its rec
 ## Password recovery email
 
 Set `RESEND_API_KEY` and `NEXT_PUBLIC_APP_URL` in local and deployment environments. The API key must only be configured as a server-side secret and must never be committed. Password recovery and sign-in verification emails are sent through Resend from `American Credit Union <onboarding@resend.dev>`. Reset links expire after 20 minutes, and sign-in verification codes expire after 10 minutes. For production delivery, ensure the sender address is authorized for the Resend account.
+
+## Passkey sign-in
+
+Customers can register and manage passkeys from **Profile** and use a saved passkey as an alternative to password and email-code sign-in. Passkeys require a secure browser context (HTTPS in deployment; `localhost` is allowed for local development), and the authenticator must verify the user.
+
+Configure `PASSKEY_ORIGIN` to the exact trusted application origin (for example, `https://bank.example.com`) and `PASSKEY_RP_ID` to that host or a parent domain (for example, `example.com`) in local and deployed server environments. For local development, the defaults are `http://localhost:5173` and `localhost`. If using a different local port or a Vercel preview hostname, set the corresponding trusted origin explicitly. Never derive these values from an incoming request's `Host` header.
+
+Registration and sign-in challenges are stored in MongoDB, expire after five minutes, and are consumed once. Credential public keys and signature counters are persisted separately from user profile data. User verification is required, and account activation and enrollment state are checked during passkey use.
 
 ## Customer enrollment review
 

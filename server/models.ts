@@ -221,6 +221,29 @@ const verificationCodeSchema = new Schema({
   created_at: { type: Number, required: true },
 }, { versionKey: false, bufferCommands: false });
 
+const passkeyCredentialSchema = new Schema({
+  credentialId: { type: String, required: true, unique: true },
+  userId: { type: String, required: true, index: true },
+  publicKey: { type: String, required: true },
+  counter: { type: Number, required: true, min: 0 },
+  transports: { type: [String], default: [] },
+  deviceType: { type: String, enum: ['singleDevice', 'multiDevice'], required: true },
+  backedUp: { type: Boolean, required: true, default: false },
+  name: { type: String, required: true, trim: true, maxlength: 50 },
+  createdAt: { type: Date, required: true, default: Date.now },
+  lastUsedAt: { type: Date },
+}, { versionKey: false, bufferCommands: false });
+passkeyCredentialSchema.index({ userId: 1, createdAt: -1 });
+
+const passkeyChallengeSchema = new Schema({
+  id: { type: String, required: true, unique: true },
+  challenge: { type: String, required: true },
+  userId: { type: String, default: '' },
+  purpose: { type: String, enum: ['registration', 'authentication'], required: true },
+  expiresAt: { type: Date, required: true },
+}, { versionKey: false, bufferCommands: false });
+passkeyChallengeSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 const auditLogSchema = new Schema({
   id: { type: String, required: true, unique: true, index: true },
   admin_id: { type: String, required: true },
@@ -254,6 +277,8 @@ export const InvestmentHolding = (mongoose.models.InvestmentHolding || mongoose.
 export const InvestmentProfitOverride = (mongoose.models.InvestmentProfitOverride || mongoose.model('InvestmentProfitOverride', investmentProfitOverrideSchema)) as mongoose.Model<any>;
 export const Transfer = (mongoose.models.Transfer || mongoose.model('Transfer', transferSchema)) as mongoose.Model<any>;
 export const VerificationCode = (mongoose.models.VerificationCode || mongoose.model('VerificationCode', verificationCodeSchema)) as mongoose.Model<any>;
+export const PasskeyCredential = (mongoose.models.PasskeyCredential || mongoose.model('PasskeyCredential', passkeyCredentialSchema)) as mongoose.Model<any>;
+export const PasskeyChallenge = (mongoose.models.PasskeyChallenge || mongoose.model('PasskeyChallenge', passkeyChallengeSchema)) as mongoose.Model<any>;
 export const AuditLog = (mongoose.models.AuditLog || mongoose.model('AuditLog', auditLogSchema)) as mongoose.Model<any>;
 export const CardApplication = (mongoose.models.CardApplication || mongoose.model('CardApplication', cardApplicationSchema)) as mongoose.Model<any>;
 export const BankCard = (mongoose.models.BankCard || mongoose.model('BankCard', cardSchema)) as mongoose.Model<any>;

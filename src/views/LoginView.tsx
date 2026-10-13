@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { startAuthentication } from '@simplewebauthn/browser';
 import { BrandLogo } from '../components/BrandLogo';
 import { User } from '../types';
 import { safeParseResponse, setStoredAuthToken } from '../utils/api';
@@ -105,6 +106,48 @@ export const LoginView: React.FC<LoginViewProps> = ({
     if (!result.ok) throw new Error(result.error || 'Unable to send a verification code.');
     if (typeof result.data?.otpId !== 'string') throw new Error('The verification response was incomplete.');
     return result.data.otpId;
+  };
+
+  const handlePasskeyLogin = async () => {
+    setError(null);
+    setVerificationStatus(null);
+    setVerificationReason('');
+    setLoading(true);
+    try {
+      const optionsResponse = await fetch('/api/auth/passkey/login-options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        credentials: 'include',
+      });
+      const optionsResult = await safeParseResponse(optionsResponse);
+      if (!optionsResult.ok) throw new Error(optionsResult.error || 'Unable to start passkey sign-in.');
+      if (typeof optionsResult.data?.challengeId !== 'string' || !optionsResult.data?.options) {
+        throw new Error('The passkey sign-in response was incomplete.');
+      }
+
+      const credential = await startAuthentication({ optionsJSON: optionsResult.data.options });
+      const verifyResponse = await fetch('/api/auth/passkey/verify-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ challengeId: optionsResult.data.challengeId, response: credential }),
+      });
+      const verifyResult = await safeParseResponse(verifyResponse);
+      if (!verifyResult.ok) throw new Error(verifyResult.error || 'Passkey sign-in failed.');
+      const data = verifyResult.data;
+      if (!data.token || !data.user) throw new Error('The passkey sign-in response was incomplete.');
+      if (adminOnly && data.user.role !== 'admin') {
+        throw new Error('This sign-in is restricted to authorized Member Services specialists.');
+      }
+
+      setStoredAuthToken(data.token);
+      saveActionRequiredFeedback(data);
+      onLoginSuccess(data.user, data.token);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Passkey sign-in failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
@@ -387,6 +430,18 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     )}
                   </button>
                 </form>
+
+                <div className="mt-4 border-t border-gray-200 pt-4">
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => { void handlePasskeyLogin(); }}
+                    className="w-full rounded-sm border border-[#173B70] px-4 py-3 text-sm font-bold text-[#173B70] transition-colors hover:bg-blue-50 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {loading ? 'Waiting for passkey…' : 'Sign in with a Passkey'}
+                  </button>
+                  <p className="mt-2 text-center text-xs text-gray-500">Use Touch ID, Face ID, your fingerprint, or another saved passkey.</p>
+                </div>
 
                 {onNavigateToRegister && (
                   <div className="mt-5 pt-4 border-t border-gray-200 text-center">
