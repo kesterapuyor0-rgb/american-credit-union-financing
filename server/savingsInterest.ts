@@ -1,9 +1,9 @@
-import cron from 'node-cron';
+import * as cron from 'node-cron';
 import mongoose from 'mongoose';
 import { Account, Transaction } from './models.js';
 import { connectDatabase, errorMessage } from './db.js';
 
-let interestJob: cron.ScheduledTask | null = null;
+let interestJob: ReturnType<typeof cron.schedule> | null = null;
 
 function utcDateKey(date: Date): string {
   return date.toISOString().slice(0, 10);

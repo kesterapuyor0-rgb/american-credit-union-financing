@@ -193,6 +193,7 @@ export interface CardApplication {
   reviewed_by?: string;
   customer_name?: string;
   customer_email?: string;
+  account_nickname?: string;
   account_number?: string;
 }
 

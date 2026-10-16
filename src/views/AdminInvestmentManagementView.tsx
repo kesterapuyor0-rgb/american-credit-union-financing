@@ -64,7 +64,7 @@ export const AdminInvestmentManagementView: React.FC<AdminInvestmentManagementVi
   onRefreshAdminData,
 }) => {
   const customerUsers = useMemo(
-    () => users.filter((user) => user.role.toLowerCase() !== 'admin' && user.isAdmin !== true),
+    () => users.filter((user) => user.role.toLowerCase() !== 'admin'),
     [users],
   );
   const [selectedUserId, setSelectedUserId] = useState('');

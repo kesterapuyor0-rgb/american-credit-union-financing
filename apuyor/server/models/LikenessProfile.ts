@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, type InferSchemaType } from 'mongoose';
+import mongoose, { Schema, type InferSchemaType } from 'mongoose';
 
 export const likenessStatuses = ['pending', 'verified', 'rejected', 'revoked'] as const;
 const likenessProfileSchema = new Schema({
@@ -16,4 +16,4 @@ const likenessProfileSchema = new Schema({
 }, { timestamps: true, strict: 'throw' });
 
 export type LikenessProfileDocument = InferSchemaType<typeof likenessProfileSchema>;
-export const LikenessProfile = (mongoose.models.LikenessProfile as ReturnType<typeof model<LikenessProfileDocument>>) || model<LikenessProfileDocument>('LikenessProfile', likenessProfileSchema);
+export const LikenessProfile = (mongoose.models.LikenessProfile as mongoose.Model<LikenessProfileDocument> | undefined) ?? mongoose.model<LikenessProfileDocument>('LikenessProfile', likenessProfileSchema);

@@ -208,7 +208,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ onClose, onPurch
         }));
         if (cancelled) return;
 
-        const quotesBySymbol = new Map(quotes);
+        const quotesBySymbol = new Map<string, { c: number; dp: number; pc: number } | null>(quotes);
         setAssets((currentAssets) => currentAssets.map((asset) => {
           const quote = quotesBySymbol.get(asset.symbol);
           if (!quote) return asset;

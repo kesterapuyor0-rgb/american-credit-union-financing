@@ -533,7 +533,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               );
             })}
           </div>
-        ) : accountFilter === 'Investments' ? null : (
+        ) : (
           accountFilter === 'Savings' ? (
             <div className="rounded-2xl border border-dashed border-emerald-300 bg-white px-4 py-7 text-center">
               <p className="font-semibold text-slate-900">Open a Savings Account</p>

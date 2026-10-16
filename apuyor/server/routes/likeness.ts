@@ -53,7 +53,8 @@ router.use(requireAuth);
 
 router.get('/consents', async (req, res) => {
   try {
-    const query = { userId: req.user!.id, status: 'verified', expiresAt: { $gt: new Date() } };
+    const userId = new mongoose.Types.ObjectId(req.user!.id);
+    const query = { userId, status: 'verified' as const, expiresAt: { $gt: new Date() } };
     let records = await ConsentRecord.find(query)
       .select('_id expiresAt').sort({ expiresAt: 1 }).lean();
     if (records.length === 0 && process.env.NODE_ENV === 'development') {
