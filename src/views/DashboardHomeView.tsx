@@ -4,6 +4,8 @@ import { User, BankAccount, Transaction, BankCard, BankCardDetails, CardApplicat
 import { getAuthHeaders } from '../utils/api';
 import { formatTransactionDescription } from '../utils/transactionFormatting';
 import { PushNotificationBanner } from '../components/PushNotificationBanner';
+import { RestrictedAccountNotice } from '../components/RestrictedAccountNotice';
+import { formatDisplayName } from '../utils/formatDisplayName';
 import {
   ArrowDownLeft,
   ArrowLeftRight,
@@ -56,6 +58,8 @@ export interface DashboardHomeViewProps {
   onRefresh: () => void;
   onNavigateToTransfer: (fromAccountId?: string) => void;
   onNavigateToTab: (tab: string) => void;
+  onVerifyIdentity: () => void;
+  onContactSupport: () => void;
   onNavigateToAccountTransactions: (accountId: string) => void;
   isOnline: boolean;
   showCardsOnly?: boolean;
@@ -71,6 +75,8 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   onRefresh,
   onNavigateToTransfer,
   onNavigateToTab,
+  onVerifyIdentity,
+  onContactSupport,
   onNavigateToAccountTransactions,
   isOnline,
   showCardsOnly = false,
@@ -407,7 +413,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           </div>
           <div className="min-w-0">
             <p className="text-xs font-medium text-slate-500">{greeting} 👋</p>
-            <h1 className="truncate text-base font-bold text-slate-900">{user.full_name}</h1>
+            <h1 className="break-words text-base font-bold text-slate-900">{formatDisplayName(user.full_name)}</h1>
           </div>
         </div>
 
@@ -443,6 +449,14 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           Investment products are Not FDIC Insured <span aria-hidden="true">•</span> No Bank Guarantee <span aria-hidden="true">•</span> May Lose Value
         </p>
       </section>
+
+      {!showCardsOnly && user.isRestricted && (
+        <RestrictedAccountNotice
+          reason={user.restrictionReason}
+          onVerifyIdentity={onVerifyIdentity}
+          onContactSupport={onContactSupport}
+        />
+      )}
 
       <PushNotificationBanner userId={user.id} />
       <section aria-label="Quick actions" className="grid grid-cols-5 gap-2">
@@ -689,7 +703,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                 </div>
                 <p className="relative break-words font-mono text-sm leading-tight tracking-[0.12em] sm:text-base sm:tracking-[0.16em]">{item.card.masked_number || `•••• •••• •••• ${item.card.last4}`}</p>
                 <div className="relative grid grid-cols-2 gap-2 border-t border-white/20 pt-2">
-                  <div className="min-w-0"><p className="text-[8px] uppercase tracking-wider text-white/65">Cardholder</p><p className="mt-0.5 break-words text-[10px] font-semibold uppercase leading-tight tracking-wide sm:text-xs">{user.full_name}</p></div>
+                  <div className="min-w-0"><p className="text-[8px] uppercase tracking-wider text-white/65">Cardholder</p><p className="mt-0.5 break-words text-[10px] font-semibold leading-tight tracking-wide sm:text-xs">{formatDisplayName(user.full_name)}</p></div>
                   <div className="min-w-0 text-right"><p className="text-[8px] uppercase leading-tight tracking-wider text-white/65">{item.card.card_type === 'Credit' ? 'Credit Limit' : 'Available Balance'}</p><p className="mt-0.5 break-words text-xs font-bold leading-tight tabular-nums sm:text-sm">{formatMoney(item.card.card_type === 'Credit' ? item.card.credit_limit : (item.card.linked_account_available || 0))}</p></div>
                 </div>
               </article>
@@ -771,7 +785,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
               {cardAction === 'details' ? (
                 <>
                   <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 px-4">
-                    <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Cardholder</dt><dd className="text-right font-medium text-slate-900">{user.full_name}</dd></div>
+                    <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Cardholder</dt><dd className="text-right font-medium text-slate-900">{formatDisplayName(user.full_name)}</dd></div>
                     <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-slate-500">Card number</dt><dd className="font-mono font-medium text-slate-900">{cardDetailsRevealed && revealedCardDetails ? revealedCardDetails.cardNumber : selectedCarouselItem.kind === 'issued' ? selectedCarouselItem.card.masked_number || `•••• •••• •••• ${selectedCarouselItem.card.last4}` : `•••• ${selectedCarouselItem.account.account_number.slice(-4)}`}</dd></div>
                     {selectedCarouselItem.kind === 'issued' && (
                       <>

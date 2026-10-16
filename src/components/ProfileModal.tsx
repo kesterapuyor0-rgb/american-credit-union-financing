@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, BankAccount } from '../types';
+import { formatDisplayName } from '../utils/formatDisplayName';
 import {
   User as UserIcon,
   Mail,
@@ -72,7 +73,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 Online Banking Member
               </div>
               <h3 className="text-base font-bold font-serif text-white tracking-tight">
-                {user.full_name}
+                {formatDisplayName(user.full_name)}
               </h3>
             </div>
           </div>
@@ -109,7 +110,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 <UserIcon className="w-3.5 h-3.5 text-gray-400" />
                 <span className="font-medium">Full Legal Name:</span>
               </div>
-              <span className="font-semibold text-gray-900">{user.full_name}</span>
+              <span className="font-semibold text-gray-900">{formatDisplayName(user.full_name)}</span>
             </div>
 
             {/* Email Address */}

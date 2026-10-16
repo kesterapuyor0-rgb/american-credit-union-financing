@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { User, BankAccount, BankCard, Transaction, UserSummary } from './types';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -17,6 +17,7 @@ import { GrantApplicationView } from './views/GrantApplicationView';
 import { InvestmentView } from './views/InvestmentView';
 import { KycResubmissionView } from './views/KycResubmissionView';
 import { ProfileModal } from './components/ProfileModal';
+import { RestrictedAccountNotice } from './components/RestrictedAccountNotice';
 import { RefreshCw } from 'lucide-react';
 import { CardsManagementView, DashboardHomeView } from './views/DashboardHomeView';
 import { BottomNavigation } from './components/BottomNavigation';
@@ -138,6 +139,8 @@ export default function App() {
   const [initialTransferSourceId, setInitialTransferSourceId] = useState<string | undefined>();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [restrictionSupportOpen, setRestrictionSupportOpen] = useState(false);
+  const [focusIdentityVerification, setFocusIdentityVerification] = useState(false);
+  const clearIdentityVerificationFocus = useCallback(() => setFocusIdentityVerification(false), []);
   const [registerNotice, setRegisterNotice] = useState<string | null>(null);
   const [grantApplicationRequested, setGrantApplicationRequested] = useState(false);
 
@@ -656,6 +659,11 @@ export default function App() {
     );
   }
 
+  const handleNavigateToIdentityVerification = () => {
+    setFocusIdentityVerification(true);
+    setActiveTab('profile');
+  };
+
   const renderCustomerView = () => {
     const dashboardProps = {
       user,
@@ -668,6 +676,8 @@ export default function App() {
       onRefresh: fetchUserData,
       onNavigateToTransfer: handleNavigateToTransfer,
       onNavigateToTab: setActiveTab,
+      onVerifyIdentity: handleNavigateToIdentityVerification,
+      onContactSupport: () => setRestrictionSupportOpen(true),
       onNavigateToAccountTransactions: (accountId: string) => {
         setHistoryAccountId(accountId);
         setActiveTab('history');
@@ -705,6 +715,8 @@ export default function App() {
           key="profile"
           user={user}
           onSignOut={handleSignOut}
+          focusIdentityVerification={focusIdentityVerification}
+          onIdentityVerificationFocused={clearIdentityVerificationFocus}
           onUserUpdated={(updates) => setUser((current) => current ? { ...current, ...updates } : current)}
         />;
       case 'cards':
@@ -740,20 +752,14 @@ export default function App() {
       <OfflineStatusBanner isOnline={isOnline} />
 
       <main id="customer-view" role="tabpanel" tabIndex={-1} aria-label={`${activeTab} view`} className="mx-auto w-full max-w-full min-w-0 flex-1 px-3.5 pt-5 pb-32 sm:max-w-7xl sm:px-8 sm:py-6">
-        {user.isRestricted && (
-          <section role="alert" className="mb-3 flex flex-col gap-2 rounded-lg border border-red-300 bg-red-50 p-2 text-red-950 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-2.5">
-            <div className="min-w-0">
-              <h2 className="text-xs font-bold uppercase tracking-wide text-red-800">Account restricted</h2>
-              <p className="mt-0.5 whitespace-pre-wrap text-xs leading-4">{user.restrictionReason || 'Your account is currently restricted.'}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setRestrictionSupportOpen(true)}
-              className="min-h-8 shrink-0 rounded-md bg-red-700 px-3 py-1 text-xs font-semibold text-white transition hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
-            >
-              Support
-            </button>
-          </section>
+        {user.isRestricted && activeTab !== 'home' && (
+          <div className="mb-5">
+            <RestrictedAccountNotice
+              reason={user.restrictionReason}
+              onVerifyIdentity={handleNavigateToIdentityVerification}
+              onContactSupport={() => setRestrictionSupportOpen(true)}
+            />
+          </div>
         )}
         {renderCustomerView()}
       </main>

@@ -1,13 +1,16 @@
-import React, { FormEvent, useEffect, useState } from 'react';
+import React, { FormEvent, useEffect, useRef, useState } from 'react';
 import { startRegistration } from '@simplewebauthn/browser';
-import { CheckCircle2, KeyRound, LoaderCircle, LogOut, Mail, MapPin, Phone, Save, Trash2, UserRound } from 'lucide-react';
+import { CheckCircle2, FileImage, KeyRound, LoaderCircle, LogOut, Mail, MapPin, Phone, Save, Trash2, Upload, UserRound } from 'lucide-react';
 import { User } from '../types';
 import { getAuthHeaders, safeParseResponse } from '../utils/api';
+import { formatDisplayName } from '../utils/formatDisplayName';
 
 interface ProfileViewProps {
   user: User;
   onUserUpdated: (updates: Partial<User>) => void;
   onSignOut: () => void;
+  focusIdentityVerification: boolean;
+  onIdentityVerificationFocused: () => void;
 }
 
 interface ProfileForm {
@@ -22,6 +25,28 @@ interface PasskeyCredential {
   lastUsedAt: string | null;
 }
 
+interface SelectedIdentityImage {
+  dataUrl: string;
+  name: string;
+}
+
+const readIdentityImage = (file: File): Promise<SelectedIdentityImage> => new Promise((resolve, reject) => {
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) || file.size <= 0 || file.size > 5 * 1024 * 1024) {
+    reject(new Error('Select a JPEG, PNG, WebP, or GIF image up to 5 MB.'));
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (typeof reader.result !== 'string' || !reader.result.startsWith(`data:${file.type};base64,`)) {
+      reject(new Error('Unable to read the selected image.'));
+      return;
+    }
+    resolve({ dataUrl: reader.result, name: file.name });
+  };
+  reader.onerror = () => reject(new Error('Unable to read the selected image.'));
+  reader.readAsDataURL(file);
+});
+
 const formatUsPhoneForDisplay = (phone: string): string => {
   const digits = phone.replace(/\D/g, '');
   if (digits.length === 10) return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
@@ -31,7 +56,13 @@ const formatUsPhoneForDisplay = (phone: string): string => {
   return phone;
 };
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdated, onSignOut }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({
+  user,
+  onUserUpdated,
+  onSignOut,
+  focusIdentityVerification,
+  onIdentityVerificationFocused,
+}) => {
   const [form, setForm] = useState<ProfileForm>({ phone: user.phone || '', address: user.address || '' });
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -41,6 +72,21 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdated, o
   const [loadingPasskeys, setLoadingPasskeys] = useState(true);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [passkeyMessage, setPasskeyMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [governmentId, setGovernmentId] = useState<SelectedIdentityImage | null>(null);
+  const [addressProof, setAddressProof] = useState<SelectedIdentityImage | null>(null);
+  const [identityBusy, setIdentityBusy] = useState(false);
+  const [identityMessage, setIdentityMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const identityVerificationRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setForm({ phone: user.phone || '', address: user.address || '' });
+  }, [user.phone, user.address]);
+
+  useEffect(() => {
+    if (!focusIdentityVerification || !identityVerificationRef.current) return;
+    identityVerificationRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    onIdentityVerificationFocused();
+  }, [focusIdentityVerification, onIdentityVerificationFocused]);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +105,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdated, o
             address: data.profile.address || '',
             profilePicture: data.profile.profilePicture || '',
             kycStatus: data.profile.kycStatus || 'Pending',
+            isRestricted: data.profile.isRestricted === true,
+            restrictionReason: data.profile.restrictionReason || '',
+            restrictionReviewStatus: data.profile.restrictionReviewStatus || 'not_requested',
+            restrictionReviewReason: data.profile.restrictionReviewReason || '',
           });
         }
       } catch (error) {
@@ -148,6 +198,67 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdated, o
     }
   };
 
+  const submitRestrictionIdentityDocuments = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!governmentId || !addressProof) {
+      setIdentityMessage({ type: 'error', text: 'Upload a government-issued ID and proof of address.' });
+      return;
+    }
+    setIdentityBusy(true);
+    setIdentityMessage(null);
+    try {
+      const response = await fetch('/api/user/restriction-identity-documents', {
+        method: 'POST',
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
+        body: JSON.stringify({
+          governmentIdUrl: governmentId.dataUrl,
+          governmentIdMetadata: { name: governmentId.name },
+          addressProofUrl: addressProof.dataUrl,
+          addressProofMetadata: { name: addressProof.name },
+        }),
+      });
+      const result = await safeParseResponse<{ user?: { restrictionReviewStatus?: User['restrictionReviewStatus']; kycStatus?: User['kycStatus'] } }>(response);
+      if (!result.ok) throw new Error(result.error || 'Unable to submit your identity documents.');
+      onUserUpdated({
+        restrictionReviewStatus: result.data.user?.restrictionReviewStatus || 'pending',
+        kycStatus: result.data.user?.kycStatus || 'Pending',
+      });
+      setIdentityMessage({ type: 'success', text: 'Your identity documents were submitted to Member Services for review.' });
+    } catch (error) {
+      setIdentityMessage({ type: 'error', text: error instanceof Error ? error.message : 'Unable to submit your identity documents.' });
+    } finally {
+      setIdentityBusy(false);
+    }
+  };
+
+  const identityImageField = (
+    label: string,
+    image: SelectedIdentityImage | null,
+    setter: React.Dispatch<React.SetStateAction<SelectedIdentityImage | null>>,
+  ) => (
+    <label className="block min-w-0 space-y-2 rounded-lg border border-slate-200 p-3 text-sm">
+      <span className="font-semibold text-slate-800">{label} <span className="text-rose-700">*</span></span>
+      <span className="block text-xs leading-5 text-slate-500">JPEG, PNG, WebP, or GIF · up to 5 MB</span>
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        required={!image}
+        disabled={identityBusy}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          void readIdentityImage(file).then(setter).catch((error: unknown) => {
+            setter(null);
+            setIdentityMessage({ type: 'error', text: error instanceof Error ? error.message : 'Unable to read the selected image.' });
+          });
+        }}
+        className="block w-full min-w-0 text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-800"
+      />
+      {image && <span className="flex min-w-0 items-center gap-2 text-xs font-medium text-emerald-800"><FileImage aria-hidden="true" className="h-4 w-4 shrink-0" /><span className="truncate">{image.name}</span></span>}
+    </label>
+  );
+
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
@@ -182,7 +293,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdated, o
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Personal details</p>
-          <h1 id="profile-heading" className="mt-1 break-words text-2xl font-bold text-teal-900">{user.full_name}</h1>
+          <h1 id="profile-heading" className="mt-1 break-words text-2xl font-bold text-teal-900">{formatDisplayName(user.full_name)}</h1>
           <p className="mt-1 text-sm text-slate-500">Manage your contact information. Your profile photo is managed by Member Services.</p>
           {user.kycStatus === 'Approved' && (
             <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
@@ -202,7 +313,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdated, o
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="block space-y-1.5">
             <span className="flex items-center gap-2 text-sm font-medium text-slate-700"><UserRound aria-hidden="true" className="h-4 w-4 text-slate-400" />Full name</span>
-            <input value={user.full_name} readOnly disabled className="min-h-11 w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600" />
+            <input value={formatDisplayName(user.full_name)} readOnly disabled className="min-h-11 w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600" />
           </label>
 
           <label className="block space-y-1.5">
@@ -231,6 +342,37 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdated, o
           </button>
         </div>
       </form>
+      {user.isRestricted && (
+        <section ref={identityVerificationRef} aria-labelledby="identity-verification-heading" className="min-w-0 scroll-mt-24 space-y-4 rounded-2xl border border-amber-200 bg-white p-4 shadow-sm sm:p-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Profile &amp; Settings</p>
+            <h2 id="identity-verification-heading" className="mt-1 text-lg font-semibold text-slate-900">Identity Verification</h2>
+            <p className="mt-1 text-sm leading-5 text-slate-600">Submit a valid government-issued ID and proof of your current address. Member Services will review these documents before full account access is restored.</p>
+          </div>
+          {user.restrictionReviewStatus === 'pending' ? (
+            <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-900">
+              Your documents are under review. Your account remains restricted during review; your available balance remains visible on the dashboard.
+            </p>
+          ) : (
+            <form onSubmit={(event) => { void submitRestrictionIdentityDocuments(event); }} className="space-y-4">
+              {user.restrictionReviewStatus === 'rejected' && user.restrictionReviewReason && (
+                <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm leading-5 text-rose-800">
+                  Member Services requested new documents: {user.restrictionReviewReason}
+                </p>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {identityImageField('Government-issued ID', governmentId, setGovernmentId)}
+                {identityImageField('Proof of address', addressProof, setAddressProof)}
+              </div>
+              {identityMessage && <p role={identityMessage.type === 'error' ? 'alert' : 'status'} className={`rounded-lg px-3 py-2.5 text-sm ${identityMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>{identityMessage.text}</p>}
+              <button type="submit" disabled={identityBusy || !governmentId || !addressProof} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-teal-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
+                {identityBusy ? <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" /> : <Upload aria-hidden="true" className="h-4 w-4" />}
+                {identityBusy ? 'Submitting…' : 'Submit identity documents'}
+              </button>
+            </form>
+          )}
+        </section>
+      )}
       <section aria-labelledby="passkeys-heading" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <div>
           <h2 id="passkeys-heading" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
