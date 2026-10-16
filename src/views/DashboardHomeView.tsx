@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { User, BankAccount, Transaction, BankCard, BankCardDetails, CardApplication } from '../types';
+import { User, BankAccount, Transaction, BankCard, BankCardDetails, CardApplication, RestrictionType } from '../types';
 import { getAuthHeaders } from '../utils/api';
 import { formatTransactionDescription } from '../utils/transactionFormatting';
 import { PushNotificationBanner } from '../components/PushNotificationBanner';
@@ -58,7 +58,7 @@ export interface DashboardHomeViewProps {
   onRefresh: () => void;
   onNavigateToTransfer: (fromAccountId?: string) => void;
   onNavigateToTab: (tab: string) => void;
-  onVerifyIdentity: () => void;
+  onResolveRestriction: (restrictionType: RestrictionType) => void;
   onContactSupport: () => void;
   onNavigateToAccountTransactions: (accountId: string) => void;
   isOnline: boolean;
@@ -75,7 +75,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   onRefresh,
   onNavigateToTransfer,
   onNavigateToTab,
-  onVerifyIdentity,
+  onResolveRestriction,
   onContactSupport,
   onNavigateToAccountTransactions,
   isOnline,
@@ -128,6 +128,23 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
   const [revealingCardDetails, setRevealingCardDetails] = useState(false);
   const [cardDetailsError, setCardDetailsError] = useState('');
   const carouselRef = useRef<HTMLDivElement>(null);
+  const [showVerificationSuccess, setShowVerificationSuccess] = useState(false);
+
+  useEffect(() => {
+    if (user.kycStatus !== 'APPROVED' || user.isRestricted || (user.restrictionType && user.restrictionType !== 'NONE') || !user.kycSubmittedAt) {
+      setShowVerificationSuccess(false);
+      return;
+    }
+    const submittedAt = new Date(user.kycSubmittedAt).getTime();
+    const remaining = 5 * 60 * 1000 - (Date.now() - submittedAt);
+    if (!Number.isFinite(submittedAt) || remaining <= 0) {
+      setShowVerificationSuccess(false);
+      return;
+    }
+    setShowVerificationSuccess(true);
+    const timeoutId = window.setTimeout(() => setShowVerificationSuccess(false), remaining);
+    return () => window.clearTimeout(timeoutId);
+  }, [user.kycStatus, user.isRestricted, user.restrictionType, user.kycSubmittedAt]);
   const [greeting, setGreeting] = useState(() => getLocalGreeting());
 
   const checkingAndSavings = accounts.filter((account) =>
@@ -450,10 +467,15 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
         </p>
       </section>
 
-      {!showCardsOnly && user.isRestricted && (
+      {!showCardsOnly && (
         <RestrictedAccountNotice
           reason={user.restrictionReason}
-          onVerifyIdentity={onVerifyIdentity}
+          kycStatus={user.kycStatus}
+          rejectionReason={user.rejectionReason}
+          isRestricted={user.isRestricted}
+          restrictionType={user.restrictionType && user.restrictionType !== 'NONE' ? user.restrictionType : user.isRestricted ? 'KYC' : 'NONE'}
+          showVerified={showVerificationSuccess}
+          onResolveRestriction={onResolveRestriction}
           onContactSupport={onContactSupport}
         />
       )}

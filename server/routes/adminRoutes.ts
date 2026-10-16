@@ -16,6 +16,28 @@ const router = Router();
 router.use(requireDatabase);
 router.use(requireAdmin);
 
+const normalizeKycStatus = (value: unknown): 'UNVERIFIED' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' => {
+  switch (String(value || '').toUpperCase()) {
+    case 'PENDING':
+    case 'PENDING_REVIEW':
+      return 'PENDING_REVIEW';
+    case 'APPROVED':
+      return 'APPROVED';
+    case 'REJECTED':
+      return 'REJECTED';
+    default:
+      return 'UNVERIFIED';
+  }
+};
+
+const normalizeRestrictionType = (
+  value: unknown,
+  isRestricted = false,
+): 'NONE' | 'KYC' | 'SECURITY' | 'SOURCE_OF_FUNDS' => {
+  if (value === 'KYC' || value === 'SECURITY' || value === 'SOURCE_OF_FUNDS') return value;
+  return isRestricted ? 'KYC' : 'NONE';
+};
+
 router.get('/crypto-prices', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const prices = await getCryptoUsdRates();
@@ -276,6 +298,9 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
           isActive: { $ifNull: ['$isActive', true] },
           isRestricted: 1,
           restrictionReason: 1,
+          restrictionType: 1,
+          kycStatus: 1,
+          rejectionReason: 1,
           phone: 1,
           address: 1,
           hasProfilePicture: { $ne: [{ $ifNull: ['$profilePicture', ''] }, ''] },
@@ -777,28 +802,162 @@ router.put('/users/:userId/wallets', updateCryptoWalletAssignments);
 router.get('/verifications', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const applicants = await User.find({ role: { $ne: 'admin' }, isAdmin: { $ne: true } })
-      .select('id email full_name phone address created_at verification_status verification_rejection_reason verification_rejection_details verification_submission verificationDocument documentUrl userSelfieStatus kycStatus +userSelfie +governmentIdUrl +addressProofUrl +selfieUrl')
+      .select('id email full_name phone address created_at verification_status verification_rejection_reason verification_rejection_details verification_submission verificationDocument documentUrl userSelfieStatus kycStatus rejectionReason kycSubmittedAt isRestricted restrictionType restrictionReason +userSelfie +governmentIdUrl +addressProofUrl +selfieUrl +restrictionDocument.data +restrictionDocument.contentType')
       .sort({ created_at: -1 })
       .lean<any[]>();
     res.json({
       applicants: applicants.map((applicant) => ({
         ...applicant,
         verification_status: applicant.verification_status || 'approved',
+        kycStatus: normalizeKycStatus(applicant.kycStatus),
+        rejectionReason: applicant.rejectionReason || applicant.verification_rejection_reason || '',
+        restrictionType: normalizeRestrictionType(applicant.restrictionType, applicant.isRestricted === true),
         verification_rejection_reason: applicant.verification_rejection_reason || '',
         verification_rejection_details: applicant.verification_rejection_details || [],
         userSelfieStatus: applicant.userSelfieStatus || 'pending',
-        kycStatus: applicant.kycStatus || 'Pending',
+        kycSubmittedAt: applicant.kycSubmittedAt || applicant.verification_submission?.submittedAt || null,
+        isRestricted: applicant.isRestricted === true,
+        restrictionReason: applicant.restrictionReason || '',
         governmentIdUrl: applicant.governmentIdUrl || (
           applicant.verificationDocument?.data && applicant.verificationDocument?.contentType
             ? `data:${applicant.verificationDocument.contentType};base64,${applicant.verificationDocument.data}`
             : ''
         ),
         selfieUrl: applicant.selfieUrl || applicant.userSelfie || '',
+        restrictionDocumentUrl: applicant.restrictionDocument?.data && applicant.restrictionDocument?.contentType
+          ? `data:${applicant.restrictionDocument.contentType};base64,${applicant.restrictionDocument.data}`
+          : '',
       })),
     });
   } catch (err) {
     res.status(500).json({ error: errorMessage(err, 'Failed to load enrollment records.') });
   }
+});
+
+const handleIdentityKycDecision = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  decision: 'APPROVED' | 'REJECTED',
+): Promise<void> => {
+  const userId = typeof req.body?.userId === 'string' ? req.body.userId.trim() : '';
+  const rejectionReason = typeof req.body?.rejectionReason === 'string' ? req.body.rejectionReason.trim() : '';
+  if (!userId) {
+    res.status(400).json({ error: 'A customer user ID is required.' });
+    return;
+  }
+  if (decision === 'REJECTED' && !rejectionReason) {
+    res.status(400).json({ error: 'Enter a reason for rejecting the identity documents.' });
+    return;
+  }
+  if (rejectionReason.length > 500) {
+    res.status(400).json({ error: 'The rejection reason must be 500 characters or fewer.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let reviewedUser: any;
+    await session.withTransaction(async () => {
+      const existingUser = await User.findOne({
+        id: userId,
+        role: { $ne: 'admin' },
+        isAdmin: { $ne: true },
+      })
+        .select('email kycStatus isRestricted restrictionType +governmentIdUrl +addressProofUrl +verificationDocument.data +restrictionDocument.data verification_submission')
+        .session(session)
+        .lean<any>();
+      if (!existingUser) throw new Error('Customer profile not found.');
+
+      const status = normalizeKycStatus(existingUser.kycStatus);
+      const restrictionReviewPending = existingUser.verification_submission?.restrictionReviewStatus === 'pending';
+      if (status !== 'PENDING_REVIEW' && !restrictionReviewPending) {
+        throw new Error('Customer identity documents are not awaiting review.');
+      }
+      const restrictionType = normalizeRestrictionType(existingUser.restrictionType, existingUser.isRestricted === true);
+      if (decision === 'APPROVED' && restrictionType === 'KYC'
+        && (!(existingUser.governmentIdUrl || existingUser.verificationDocument?.data) || !existingUser.addressProofUrl)) {
+        throw new Error('A government ID and proof of address are required before approval.');
+      }
+      if (decision === 'APPROVED' && restrictionType === 'SOURCE_OF_FUNDS' && !existingUser.restrictionDocument?.data) {
+        throw new Error('A source-of-funds document is required before approval.');
+      }
+
+      const update = decision === 'APPROVED'
+        ? {
+          kycStatus: 'APPROVED',
+          rejectionReason: '',
+          verification_rejection_reason: '',
+          verification_rejection_details: [],
+          isRestricted: false,
+          restrictionReason: '',
+          restrictionType: 'NONE',
+          'verification_submission.restrictionReviewStatus': 'approved',
+          'verification_submission.restrictionReviewReason': '',
+          verification_status: 'approved',
+          status: 'approved',
+          enrollmentStatus: 'approved',
+        }
+        : {
+          kycStatus: 'REJECTED',
+          rejectionReason,
+          verification_rejection_reason: rejectionReason,
+          verification_rejection_details: rejectionReason.split(/\r?\n/).map((detail) => detail.trim()).filter(Boolean),
+          isRestricted: true,
+          restrictionType: restrictionType === 'NONE' ? 'KYC' : restrictionType,
+          restrictionReason: 'Identity verification was not approved. Review the reason and resubmit your documents.',
+          'verification_submission.restrictionReviewStatus': 'rejected',
+          'verification_submission.restrictionReviewReason': rejectionReason,
+        };
+      reviewedUser = await User.findOneAndUpdate(
+        {
+          id: userId,
+          role: { $ne: 'admin' },
+          isAdmin: { $ne: true },
+          kycStatus: existingUser.kycStatus,
+          ...(restrictionReviewPending
+            ? { 'verification_submission.restrictionReviewStatus': 'pending' }
+            : { 'verification_submission.restrictionReviewStatus': { $ne: 'pending' } }),
+        },
+        { $set: update },
+        { new: true, runValidators: true, session },
+      )
+        .select('id email full_name kycStatus rejectionReason kycSubmittedAt isRestricted restrictionReason restrictionType verification_status verification_rejection_reason verification_rejection_details verification_submission')
+        .session(session)
+        .lean<any>();
+      if (!reviewedUser) throw new Error('Customer identity status changed. Refresh and try again.');
+
+      await AuditLog.create([{
+        id: `log_identity_kyc_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: `IDENTITY_KYC_${decision}`,
+        target_user_id: userId,
+        details: decision === 'APPROVED'
+          ? `Approved identity documents for ${reviewedUser.email}; account restrictions cleared.`
+          : `Rejected identity documents for ${reviewedUser.email}. Reason: ${rejectionReason}`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+    });
+    res.json({ success: true, user: reviewedUser });
+  } catch (err) {
+    const message = errorMessage(err, 'Unable to update identity verification.');
+    const status = message === 'Customer profile not found.' ? 404
+      : message === 'Customer identity documents are not awaiting review.' || message === 'Customer identity status changed. Refresh and try again.' ? 409
+        : message === 'A government ID and proof of address are required before approval.' || message === 'A source-of-funds document is required before approval.' ? 400
+          : 500;
+    res.status(status).json({ error: message });
+  } finally {
+    await session.endSession();
+  }
+};
+
+router.post('/kyc/approve', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  await handleIdentityKycDecision(req, res, 'APPROVED');
+});
+
+router.post('/kyc/reject', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  await handleIdentityKycDecision(req, res, 'REJECTED');
 });
 
 // PATCH /api/admin/verifications/:userId/kyc-status
@@ -829,36 +988,60 @@ router.patch('/verifications/:userId/kyc-status', async (req: AuthenticatedReque
         role: { $ne: 'admin' },
         isAdmin: { $ne: true },
       })
-        .select('email verificationDocument +governmentIdUrl +addressProofUrl +selfieUrl +userSelfie')
+        .select('email verificationDocument +governmentIdUrl +addressProofUrl +selfieUrl +userSelfie verification_submission')
         .session(session)
         .lean<any>();
+      const restrictionReviewPending = existingUser?.verification_submission?.restrictionReviewStatus === 'pending';
       const selfieUrl = existingUser?.selfieUrl || existingUser?.userSelfie || '';
       const hasGovernmentId = Boolean(
         existingUser?.governmentIdUrl || existingUser?.verificationDocument?.data
       );
+      const hasAddressProof = Boolean(existingUser?.addressProofUrl);
       if (!existingUser) {
         throw new Error('KYC documents were not found for this customer.');
       }
-      if (kycStatus === 'Approved' && (!hasGovernmentId || !selfieUrl)) {
-        throw new Error('Both KYC documents are required before approval.');
+      if (kycStatus === 'Approved' && restrictionReviewPending && (!hasGovernmentId || !hasAddressProof)) {
+        throw new Error('A government ID and proof of address are required before restriction review approval.');
+      }
+      if (kycStatus === 'Approved' && !restrictionReviewPending && (!hasGovernmentId || !selfieUrl)) {
+        throw new Error('Both KYC documents and the verification selfie are required before approval.');
       }
 
-      const updates = {
-        kycStatus,
-        userSelfieStatus: kycStatus === 'Approved' ? 'verified' : 'rejected',
-        verification_status: kycStatus === 'Approved' ? 'approved' : 'rejected',
-        status: kycStatus === 'Approved' ? 'approved' : 'rejected',
-        enrollmentStatus: kycStatus === 'Approved' ? 'approved' : 'rejected',
-        verification_rejection_reason: kycStatus === 'Approved' ? '' : rejectionReason,
-        verification_rejection_details: kycStatus === 'Approved' ? [] : rejectionDetails,
-        profilePicture: kycStatus === 'Approved' ? selfieUrl : '',
-      };
+      const updates = restrictionReviewPending
+        ? {
+          kycStatus: kycStatus === 'Approved' ? 'APPROVED' : 'REJECTED',
+          rejectionReason: kycStatus === 'Approved' ? '' : rejectionReason,
+          'verification_submission.restrictionReviewStatus': kycStatus === 'Approved' ? 'approved' : 'rejected',
+          'verification_submission.restrictionReviewReason': kycStatus === 'Approved' ? '' : rejectionReason,
+          ...(kycStatus === 'Approved'
+            ? { isRestricted: false, restrictionType: 'NONE', restrictionReason: '' }
+            : { isRestricted: true, restrictionReason: 'Identity verification was not approved. Review the reason and resubmit your documents.' }),
+        }
+        : {
+          kycStatus: kycStatus === 'Approved' ? 'APPROVED' : 'REJECTED',
+          rejectionReason: kycStatus === 'Approved' ? '' : rejectionReason,
+          restrictionType: kycStatus === 'Approved' ? 'NONE' : 'KYC',
+          isRestricted: kycStatus !== 'Approved',
+          restrictionReason: kycStatus === 'Approved' ? '' : 'Identity verification was not approved. Review the reason and resubmit your documents.',
+          userSelfieStatus: kycStatus === 'Approved' ? 'verified' : 'rejected',
+          verification_status: kycStatus === 'Approved' ? 'approved' : 'rejected',
+          status: kycStatus === 'Approved' ? 'approved' : 'rejected',
+          enrollmentStatus: kycStatus === 'Approved' ? 'approved' : 'rejected',
+          verification_rejection_reason: kycStatus === 'Approved' ? '' : rejectionReason,
+          verification_rejection_details: kycStatus === 'Approved' ? [] : rejectionDetails,
+          profilePicture: kycStatus === 'Approved' ? selfieUrl : '',
+        };
 
       reviewedUser = await User.findOneAndUpdate(
-        { id: userId, role: { $ne: 'admin' }, isAdmin: { $ne: true } },
+        {
+          id: userId,
+          role: { $ne: 'admin' },
+          isAdmin: { $ne: true },
+          ...(restrictionReviewPending ? { 'verification_submission.restrictionReviewStatus': 'pending' } : {}),
+        },
         { $set: updates },
         { new: true, runValidators: true, session },
-      ).select('id email full_name kycStatus userSelfieStatus profilePicture verification_status verification_rejection_reason verification_rejection_details').lean<any>();
+      ).select('id email full_name kycStatus userSelfieStatus profilePicture isRestricted restrictionReason verification_status verification_rejection_reason verification_rejection_details verification_submission').lean<any>();
       if (!reviewedUser) throw new Error('KYC documents were not found for this customer.');
 
       await AuditLog.create([{
@@ -867,7 +1050,9 @@ router.patch('/verifications/:userId/kyc-status', async (req: AuthenticatedReque
         admin_email: req.user!.email,
         action: `KYC_${kycStatus.toUpperCase()}`,
         target_user_id: userId,
-        details: `${kycStatus} KYC documents for ${reviewedUser.email}${kycStatus === 'Approved' ? '; profile picture synchronized to approved selfie' : ''}.`,
+        details: restrictionReviewPending
+          ? `${kycStatus} identity documents for restricted account ${reviewedUser.email}${kycStatus === 'Approved' ? '; account restriction cleared' : `; requested updates: ${rejectionReason}`}.`
+          : `${kycStatus} KYC documents for ${reviewedUser.email}${kycStatus === 'Approved' ? '; profile picture synchronized to approved selfie' : ''}.`,
         ip_address: req.ip || '127.0.0.1',
         created_at: new Date().toISOString(),
       }], { session });
@@ -960,6 +1145,11 @@ router.patch('/users/:userId/verification-status', async (req: AuthenticatedRequ
         verification_status: status,
         status: status === 'under_review' ? 'pending_review' : status,
         enrollmentStatus: status === 'under_review' ? 'pending_review' : status,
+        kycStatus: status === 'under_review' ? 'PENDING_REVIEW' : status === 'approved' ? 'APPROVED' : 'REJECTED',
+        restrictionType: status === 'approved' ? 'NONE' : 'KYC',
+        isRestricted: status === 'approved' ? false : status === 'rejected',
+        restrictionReason: status === 'approved' ? '' : status === 'rejected' ? 'Identity verification was not approved. Review the reason and resubmit your documents.' : '',
+        rejectionReason: status === 'rejected' ? reason : '',
         verification_rejection_reason: status === 'rejected' ? reason : '',
         verification_rejection_details: status === 'rejected'
           ? reason.split(/\r?\n/).map((detail) => detail.trim()).filter(Boolean)
@@ -1027,6 +1217,11 @@ router.post('/verifications/:userId/decision', async (req: AuthenticatedRequest,
             verification_rejection_details: decision === 'reject'
               ? reason.split(/\r?\n/).map((detail: string) => detail.trim()).filter(Boolean)
               : [],
+            kycStatus: decision === 'approve' ? 'APPROVED' : 'REJECTED',
+            restrictionType: decision === 'approve' ? 'NONE' : 'KYC',
+            isRestricted: decision === 'reject',
+            restrictionReason: decision === 'approve' ? '' : 'Identity verification was not approved. Review the reason and resubmit your documents.',
+            rejectionReason: decision === 'reject' ? reason : '',
             verification_reviewed_at: new Date(),
           },
         },
@@ -1083,9 +1278,21 @@ router.patch('/users/:userId/restriction', async (req: AuthenticatedRequest, res
 
       updatedUser = await User.findOneAndUpdate(
         { id: userId },
-        { $set: { isRestricted, restrictionReason: cleanReason } },
+        {
+          $set: {
+            isRestricted,
+            restrictionType: isRestricted ? 'KYC' : 'NONE',
+            restrictionReason: isRestricted ? cleanReason : '',
+            kycStatus: 'UNVERIFIED',
+            rejectionReason: '',
+            verification_rejection_reason: '',
+            verification_rejection_details: [],
+            'verification_submission.restrictionReviewStatus': 'not_requested',
+            'verification_submission.restrictionReviewReason': '',
+          },
+        },
         { new: true, runValidators: true, session },
-      ).select('id isRestricted restrictionReason').lean<any>();
+      ).select('id isRestricted restrictionType restrictionReason kycStatus rejectionReason').lean<any>();
 
       await AuditLog.create([{
         id: `log_restriction_${randomUUID()}`,
@@ -1111,6 +1318,82 @@ router.patch('/users/:userId/restriction', async (req: AuthenticatedRequest, res
     }
     console.error('Unable to update user restriction:', error);
     res.status(500).json({ error: errorMessage(error, 'Unable to update account restriction.') });
+  } finally {
+    await session.endSession();
+  }
+});
+
+router.post('/restriction/set', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = typeof req.body?.userId === 'string' ? req.body.userId.trim() : '';
+  const restrictionType = req.body?.restrictionType;
+  const reason = typeof req.body?.restrictionReason === 'string' ? req.body.restrictionReason.trim() : '';
+  const allowedTypes = ['NONE', 'KYC', 'SECURITY', 'SOURCE_OF_FUNDS'];
+  if (!userId || !allowedTypes.includes(restrictionType)) {
+    res.status(400).json({ error: 'Provide a customer user ID and valid restriction type.' });
+    return;
+  }
+  if (reason.length > 500) {
+    res.status(400).json({ error: 'Restriction reason must be 500 characters or fewer.' });
+    return;
+  }
+  if (restrictionType !== 'NONE' && !reason) {
+    res.status(400).json({ error: 'Enter a reason before assigning a restriction.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let updatedUser: any;
+    await session.withTransaction(async () => {
+      const targetUser = await User.findOne({ id: userId })
+        .select('id email role isAdmin restrictionType isRestricted kycStatus')
+        .session(session)
+        .lean<any>();
+      if (!targetUser) throw new Error('USER_NOT_FOUND');
+      if (isAdminRole(targetUser.role, targetUser.isAdmin)) throw new Error('ADMIN_RESTRICTION_NOT_ALLOWED');
+
+      updatedUser = await User.findOneAndUpdate(
+        { id: userId, role: { $ne: 'admin' }, isAdmin: { $ne: true } },
+        {
+          $set: {
+            restrictionType,
+            isRestricted: restrictionType !== 'NONE',
+            restrictionReason: restrictionType === 'NONE' ? '' : reason,
+            kycStatus: restrictionType === 'KYC' ? 'UNVERIFIED' : normalizeKycStatus(targetUser.kycStatus) === 'APPROVED' ? 'APPROVED' : 'UNVERIFIED',
+            rejectionReason: '',
+            verification_rejection_reason: '',
+            verification_rejection_details: [],
+            'verification_submission.restrictionReviewStatus': 'not_requested',
+            'verification_submission.restrictionReviewReason': '',
+          },
+        },
+        { new: true, runValidators: true, session },
+      ).select('id email full_name isRestricted restrictionType restrictionReason kycStatus rejectionReason kycSubmittedAt verification_submission.restrictionReviewStatus').session(session).lean<any>();
+      if (!updatedUser) throw new Error('USER_NOT_FOUND');
+
+      await AuditLog.create([{
+        id: `log_restriction_type_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: restrictionType === 'NONE' ? 'USER_RESTRICTION_CLEARED' : 'USER_RESTRICTION_TYPE_SET',
+        target_user_id: userId,
+        details: `${restrictionType === 'NONE' ? 'Cleared restrictions' : `Set ${restrictionType} restriction`} for ${targetUser.email}.${reason ? ` Reason: ${reason}` : ''}`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+    });
+    res.json({ success: true, user: updatedUser });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'USER_NOT_FOUND') {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+    if (error instanceof Error && error.message === 'ADMIN_RESTRICTION_NOT_ALLOWED') {
+      res.status(400).json({ error: 'Administrator accounts cannot be restricted.' });
+      return;
+    }
+    console.error('Unable to set restriction type:', error);
+    res.status(500).json({ error: errorMessage(error, 'Unable to set account restriction.') });
   } finally {
     await session.endSession();
   }

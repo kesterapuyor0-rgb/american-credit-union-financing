@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import mongoose from 'mongoose';
 import { Account, AuditLog, Transaction, Transfer, User, VerificationCode } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
-import { requireAdmin, requireApprovedUser, AuthenticatedRequest, generateOTP } from '../auth.js';
+import { requireAdmin, requireApprovedUser, requireRestrictionClearance, AuthenticatedRequest, generateOTP } from '../auth.js';
 import { createNotification } from '../notifications.js';
 
 const router = Router();
@@ -11,7 +11,7 @@ router.use(requireDatabase);
 const WIRE_TRANSFER_FEE = 2.01;
 const WIRE_TRANSFER_TAX = 1.03;
 
-router.post('/zelle', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/zelle', requireApprovedUser, requireRestrictionClearance('outgoing'), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const sourceAccountId = typeof req.body?.sourceAccountId === 'string' ? req.body.sourceAccountId.trim() : '';
   const recipientName = typeof req.body?.recipientName === 'string' ? req.body.recipientName.trim() : '';
   const recipientIdentifier = typeof req.body?.recipientIdentifier === 'string'
@@ -266,7 +266,7 @@ router.put('/admin/:id/reject', requireAdmin, async (req: AuthenticatedRequest, 
 });
 
 // POST /api/transfers/initiate
-router.post('/initiate', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/initiate', requireApprovedUser, requireRestrictionClearance('outgoing'), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const {
@@ -398,7 +398,7 @@ router.post('/initiate', requireApprovedUser, async (req: AuthenticatedRequest, 
 });
 
 // POST /api/transfers/confirm
-router.post('/confirm', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/confirm', requireApprovedUser, requireRestrictionClearance('outgoing'), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const { verificationId, code } = req.body;
@@ -533,7 +533,7 @@ router.post('/confirm', requireApprovedUser, async (req: AuthenticatedRequest, r
 
 // POST /api/transfers/internal
 // Settles an internal transfer only after validating and atomically claiming its existing OTP.
-router.post('/internal', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/internal', requireApprovedUser, requireRestrictionClearance('outgoing'), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const verificationId = typeof req.body?.verificationId === 'string' ? req.body.verificationId.trim() : '';
   const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
   if (!verificationId || !/^\d{6}$/.test(code)) {

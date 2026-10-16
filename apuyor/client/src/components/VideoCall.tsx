@@ -4,13 +4,16 @@ import { AlertTriangle, Camera, CameraOff, Mic, MicOff, PhoneOff, Radio, Refresh
 import { API_URL } from '../api';
 import type { LikenessProfile } from '../types';
 import LikenessUploadModal from './LikenessUploadModal';
+import LiveStudioControls from './LiveStudioControls';
 import { TransformBoundary } from './TransformBoundary';
 
 type Props = {
   roomId: string;
   token: string;
-  onTransformStream?: (stream: MediaStream, likenessProfileId: string) => Promise<MediaStream>;
-  onConvertVoice?: (stream: MediaStream, likenessProfileId: string) => Promise<MediaStream>;
+  onTransformStream?: (stream: MediaStream, likenessProfileId: string, settings: { edgeBlending: number; maskSoftness: number }) => Promise<MediaStream>;
+  onConvertVoice?: (stream: MediaStream, voiceProfileId: string, settings: { pitchOffset: number }) => Promise<MediaStream>;
+  onTransformSettingsChange?: (settings: { edgeBlending: number; maskSoftness: number }) => void;
+  onVoiceSettingsChange?: (settings: { pitchOffset: number }) => void;
   onLeave: () => void;
 };
 
@@ -37,7 +40,7 @@ function MediaStage({ stream, label }: { stream: MediaStream | null; label: stri
   return <video ref={ref} className="stage-video" autoPlay playsInline muted={label === 'You'} aria-label={`${label} video`} />;
 }
 
-export default function VideoCall({ roomId, token, onTransformStream, onConvertVoice, onLeave }: Props) {
+export default function VideoCall({ roomId, token, onTransformStream, onConvertVoice, onTransformSettingsChange, onVoiceSettingsChange, onLeave }: Props) {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [cameraOn, setCameraOn] = useState(true);
@@ -46,11 +49,23 @@ export default function VideoCall({ roomId, token, onTransformStream, onConvertV
   const [transformActive, setTransformActive] = useState(false);
   const [fallback, setFallback] = useState(false);
   const [showLikeness, setShowLikeness] = useState(false);
-  const [activeLikeness, setActiveLikeness] = useState<LikenessProfile | null>(null);
+  const [activeFaceProfile, setActiveFaceProfile] = useState<LikenessProfile | null>(null);
+  const [activeVoiceProfile, setActiveVoiceProfile] = useState<LikenessProfile | null>(null);
+  const [edgeBlending, setEdgeBlending] = useState(50);
+  const [maskSoftness, setMaskSoftness] = useState(30);
+  const [pitchOffset, setPitchOffset] = useState(0);
   const [callError, setCallError] = useState('');
   const socketRef = useRef<Socket | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
   const originalTracksRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    if (transformActive) onTransformSettingsChange?.({ edgeBlending, maskSoftness });
+  }, [edgeBlending, maskSoftness, onTransformSettingsChange, transformActive]);
+
+  useEffect(() => {
+    if (voiceActive) onVoiceSettingsChange?.({ pitchOffset });
+  }, [onVoiceSettingsChange, pitchOffset, voiceActive]);
 
   useEffect(() => {
     let alive = true;
@@ -65,10 +80,11 @@ export default function VideoCall({ roomId, token, onTransformStream, onConvertV
           setCallError('Your sign-in session is missing. Sign in again before joining a call.');
           return;
         }
-        base = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (!alive) { base.getTracks().forEach((track) => track.stop()); return; }
-        originalTracksRef.current = base;
-        setLocalStream(base);
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        base = stream;
+        if (!alive) { stream.getTracks().forEach((track) => track.stop()); return; }
+        originalTracksRef.current = stream;
+        setLocalStream(stream);
         socket = io(API_URL || 'http://localhost:4000', {
           // Local development may use the server's loopback-only mock-auth bypass.
           auth: { token: initialToken },
@@ -78,7 +94,7 @@ export default function VideoCall({ roomId, token, onTransformStream, onConvertV
         socketRef.current = socket;
         peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
         peerRef.current = peer;
-        base.getTracks().forEach((track) => peer?.addTrack(track, base));
+        stream.getTracks().forEach((track) => peer?.addTrack(track, stream));
         peer.ontrack = (event) => {
           const stream = event.streams[0] ?? new MediaStream([event.track]);
           setRemoteStream(stream);
@@ -157,8 +173,8 @@ export default function VideoCall({ roomId, token, onTransformStream, onConvertV
       return;
     }
     try {
-      if (!onTransformStream || !originalTracksRef.current || !activeLikeness || activeLikeness.status !== 'verified') throw new Error('Approved likeness and transformation service required');
-      const transformed = await onTransformStream(originalTracksRef.current, activeLikeness._id);
+      if (!onTransformStream || !originalTracksRef.current || !activeFaceProfile || activeFaceProfile.status !== 'verified' || activeFaceProfile.embeddingStatus !== 'ready') throw new Error('An approved target face with a ready embedding and transformation service is required');
+      const transformed = await onTransformStream(originalTracksRef.current, activeFaceProfile._id, { edgeBlending, maskSoftness });
       await replaceOutgoing(transformed);
       setLocalStream(transformed);
       setTransformActive(true);
@@ -181,8 +197,8 @@ export default function VideoCall({ roomId, token, onTransformStream, onConvertV
       return;
     }
     try {
-      if (!onConvertVoice || !originalTracksRef.current || !activeLikeness || activeLikeness.status !== 'verified') throw new Error('Approved likeness and voice service required');
-      const converted = await onConvertVoice(originalTracksRef.current, activeLikeness._id);
+      if (!onConvertVoice || !originalTracksRef.current || !activeVoiceProfile || activeVoiceProfile.status !== 'verified' || activeVoiceProfile.embeddingStatus !== 'ready') throw new Error('An approved voice profile with a ready embedding and voice service is required');
+      const converted = await onConvertVoice(originalTracksRef.current, activeVoiceProfile._id, { pitchOffset });
       await replaceOutgoing(converted);
       setLocalStream(converted);
       setVoiceActive(true);
@@ -213,17 +229,35 @@ export default function VideoCall({ roomId, token, onTransformStream, onConvertV
         </div>
         <div className="video-tile self-tile"><MediaStage stream={localStream} label="You" /><span className="participant-name">You <span className="you-pill">YOU</span></span>{!cameraOn && <div className="camera-off"><CameraOff size={24} /></div>}</div>
       </div>
-      {activeLikeness && <div className={`active-likeness ${activeLikeness.status !== 'verified' ? 'awaiting' : ''}`}><UserRoundSearch size={14} /><span>Reference attached</span><b>{activeLikeness.status === 'verified' ? 'APPROVED' : 'AWAITING REVIEW'}</b></div>}
+      {(activeFaceProfile || activeVoiceProfile) && <div className="active-likeness-list">
+        {activeFaceProfile && <div className={`active-likeness ${activeFaceProfile.status !== 'verified' ? 'awaiting' : ''}`}><UserRoundSearch size={14} /><span>Target face</span><b>{activeFaceProfile.status === 'verified' ? 'APPROVED' : 'AWAITING REVIEW'}</b></div>}
+        {activeVoiceProfile && <div className={`active-likeness ${activeVoiceProfile.status !== 'verified' ? 'awaiting' : ''}`}><Radio size={14} /><span>Voice profile</span><b>{activeVoiceProfile.status === 'verified' ? 'APPROVED' : 'AWAITING REVIEW'}</b></div>}
+      </div>}
+      <LiveStudioControls
+        token={token}
+        faceProfile={activeFaceProfile}
+        voiceProfile={activeVoiceProfile}
+        onFaceProfileChange={setActiveFaceProfile}
+        onVoiceProfileChange={setActiveVoiceProfile}
+        edgeBlending={edgeBlending}
+        onEdgeBlendingChange={setEdgeBlending}
+        maskSoftness={maskSoftness}
+        onMaskSoftnessChange={setMaskSoftness}
+        pitchOffset={pitchOffset}
+        onPitchOffsetChange={setPitchOffset}
+        faceTransformAvailable={Boolean(onTransformStream)}
+        voiceTransformAvailable={Boolean(onConvertVoice)}
+      />
       <div className="call-control-wrap"><div className="call-controls">
         <button className={`control-button ${!micOn ? 'is-off' : ''}`} onClick={() => toggleTrack('audio')} aria-label={micOn ? 'Mute microphone' : 'Enable microphone'}>{micOn ? <Mic /> : <MicOff />}<span>{micOn ? 'Mic on' : 'Mic off'}</span></button>
         <button className={`control-button ${!cameraOn ? 'is-off' : ''}`} onClick={() => toggleTrack('video')} aria-label={cameraOn ? 'Turn camera off' : 'Turn camera on'}>{cameraOn ? <Camera /> : <CameraOff />}<span>{cameraOn ? 'Camera on' : 'Camera off'}</span></button>
         <button className="control-button" onClick={() => setShowLikeness(true)}><UserRoundSearch /><span>Likeness</span></button>
-        <button className={`control-button ai-control ${transformActive ? 'active' : ''}`} disabled={!activeLikeness || activeLikeness.status !== 'verified'} title="Attach an admin-approved profile first" onClick={() => void toggleTransform()}><WandSparkles /><span>{transformActive ? 'AI on' : 'Transform'}</span></button>
-        <button className={`control-button ai-control ${voiceActive ? 'active' : ''}`} disabled={!activeLikeness || activeLikeness.status !== 'verified'} title="Attach an admin-approved profile first" onClick={() => void toggleVoice()}><Radio /><span>{voiceActive ? 'AI voice on' : 'AI voice'}</span></button>
+        <button className={`control-button ai-control ${transformActive ? 'active' : ''}`} disabled={!activeFaceProfile || activeFaceProfile.status !== 'verified' || activeFaceProfile.embeddingStatus !== 'ready' || !onTransformStream} title={!onTransformStream ? 'Face transform adapter is not connected' : !activeFaceProfile || activeFaceProfile.embeddingStatus !== 'ready' ? 'Wait for an approved target face embedding' : 'Attach an admin-approved target face first'} onClick={() => void toggleTransform()}><WandSparkles /><span>{transformActive ? 'AI on' : 'Transform'}</span></button>
+        <button className={`control-button ai-control ${voiceActive ? 'active' : ''}`} disabled={!activeVoiceProfile || activeVoiceProfile.status !== 'verified' || activeVoiceProfile.embeddingStatus !== 'ready' || !onConvertVoice} title={!onConvertVoice ? 'Voice conversion adapter is not connected' : !activeVoiceProfile || activeVoiceProfile.embeddingStatus !== 'ready' ? 'Wait for an approved speaker embedding' : 'Attach an admin-approved voice profile first'} onClick={() => void toggleVoice()}><Radio /><span>{voiceActive ? 'AI voice on' : 'AI voice'}</span></button>
         <button className="hangup-button" onClick={onLeave} aria-label="Leave call"><PhoneOff size={20} /></button>
       </div></div>
       <p className="call-footnote"><RefreshCw size={13} /> Your camera and microphone stay in your control. Disclosure remains visible for the entire session.</p>
-      {showLikeness && <LikenessUploadModal token={token} activeProfileId={activeLikeness?._id} onAttach={setActiveLikeness} onClose={() => setShowLikeness(false)} />}
+      {showLikeness && <LikenessUploadModal token={token} activeProfileId={activeFaceProfile?._id} onAttach={setActiveFaceProfile} onClose={() => setShowLikeness(false)} />}
     </section>
   );
 }

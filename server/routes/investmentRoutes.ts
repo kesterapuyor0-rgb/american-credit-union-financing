@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import mongoose from 'mongoose';
 import { Account, InvestmentHolding, InvestmentProfitOverride, Transaction } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
-import { AuthenticatedRequest, requireApprovedUser } from '../auth.js';
+import { AuthenticatedRequest, requireApprovedUser, requireRestrictionClearance } from '../auth.js';
 import { createNotification } from '../notifications.js';
 import { getInvestmentAsset, getLegacyInvestmentSymbols, INVESTMENT_CATALOG } from '../../shared/investmentCatalog.js';
 
@@ -125,7 +125,7 @@ router.get('/portfolio', async (req: AuthenticatedRequest, res: Response): Promi
   }
 });
 
-router.post('/buy', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/buy', requireRestrictionClearance('outgoing'), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const symbol = typeof req.body?.symbol === 'string' ? req.body.symbol.trim().toUpperCase() : '';
   const rawQuantity = Number(req.body?.quantity);
   const quantity = Math.round(rawQuantity * 1_000_000) / 1_000_000;

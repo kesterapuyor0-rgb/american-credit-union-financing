@@ -28,6 +28,11 @@ class JobAccepted(BaseModel):
     safety_label_applied: Literal[True] = True
 
 
+class EmbeddingAccepted(BaseModel):
+    embedding_profile_id: MediaId
+    status: Literal["ready"] = "ready"
+
+
 class JobFallback(BaseModel):
     job_id: str
     status: Literal["fallback"] = "fallback"

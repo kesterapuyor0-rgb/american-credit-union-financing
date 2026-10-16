@@ -50,4 +50,21 @@ export const api = {
     body.append('consentRecordId', consentRecordId);
     return request<{ profile: LikenessProfile; message: string }>('/api/likeness/upload', token, { method: 'POST', body });
   },
+  uploadVoiceSample: (token: string, file: File, consentRecordId: string) => {
+    const body = new FormData();
+    body.append('file', file);
+    body.append('consentRecordId', consentRecordId);
+    return request<{ profile: LikenessProfile; message: string }>('/api/likeness/voice-upload', token, { method: 'POST', body });
+  },
+  likenessMedia: async (token: string, profileId: string): Promise<string> => {
+    const headers = new Headers();
+    const authToken = token.trim() || getStoredToken();
+    if (authToken) headers.set('Authorization', `Bearer ${authToken}`);
+    const response = await fetch(`${API_URL}/api/likeness/${encodeURIComponent(profileId)}/media`, { headers });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || 'Unable to load private media preview.');
+    }
+    return URL.createObjectURL(await response.blob());
+  },
 };

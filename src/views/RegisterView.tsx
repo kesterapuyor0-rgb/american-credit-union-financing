@@ -218,7 +218,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       }
 
       const data = result.data;
-      setSuccessData({ ...data.user, kycStatus: data.user.kycStatus || 'Pending' });
+      setSuccessData({ ...data.user, kycStatus: data.user.kycStatus || 'PENDING_REVIEW' });
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred. Please try again.');
     } finally {

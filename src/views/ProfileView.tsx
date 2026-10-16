@@ -74,6 +74,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [passkeyMessage, setPasskeyMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [governmentId, setGovernmentId] = useState<SelectedIdentityImage | null>(null);
   const [addressProof, setAddressProof] = useState<SelectedIdentityImage | null>(null);
+  const [governmentIdType, setGovernmentIdType] = useState<'' | 'Passport' | "Driver's License" | 'State ID'>('');
   const [identityBusy, setIdentityBusy] = useState(false);
   const [identityMessage, setIdentityMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const identityVerificationRef = useRef<HTMLElement | null>(null);
@@ -104,7 +105,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             phone: data.profile.phone || '',
             address: data.profile.address || '',
             profilePicture: data.profile.profilePicture || '',
-            kycStatus: data.profile.kycStatus || 'Pending',
+            kycStatus: data.profile.kycStatus || 'UNVERIFIED',
+            restrictionType: data.profile.restrictionType && data.profile.restrictionType !== 'NONE' ? data.profile.restrictionType : data.profile.isRestricted ? 'KYC' : 'NONE',
+            rejectionReason: data.profile.rejectionReason || '',
+            kycSubmittedAt: data.profile.kycSubmittedAt,
             isRestricted: data.profile.isRestricted === true,
             restrictionReason: data.profile.restrictionReason || '',
             restrictionReviewStatus: data.profile.restrictionReviewStatus || 'not_requested',
@@ -212,17 +216,21 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         credentials: 'include',
         body: JSON.stringify({
+          governmentIdType,
           governmentIdUrl: governmentId.dataUrl,
           governmentIdMetadata: { name: governmentId.name },
           addressProofUrl: addressProof.dataUrl,
           addressProofMetadata: { name: addressProof.name },
         }),
       });
-      const result = await safeParseResponse<{ user?: { restrictionReviewStatus?: User['restrictionReviewStatus']; kycStatus?: User['kycStatus'] } }>(response);
+      const result = await safeParseResponse<{ user?: Pick<User, 'restrictionReviewStatus' | 'kycStatus' | 'rejectionReason' | 'kycSubmittedAt' | 'isRestricted'> }>(response);
       if (!result.ok) throw new Error(result.error || 'Unable to submit your identity documents.');
       onUserUpdated({
         restrictionReviewStatus: result.data.user?.restrictionReviewStatus || 'pending',
-        kycStatus: result.data.user?.kycStatus || 'Pending',
+        kycStatus: result.data.user?.kycStatus || 'PENDING_REVIEW',
+        rejectionReason: result.data.user?.rejectionReason || '',
+        kycSubmittedAt: result.data.user?.kycSubmittedAt,
+        isRestricted: result.data.user?.isRestricted ?? user.isRestricted,
       });
       setIdentityMessage({ type: 'success', text: 'Your identity documents were submitted to Member Services for review.' });
     } catch (error) {
@@ -295,7 +303,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Personal details</p>
           <h1 id="profile-heading" className="mt-1 break-words text-2xl font-bold text-teal-900">{formatDisplayName(user.full_name)}</h1>
           <p className="mt-1 text-sm text-slate-500">Manage your contact information. Your profile photo is managed by Member Services.</p>
-          {user.kycStatus === 'Approved' && (
+          {user.kycStatus === 'APPROVED' && (
             <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
               <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
               Identity Verified
@@ -342,14 +350,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </button>
         </div>
       </form>
-      {user.isRestricted && (
+      {(user.restrictionType && user.restrictionType !== 'NONE' ? user.restrictionType : user.isRestricted ? 'KYC' : 'NONE') === 'KYC' && (
         <section ref={identityVerificationRef} aria-labelledby="identity-verification-heading" className="min-w-0 scroll-mt-24 space-y-4 rounded-2xl border border-amber-200 bg-white p-4 shadow-sm sm:p-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Profile &amp; Settings</p>
             <h2 id="identity-verification-heading" className="mt-1 text-lg font-semibold text-slate-900">Identity Verification</h2>
             <p className="mt-1 text-sm leading-5 text-slate-600">Submit a valid government-issued ID and proof of your current address. Member Services will review these documents before full account access is restored.</p>
           </div>
-          {user.restrictionReviewStatus === 'pending' ? (
+          {user.restrictionReviewStatus === 'pending' || user.kycStatus === 'PENDING_REVIEW' ? (
             <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-900">
               Your documents are under review. Your account remains restricted during review; your available balance remains visible on the dashboard.
             </p>
@@ -360,12 +368,27 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   Member Services requested new documents: {user.restrictionReviewReason}
                 </p>
               )}
+              <label className="block space-y-2 text-sm">
+                <span className="font-semibold text-slate-800">Government-issued ID type <span className="text-rose-700">*</span></span>
+                <select
+                  required
+                  value={governmentIdType}
+                  onChange={(event) => setGovernmentIdType(event.target.value as typeof governmentIdType)}
+                  disabled={identityBusy}
+                  className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">Select an ID type</option>
+                  <option value="Passport">Passport</option>
+                  <option value="Driver's License">Driver’s License</option>
+                  <option value="State ID">State ID</option>
+                </select>
+              </label>
               <div className="grid gap-3 sm:grid-cols-2">
                 {identityImageField('Government-issued ID', governmentId, setGovernmentId)}
                 {identityImageField('Proof of address', addressProof, setAddressProof)}
               </div>
               {identityMessage && <p role={identityMessage.type === 'error' ? 'alert' : 'status'} className={`rounded-lg px-3 py-2.5 text-sm ${identityMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>{identityMessage.text}</p>}
-              <button type="submit" disabled={identityBusy || !governmentId || !addressProof} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-teal-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
+              <button type="submit" disabled={identityBusy || !governmentIdType || !governmentId || !addressProof} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-teal-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
                 {identityBusy ? <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" /> : <Upload aria-hidden="true" className="h-4 w-4" />}
                 {identityBusy ? 'Submitting…' : 'Submit identity documents'}
               </button>

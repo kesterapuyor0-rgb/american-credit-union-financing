@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, AuditLog, AdminOverviewData, UserWithAccounts, BankAccount, Transaction, CardApplication, BankCard, GrantApplication, ZelleTransfer } from '../types';
+import { User, AuditLog, AdminOverviewData, UserWithAccounts, BankAccount, Transaction, CardApplication, BankCard, GrantApplication, ZelleTransfer, RestrictionType } from '../types';
 import { getStoredAuthToken } from '../utils/api';
 import { formatTransactionDescription } from '../utils/transactionFormatting';
 import { GrantStatusBadge } from '../components/GrantStatusBadge';
@@ -47,6 +47,12 @@ interface VerificationApplicant {
   selfieUrl?: string;
   profilePicture?: string;
   kycStatus?: NonNullable<User['kycStatus']>;
+  rejectionReason?: string;
+  kycSubmittedAt?: string | null;
+  isRestricted?: boolean;
+  restrictionType?: NonNullable<User['restrictionType']>;
+  restrictionReason?: string;
+  restrictionDocumentUrl?: string;
   userSelfie?: string;
   userSelfieStatus: NonNullable<User['userSelfieStatus']>;
   documentUrl?: string;
@@ -56,6 +62,9 @@ interface VerificationApplicant {
     sampleFileType?: string;
     sampleFileSize?: number;
     submittedAt?: string;
+    governmentIdType?: string;
+    restrictionReviewStatus?: 'not_requested' | 'pending' | 'approved' | 'rejected';
+    restrictionReviewReason?: string;
   };
 }
 
@@ -135,7 +144,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
   const [reviewingCardId, setReviewingCardId] = useState<string | null>(null);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [restrictionEdits, setRestrictionEdits] = useState<Record<string, { isRestricted: boolean; restrictionReason: string }>>({});
+  const [restrictionEdits, setRestrictionEdits] = useState<Record<string, { restrictionType: RestrictionType; restrictionReason: string }>>({});
   const [savingRestrictionId, setSavingRestrictionId] = useState<string | null>(null);
   const [restrictionError, setRestrictionError] = useState<string | null>(null);
   const [customerDetailsEdits, setCustomerDetailsEdits] = useState<Record<string, { full_name: string; email: string; phone: string; address: string }>>({});
@@ -269,7 +278,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
       setRestrictionEdits(Object.fromEntries(loadedUsers.map((loadedUser) => [
         loadedUser.id,
         {
-          isRestricted: loadedUser.isRestricted === true,
+          restrictionType: loadedUser.restrictionType && loadedUser.restrictionType !== 'NONE' ? loadedUser.restrictionType : loadedUser.isRestricted ? 'KYC' : 'NONE',
           restrictionReason: loadedUser.restrictionReason || '',
         },
       ])));
@@ -329,11 +338,11 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
 
   const saveUserRestriction = async (targetUser: UserWithAccounts) => {
     const edit = restrictionEdits[targetUser.id] || {
-      isRestricted: targetUser.isRestricted === true,
+      restrictionType: targetUser.restrictionType && targetUser.restrictionType !== 'NONE' ? targetUser.restrictionType : targetUser.isRestricted ? 'KYC' : 'NONE',
       restrictionReason: targetUser.restrictionReason || '',
     };
 
-    if (edit.isRestricted && !edit.restrictionReason.trim()) {
+    if (edit.restrictionType !== 'NONE' && !edit.restrictionReason.trim()) {
       setRestrictionError('Enter a restriction reason before saving.');
       return;
     }
@@ -342,14 +351,14 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
     setRestrictionError(null);
     setSuccessMsg(null);
     try {
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(targetUser.id)}/restriction`, {
-        method: 'PATCH',
+      const res = await fetch('/api/admin/restriction/set', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
         },
         credentials: 'include',
-        body: JSON.stringify(edit),
+        body: JSON.stringify({ userId: targetUser.id, ...edit }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Unable to update account restriction.');
@@ -362,7 +371,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
       setRestrictionEdits((current) => ({
         ...current,
         [targetUser.id]: {
-          isRestricted: data.user.isRestricted === true,
+          restrictionType: data.user.restrictionType || 'NONE',
           restrictionReason: data.user.restrictionReason || '',
         },
       }));
@@ -711,20 +720,26 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
     setError(null);
     setSuccessMsg(null);
     try {
-      const res = await fetch(`/api/admin/verifications/${encodeURIComponent(userId)}/kyc-status`, {
-        method: 'PATCH',
+      const restrictedReview = applicant.verification_submission?.restrictionReviewStatus === 'pending';
+      const res = await fetch(
+        restrictedReview
+          ? `/api/admin/kyc/${newStatus === 'Approved' ? 'approve' : 'reject'}`
+          : `/api/admin/verifications/${encodeURIComponent(userId)}/kyc-status`,
+        {
+        method: restrictedReview ? 'POST' : 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           ...(activeToken ? { Authorization: 'Bearer ' + activeToken } : {}),
         },
         credentials: 'include',
         body: JSON.stringify({
-          kycStatus: newStatus,
+          ...(restrictedReview ? { userId } : { kycStatus: newStatus }),
           rejectionReason: newStatus === 'Rejected' ? verificationStatusEdits[userId]?.reason || '' : '',
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Unable to update KYC status.');
+      const updatedVerificationStatus = data.user.verification_status || applicant.verification_status;
       setVerificationApplicants((current) => current.map((currentApplicant) =>
         currentApplicant.id === userId
           ? {
@@ -732,7 +747,12 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
             kycStatus: data.user.kycStatus,
             userSelfieStatus: data.user.userSelfieStatus,
             profilePicture: data.user.profilePicture,
-            verification_status: data.user.verification_status,
+            isRestricted: data.user.isRestricted,
+            restrictionType: data.user.restrictionType,
+            restrictionReason: data.user.restrictionReason,
+            rejectionReason: data.user.rejectionReason,
+            verification_submission: data.user.verification_submission,
+            verification_status: updatedVerificationStatus,
             verification_rejection_reason: data.user.verification_rejection_reason,
             verification_rejection_details: data.user.verification_rejection_details || [],
           }
@@ -741,10 +761,22 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
       setVerificationStatusEdits((current) => ({
         ...current,
         [userId]: {
-          status: data.user.verification_status,
+          status: updatedVerificationStatus,
           reason: data.user.verification_rejection_reason || '',
         },
       }));
+      if (data.user.isRestricted !== undefined) {
+        setUsers((current) => current.map((currentUser) => currentUser.id === userId
+          ? {
+            ...currentUser,
+            isRestricted: data.user.isRestricted,
+            restrictionType: data.user.restrictionType,
+            restrictionReason: data.user.restrictionReason || '',
+            kycStatus: data.user.kycStatus,
+            rejectionReason: data.user.rejectionReason || '',
+          }
+          : currentUser));
+      }
       if (newStatus === 'Approved' && data.user.profilePicture) {
         setUsers((current) => current.map((currentUser) =>
           currentUser.id === userId
@@ -1405,7 +1437,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                     : 'text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                Enrollment review ({verificationApplicants.filter((applicant) => applicant.verification_status === 'under_review').length} pending)
+                Enrollment review ({verificationApplicants.filter((applicant) => applicant.verification_status === 'under_review' || applicant.verification_submission?.restrictionReviewStatus === 'pending').length} pending)
               </button>
             <button
               onClick={() => {
@@ -1526,7 +1558,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
               <div className="space-y-3">
                 {users.map((customer) => {
                   const edit = restrictionEdits[customer.id] || {
-                    isRestricted: customer.isRestricted === true,
+                    restrictionType: customer.restrictionType && customer.restrictionType !== 'NONE' ? customer.restrictionType : customer.isRestricted ? 'KYC' : 'NONE',
                     restrictionReason: customer.restrictionReason || '',
                   };
                   const isAdminAccount = customer.role.toLowerCase() === 'admin';
@@ -1545,8 +1577,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                             <p className="break-all text-xs text-gray-500">{customer.email}</p>
                           </div>
                         </div>
-                        <p className={`mt-1 text-[10px] font-bold uppercase ${isAdminAccount ? 'text-slate-600' : customer.isActive === false ? 'text-red-700' : edit.isRestricted ? 'text-amber-700' : 'text-emerald-700'}`}>
-                          {isAdminAccount ? 'Member Services account' : customer.isActive === false ? 'Deactivated' : edit.isRestricted ? 'Restricted' : 'Active'}
+                        <p className={`mt-1 text-[10px] font-bold uppercase ${isAdminAccount ? 'text-slate-600' : customer.isActive === false ? 'text-red-700' : edit.restrictionType !== 'NONE' ? 'text-amber-700' : 'text-emerald-700'}`}>
+                          {isAdminAccount ? 'Member Services account' : customer.isActive === false ? 'Deactivated' : edit.restrictionType === 'NONE' ? 'Active' : `${edit.restrictionType.replace('_', ' ')} restriction`}
                         </p>
                         {!isAdminAccount && (
                           <div className="mt-2 space-y-1 text-[10px]">
@@ -1751,11 +1783,28 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                         </form>
                       )}
                       <label className="min-w-0 space-y-1 text-xs font-medium text-gray-700">
+                        <span>Restriction type</span>
+                        <select
+                          value={edit.restrictionType}
+                          disabled={isAdminAccount}
+                          onChange={(event) => setRestrictionEdits((current) => ({
+                            ...current,
+                            [customer.id]: { ...edit, restrictionType: event.target.value as RestrictionType },
+                          }))}
+                          className="min-h-11 w-full rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm disabled:bg-gray-100"
+                        >
+                          <option value="NONE">None — no active restriction</option>
+                          <option value="KYC">KYC — identity verification</option>
+                          <option value="SECURITY">Security — unusual activity</option>
+                          <option value="SOURCE_OF_FUNDS">Source of funds — incoming transfer review</option>
+                        </select>
+                      </label>
+                      <label className="min-w-0 space-y-1 text-xs font-medium text-gray-700">
                         <span>Restriction reason shown to customer</span>
                         <textarea
                           value={edit.restrictionReason}
                           maxLength={500}
-                          disabled={isAdminAccount}
+                          disabled={isAdminAccount || edit.restrictionType === 'NONE'}
                           onChange={(event) => setRestrictionEdits((current) => ({
                             ...current,
                             [customer.id]: { ...edit, restrictionReason: event.target.value },
@@ -1766,19 +1815,6 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                         />
                       </label>
                       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                        <label className="flex min-h-11 items-center gap-2 text-xs font-semibold text-gray-700">
-                          <input
-                            type="checkbox"
-                            checked={edit.isRestricted}
-                            disabled={isAdminAccount}
-                            onChange={(event) => setRestrictionEdits((current) => ({
-                              ...current,
-                              [customer.id]: { ...edit, isRestricted: event.target.checked },
-                            }))}
-                            className="h-4 w-4 accent-red-700 disabled:opacity-50"
-                          />
-                          Restrict
-                        </label>
                         <button
                           type="button"
                           disabled={isAdminAccount || savingRestrictionId === customer.id}
@@ -1885,7 +1921,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
               <div>
                 <h3 className="text-base font-bold text-[#173B70]">Customer enrollment status</h3>
                 <p className="mt-1 max-w-2xl text-xs leading-relaxed text-gray-600">
-                  Review customer registration details and uploaded supporting images, then set each enrollment to under review, approved, or rejected.
+                  Review customer enrollment or restricted-account identity documents. Approving a restricted-account identity review restores access by clearing that restriction.
                 </p>
               </div>
               <button type="button" onClick={() => void fetchVerificationApplicants()} disabled={loadingVerificationApplicants} className="inline-flex items-center justify-center gap-2 rounded-sm border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-wait disabled:opacity-60">
@@ -1927,17 +1963,25 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                           <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                             Current status:
                             <span className={`rounded-full px-2 py-0.5 font-semibold ${
-                              applicant.kycStatus === 'Approved'
+                              applicant.kycStatus?.toUpperCase() === 'APPROVED'
                                 ? 'bg-emerald-100 text-emerald-800'
-                                : applicant.kycStatus === 'Rejected'
+                                : applicant.kycStatus?.toUpperCase() === 'REJECTED'
                                   ? 'bg-rose-100 text-rose-800'
                                   : 'bg-amber-100 text-amber-800'
                             }`}>
-                              {applicant.kycStatus && applicant.kycStatus !== 'Pending'
-                                ? applicant.kycStatus
+                              {applicant.verification_submission?.restrictionReviewStatus === 'pending'
+                                ? 'Restricted identity review'
+                                : applicant.kycStatus && !['PENDING', 'PENDING_REVIEW', 'UNVERIFIED'].includes(applicant.kycStatus.toUpperCase())
+                                ? applicant.kycStatus.toUpperCase().replace('_', ' ')
                                 : applicant.verification_status.replace('_', ' ')}
                             </span>
                           </p>
+                          {applicant.verification_submission?.restrictionReviewStatus === 'pending' && (
+                            <p className="mt-1 text-xs font-medium text-amber-800">Approval of these documents will restore the account’s access.</p>
+                          )}
+                          {applicant.verification_submission?.restrictionReviewStatus === 'rejected' && applicant.verification_submission.restrictionReviewReason && (
+                            <p className="mt-1 whitespace-pre-wrap text-xs text-rose-800">Requested updates: {applicant.verification_submission.restrictionReviewReason}</p>
+                          )}
                         </div>
                         <dl className="grid gap-2 rounded-md bg-slate-50 p-3 text-xs sm:grid-cols-2">
                           <div>
@@ -1983,13 +2027,15 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <h5 className="text-sm font-semibold text-slate-900">KYC Verification Documents</h5>
                             <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                              applicant.kycStatus === 'Approved'
+                              applicant.kycStatus?.toUpperCase() === 'APPROVED'
                                 ? 'bg-emerald-100 text-emerald-800'
-                                : applicant.kycStatus === 'Rejected'
+                                : applicant.kycStatus?.toUpperCase() === 'REJECTED'
                                   ? 'bg-rose-100 text-rose-800'
                                   : 'bg-amber-100 text-amber-800'
                             }`}>
-                              {applicant.kycStatus || 'Pending'}
+                              {applicant.verification_submission?.restrictionReviewStatus === 'pending'
+                                ? 'Restricted identity review'
+                                : applicant.kycStatus?.toUpperCase().replace('_', ' ') || 'Pending'}
                             </span>
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2">
@@ -1997,23 +2043,30 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                               { label: 'Government ID', url: documentUrl, filenameLabel: 'government-id', imageClass: 'h-36 w-full object-contain' },
                               { label: 'Proof of Address', url: applicant.addressProofUrl || null, filenameLabel: 'address-proof', imageClass: 'h-36 w-full object-contain' },
                               { label: 'User Selfie', url: selfieUrl, filenameLabel: 'user-selfie', imageClass: 'h-36 w-36 rounded-full object-cover' },
+                              { label: 'Source of Funds', url: applicant.restrictionDocumentUrl || null, filenameLabel: 'source-of-funds', imageClass: 'h-36 w-full object-contain' },
                             ]).map((document) => (
                               <article key={document.label} className="space-y-2 rounded-md border border-slate-200 bg-white p-3">
                                 <h6 className="text-xs font-semibold text-slate-800">{document.label}</h6>
                                 {document.url ? (
                                   <>
-                                    <img src={document.url} alt={`${applicant.full_name} ${document.label}`} className={`mx-auto rounded border border-slate-200 bg-slate-50 ${document.imageClass}`} />
+                                    {document.url.startsWith('data:application/pdf;base64,')
+                                      ? <iframe src={document.url} title={`${applicant.full_name} ${document.label}`} className="h-36 w-full rounded border border-slate-200 bg-slate-50" />
+                                      : <img src={document.url} alt={`${applicant.full_name} ${document.label}`} className={`mx-auto rounded border border-slate-200 bg-slate-50 ${document.imageClass}`} />}
                                     <div className="flex flex-wrap gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => setSelectedKycImage({ url: document.url!, title: `${document.label} — ${applicant.full_name}` })}
-                                        className="min-h-9 rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                                      >
-                                        [ View / Expand ]
-                                      </button>
+                                      {document.url.startsWith('data:application/pdf;base64,')
+                                        ? <a href={document.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">[ Open PDF ]</a>
+                                        : <button
+                                          type="button"
+                                          onClick={() => setSelectedKycImage({ url: document.url!, title: `${document.label} — ${applicant.full_name}` })}
+                                          className="min-h-9 rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                                        >
+                                          [ View / Expand ]
+                                        </button>}
                                       <a
                                         href={document.url}
-                                        download={getKycDownloadFilename(document.url, document.filenameLabel, applicant.id)}
+                                        download={document.url.startsWith('data:application/pdf;base64,')
+                                          ? `${document.filenameLabel}-${applicant.id}.pdf`
+                                          : getKycDownloadFilename(document.url, document.filenameLabel, applicant.id)}
                                         className="inline-flex min-h-9 items-center rounded-md bg-[#173B70] px-3 py-2 text-xs font-semibold text-white hover:bg-[#245B9E]"
                                       >
                                         [ Download ]
@@ -2052,15 +2105,19 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                           <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
                             <button
                               type="button"
-                              disabled={savingKycReviewId === applicant.id || applicant.kycStatus === 'Approved'}
+                              disabled={savingKycReviewId === applicant.id || applicant.kycStatus?.toUpperCase() === 'APPROVED'}
                               onClick={() => { void handleUpdateKycStatus(applicant.id, 'Approved'); }}
                               className="min-h-10 rounded-md bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              {savingKycReviewId === applicant.id ? 'Saving…' : '[ Approve KYC ]'}
+                              {savingKycReviewId === applicant.id
+                                ? 'Saving…'
+                                : applicant.verification_submission?.restrictionReviewStatus === 'pending'
+                                  ? '[ Approve Identity & Restore Access ]'
+                                  : '[ Approve KYC ]'}
                             </button>
                             <button
                               type="button"
-                              disabled={savingKycReviewId === applicant.id || applicant.kycStatus === 'Rejected'}
+                              disabled={savingKycReviewId === applicant.id || applicant.kycStatus?.toUpperCase() === 'REJECTED'}
                               onClick={() => { void handleUpdateKycStatus(applicant.id, 'Rejected'); }}
                               className="min-h-10 rounded-md border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                             >

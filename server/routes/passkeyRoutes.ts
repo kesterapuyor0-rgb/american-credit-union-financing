@@ -358,7 +358,7 @@ router.post('/verify-login', async (req, res: Response): Promise<void> => {
       return;
     }
     const user = await User.findOne({ id: credential.userId })
-      .select('id email full_name role isAdmin isActive isRestricted restrictionReason phone address profilePicture kycStatus status enrollmentStatus lastCompletedStep enrollmentStep verification_status verification_rejection_reason verification_rejection_details')
+      .select('id email full_name role isAdmin isActive isRestricted restrictionType restrictionReason phone address profilePicture kycStatus rejectionReason kycSubmittedAt status enrollmentStatus lastCompletedStep enrollmentStep verification_status verification_rejection_reason verification_rejection_details verification_submission.restrictionReviewStatus verification_submission.restrictionReviewReason')
       .lean<any>();
     if (!user || user.isActive === false) {
       res.status(401).json({ error: 'Passkey sign-in failed. Try again or use your password.' });
@@ -465,9 +465,21 @@ router.post('/verify-login', async (req, res: Response): Promise<void> => {
         phone: user.phone,
         address: user.address || '',
         profilePicture: user.profilePicture || '',
-        kycStatus: user.kycStatus || 'Pending',
+        kycStatus: ({
+          PENDING: 'PENDING_REVIEW',
+          PENDING_REVIEW: 'PENDING_REVIEW',
+          APPROVED: 'APPROVED',
+          REJECTED: 'REJECTED',
+        } as Record<string, string>)[String(user.kycStatus || '').toUpperCase()] || 'UNVERIFIED',
+        rejectionReason: user.rejectionReason || user.verification_rejection_reason || '',
+        kycSubmittedAt: user.kycSubmittedAt || null,
         isRestricted: user.isRestricted === true,
+        restrictionType: ['KYC', 'SECURITY', 'SOURCE_OF_FUNDS'].includes(user.restrictionType)
+          ? user.restrictionType
+          : user.isRestricted ? 'KYC' : 'NONE',
         restrictionReason: user.restrictionReason || '',
+        restrictionReviewStatus: user.verification_submission?.restrictionReviewStatus || 'not_requested',
+        restrictionReviewReason: user.verification_submission?.restrictionReviewReason || '',
         verification_status: enrollmentStatus === 'incomplete'
           ? 'incomplete'
           : enrollmentStatus === 'action_required'

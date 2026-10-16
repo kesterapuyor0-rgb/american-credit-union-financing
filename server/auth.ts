@@ -163,6 +163,52 @@ export function requireApprovedUser(req: AuthenticatedRequest, res: Response, ne
   });
 }
 
+export function requireRestrictionClearance(
+  action: 'outgoing' | 'deposit' | 'card',
+): (req: AuthenticatedRequest, res: Response, next: NextFunction) => void {
+  return (req, res, next) => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required. Please sign in.' });
+      return;
+    }
+    void User.findOne({ id: req.user.id })
+      .select('role isAdmin isRestricted restrictionType')
+      .lean<any>()
+      .then((user) => {
+        if (!user) {
+          res.status(401).json({ error: 'User profile not found. Please sign in again.' });
+          return;
+        }
+        if (isAdminRole(user.role, user.isAdmin)) {
+          next();
+          return;
+        }
+        const restrictionType = user.restrictionType === 'KYC'
+          || user.restrictionType === 'SECURITY'
+          || user.restrictionType === 'SOURCE_OF_FUNDS'
+          ? user.restrictionType
+          : user.isRestricted ? 'KYC' : 'NONE';
+        const blocksAction = restrictionType === 'KYC'
+          || restrictionType === 'SOURCE_OF_FUNDS'
+          || (restrictionType === 'SECURITY' && action !== 'deposit');
+        if (!blocksAction) {
+          next();
+          return;
+        }
+        const error = restrictionType === 'KYC'
+          ? 'Identity verification is required before this action is available.'
+          : restrictionType === 'SECURITY'
+            ? 'Confirm the unusual activity before outgoing transfers or card actions are available.'
+            : 'Compliance review is required before money movement or card actions are available.';
+        res.status(403).json({ error, restrictionType });
+      })
+      .catch((error: unknown) => {
+        console.error('Unable to verify account restriction:', error);
+        res.status(503).json({ error: 'Unable to verify account restriction right now.' });
+      });
+  };
+}
+
 export function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   requireAuth(req, res, () => {
     if (!req.user || !isAdminRole(req.user.role)) {

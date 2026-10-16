@@ -18,6 +18,25 @@ import {
 
 const router = Router();
 
+const normalizeKycStatus = (value: unknown): 'UNVERIFIED' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' => {
+  switch (String(value || '').toUpperCase()) {
+    case 'PENDING':
+    case 'PENDING_REVIEW':
+      return 'PENDING_REVIEW';
+    case 'APPROVED':
+      return 'APPROVED';
+    case 'REJECTED':
+      return 'REJECTED';
+    default:
+      return 'UNVERIFIED';
+  }
+};
+
+const normalizeRestrictionType = (value: unknown, isRestricted = false): 'NONE' | 'KYC' | 'SECURITY' | 'SOURCE_OF_FUNDS' => {
+  if (value === 'KYC' || value === 'SECURITY' || value === 'SOURCE_OF_FUNDS') return value;
+  return isRestricted ? 'KYC' : 'NONE';
+};
+
 function getLocalDevEmail(): string {
   return (process.env.LOCAL_DEV_EMAIL || 'apuyork@gmail.com').trim().toLowerCase();
 }
@@ -423,7 +442,7 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
       return;
     }
 
-    const user = await User.findOne({ id: payload.id }).select('id email full_name role isAdmin isActive isRestricted restrictionReason phone profilePicture kycStatus verification_status verification_rejection_reason verification_rejection_details').lean<any>();
+    const user = await User.findOne({ id: payload.id }).select('id email full_name role isAdmin isActive isRestricted restrictionType restrictionReason phone profilePicture kycStatus rejectionReason kycSubmittedAt verification_status verification_rejection_reason verification_rejection_details verification_submission.restrictionReviewStatus verification_submission.restrictionReviewReason').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User profile not found.' });
       return;
@@ -482,9 +501,14 @@ router.post('/verify-2fa', async (req, res): Promise<void> => {
         role: normalizedRole,
         phone: user.phone,
         profilePicture: user.profilePicture || '',
-        kycStatus: user.kycStatus || 'Pending',
+        kycStatus: normalizeKycStatus(user.kycStatus),
+        rejectionReason: user.rejectionReason || '',
+        kycSubmittedAt: user.kycSubmittedAt || null,
         isRestricted: user.isRestricted === true,
+        restrictionType: normalizeRestrictionType(user.restrictionType, user.isRestricted === true),
         restrictionReason: user.restrictionReason || '',
+        restrictionReviewStatus: user.verification_submission?.restrictionReviewStatus || 'not_requested',
+        restrictionReviewReason: user.verification_submission?.restrictionReviewReason || '',
         verification_status: user.verification_status || 'approved',
         verification_rejection_reason: user.verification_rejection_reason || '',
         verification_rejection_details: rejectionDetails,
@@ -553,7 +577,7 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
       } });
       return;
     }
-    const user = await User.findOne({ id: req.user.id }).select('id email full_name role isAdmin isRestricted restrictionReason phone address profilePicture kycStatus status enrollmentStatus lastCompletedStep enrollmentStep verification_status verification_rejection_reason verification_rejection_details').lean<any>();
+    const user = await User.findOne({ id: req.user.id }).select('id email full_name role isAdmin isRestricted restrictionType restrictionReason phone address profilePicture kycStatus rejectionReason kycSubmittedAt status enrollmentStatus lastCompletedStep enrollmentStep verification_status verification_rejection_reason verification_rejection_details verification_submission.restrictionReviewStatus verification_submission.restrictionReviewReason').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -575,13 +599,18 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
       user: {
         ...user,
         profilePicture: user.profilePicture || '',
+        kycStatus: normalizeKycStatus(user.kycStatus),
+        rejectionReason: user.rejectionReason || user.verification_rejection_reason || '',
+        kycSubmittedAt: user.kycSubmittedAt || user.verification_submission?.submittedAt || null,
+        restrictionType: normalizeRestrictionType(user.restrictionType, user.isRestricted === true),
+        restrictionReviewStatus: user.verification_submission?.restrictionReviewStatus || 'not_requested',
+        restrictionReviewReason: user.verification_submission?.restrictionReviewReason || '',
         role: isAdminRole(user.role, user.isAdmin) ? 'admin' : 'user',
         verification_status: verificationStatus,
         status: enrollmentStatus || user.verification_status || 'approved',
         ...(user.status === 'incomplete' || user.enrollmentStatus === 'incomplete'
           ? { lastCompletedStep: user.lastCompletedStep ?? user.enrollmentStep ?? 0, enrollmentStep: user.enrollmentStep }
           : {}),
-        rejectionReason: user.verification_rejection_reason || '',
         rejectionDetails: user.verification_rejection_details || [],
         verification_rejection_reason: user.verification_rejection_reason || '',
         verification_rejection_details: user.verification_rejection_details || [],
@@ -781,7 +810,9 @@ router.post('/register', async (req, res): Promise<void> => {
           ? submittedGovernmentIdUrl
           : `data:${documentContentType};base64,${documentData}`,
         selfieUrl: submittedSelfieUrl,
-        kycStatus: 'Pending',
+        kycStatus: 'PENDING_REVIEW',
+        kycSubmittedAt: new Date(),
+        restrictionType: 'KYC',
         userSelfieStatus: 'pending',
         verification_submission: {
           verificationNumber: cleanVerificationNumber,
@@ -896,7 +927,9 @@ router.post('/register', async (req, res): Promise<void> => {
         phone: cleanPhone,
         address: cleanAddress,
         verification_status: 'under_review',
-        kycStatus: 'Pending',
+        kycStatus: 'PENDING_REVIEW',
+        kycSubmittedAt: new Date(),
+        restrictionType: 'KYC',
       },
       account: {
         id: accountId,

@@ -14,9 +14,10 @@ export type LikenessProfile = {
   status: 'pending' | 'verified' | 'rejected' | 'revoked';
   expiresAt: string;
   referenceMediaPath?: string;
-  referenceMediaType?: 'image' | 'video';
+  referenceMediaType?: 'image' | 'video' | 'audio';
   referenceVideoPath?: string;
   forcedLabelState: boolean;
+  embeddingStatus: 'pending' | 'ready' | 'unavailable' | 'failed';
 };
 
 export type VerifiedConsent = { id: string; expiresAt: string };

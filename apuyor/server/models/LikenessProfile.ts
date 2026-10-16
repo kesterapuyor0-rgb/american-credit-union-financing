@@ -9,7 +9,9 @@ const likenessProfileSchema = new Schema({
   // referenceVideoPath remains for existing profiles; new uploads use the typed media fields.
   referenceVideoPath: { type: String, trim: true, maxlength: 2048 },
   referenceMediaPath: { type: String, trim: true, maxlength: 2048 },
-  referenceMediaType: { type: String, enum: ['image', 'video'] },
+  referenceMediaType: { type: String, enum: ['image', 'video', 'audio'] },
+  embeddingProfileId: { type: String, trim: true, maxlength: 128 },
+  embeddingStatus: { type: String, enum: ['pending', 'ready', 'unavailable', 'failed'], default: 'pending', required: true },
   forcedLabelState: { type: Boolean, default: false, required: true },
   verifiedAt: Date,
   revokedAt: Date,

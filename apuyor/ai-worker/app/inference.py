@@ -11,6 +11,10 @@ class InferenceResult:
 
 
 class InferenceAdapter(Protocol):
+    def extract_face_embedding(self, image_bytes: bytes) -> str: ...
+
+    def extract_speaker_embedding(self, audio_bytes: bytes, sample_rate: int) -> str: ...
+
     def transform_frame(self, request: TransformRequest) -> InferenceResult: ...
 
     def transform_video(self, request: TransformRequest) -> InferenceResult: ...
@@ -24,6 +28,12 @@ class InferenceUnavailable(RuntimeError):
 
 class UnconfiguredInferenceAdapter:
     """Safe default: never reports success when there is no model attached."""
+
+    def extract_face_embedding(self, image_bytes: bytes) -> str:
+        raise InferenceUnavailable("Face embedding backend is not configured.")
+
+    def extract_speaker_embedding(self, audio_bytes: bytes, sample_rate: int) -> str:
+        raise InferenceUnavailable("Speaker embedding backend is not configured.")
 
     def transform_frame(self, request: TransformRequest) -> InferenceResult:
         raise InferenceUnavailable("Frame inference backend is not configured.")

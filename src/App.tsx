@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { User, BankAccount, BankCard, Transaction, UserSummary } from './types';
+import { User, BankAccount, BankCard, Transaction, UserSummary, RestrictionType } from './types';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { LoginView } from './views/LoginView';
@@ -13,6 +13,7 @@ import { RegisterView } from './views/RegisterView';
 import { EnrollmentStatusView } from './views/EnrollmentStatusView';
 import { LandingView } from './views/LandingView';
 import { ProfileView } from './views/ProfileView';
+import { VerifyIdentityView } from './views/VerifyIdentityView';
 import { GrantApplicationView } from './views/GrantApplicationView';
 import { InvestmentView } from './views/InvestmentView';
 import { KycResubmissionView } from './views/KycResubmissionView';
@@ -281,10 +282,12 @@ export default function App() {
       if (profileData.user) {
         setUser((current) => {
           if (!current) return current;
-          const profilePicture = profileData.user.profilePicture || '';
-          const kycStatus = profileData.user.kycStatus || 'Pending';
-          if (current.profilePicture === profilePicture && current.kycStatus === kycStatus) return current;
-          return { ...current, profilePicture, kycStatus };
+          return {
+            ...current,
+            ...profileData.user,
+            profilePicture: profileData.user.profilePicture || '',
+            kycStatus: profileData.user.kycStatus || 'UNVERIFIED',
+          };
         });
       }
       const payload: DashboardPayload = {
@@ -361,8 +364,13 @@ export default function App() {
             'address',
             'profilePicture',
             'kycStatus',
+            'restrictionType',
+            'rejectionReason',
+            'kycSubmittedAt',
             'isRestricted',
             'restrictionReason',
+            'restrictionReviewStatus',
+            'restrictionReviewReason',
             'verification_status',
             'verification_rejection_reason',
             'status',
@@ -659,12 +667,52 @@ export default function App() {
     );
   }
 
-  const handleNavigateToIdentityVerification = () => {
-    setFocusIdentityVerification(true);
-    setActiveTab('profile');
+  const handleResolveRestriction = (_restrictionType: RestrictionType) => {
+    setActiveTab('home');
+    navigateTo('/verify-identity');
   };
 
+  if (currentPath === '/verify-identity') {
+    return (
+      <>
+        <OfflineStatusBanner isOnline={isOnline} />
+        <main className="mx-auto w-full max-w-full min-w-0 flex-1 px-3.5 py-6 pb-32 sm:max-w-7xl sm:px-8">
+          <VerifyIdentityView
+            user={user}
+            restrictionType={user.restrictionType && user.restrictionType !== 'NONE' ? user.restrictionType : user.isRestricted ? 'KYC' : 'NONE'}
+            onBack={() => navigateTo('/dashboard')}
+            onReviewTransactions={() => {
+              setActiveTab('history');
+              navigateTo('/dashboard');
+            }}
+            onSubmitted={(updates) => {
+              setUser((current) => current ? { ...current, ...updates } : current);
+              setActiveTab('home');
+              navigateTo('/dashboard');
+            }}
+          />
+        </main>
+      </>
+    );
+  }
+
   const renderCustomerView = () => {
+    const activeRestrictionType = user.restrictionType && user.restrictionType !== 'NONE'
+      ? user.restrictionType
+      : user.isRestricted ? 'KYC' : 'NONE';
+    const restrictedFinancialAction = (action: string) => (
+      <section role="alert" className="mx-auto max-w-2xl rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">
+        <h2 className="font-semibold">{action} is unavailable during compliance review</h2>
+        <p className="mt-1 leading-5">Your account balance and transaction history remain available. Resolve the active restriction to restore this capability.</p>
+        <button
+          type="button"
+          onClick={() => handleResolveRestriction(activeRestrictionType)}
+          className="mt-3 min-h-10 rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900"
+        >
+          Resolve restriction
+        </button>
+      </section>
+    );
     const dashboardProps = {
       user,
       token,
@@ -676,7 +724,7 @@ export default function App() {
       onRefresh: fetchUserData,
       onNavigateToTransfer: handleNavigateToTransfer,
       onNavigateToTab: setActiveTab,
-      onVerifyIdentity: handleNavigateToIdentityVerification,
+      onResolveRestriction: handleResolveRestriction,
       onContactSupport: () => setRestrictionSupportOpen(true),
       onNavigateToAccountTransactions: (accountId: string) => {
         setHistoryAccountId(accountId);
@@ -701,15 +749,17 @@ export default function App() {
           onNavigateToTransfer={handleNavigateToTransfer}
         />;
       case 'transfer':
-        return <TransferView
-          key="transfer"
-          user={user}
-          token={token}
-          accounts={accounts}
-          initialFromAccountId={initialTransferSourceId}
-          onTransferComplete={fetchUserData}
-          onCancel={() => setActiveTab('home')}
-        />;
+        return activeRestrictionType !== 'NONE'
+          ? restrictedFinancialAction('Transfers')
+          : <TransferView
+            key="transfer"
+            user={user}
+            token={token}
+            accounts={accounts}
+            initialFromAccountId={initialTransferSourceId}
+            onTransferComplete={fetchUserData}
+            onCancel={() => setActiveTab('home')}
+          />;
       case 'profile':
         return <ProfileView
           key="profile"
@@ -724,12 +774,14 @@ export default function App() {
       case 'grants':
         return <GrantApplicationView key="grants" user={user} onRefresh={fetchUserData} />;
       case 'investments':
-        return <InvestmentView
-          key="investments"
-          inline
-          onClose={() => setActiveTab('home')}
-          onPurchaseComplete={() => { void fetchUserData(); }}
-        />;
+        return activeRestrictionType !== 'NONE'
+          ? restrictedFinancialAction('Investment purchases')
+          : <InvestmentView
+            key="investments"
+            inline
+            onClose={() => setActiveTab('home')}
+            onPurchaseComplete={() => { void fetchUserData(); }}
+          />;
       case 'security':
         return <SecurityView key="security" user={user} />;
       default:
@@ -752,11 +804,15 @@ export default function App() {
       <OfflineStatusBanner isOnline={isOnline} />
 
       <main id="customer-view" role="tabpanel" tabIndex={-1} aria-label={`${activeTab} view`} className="mx-auto w-full max-w-full min-w-0 flex-1 px-3.5 pt-5 pb-32 sm:max-w-7xl sm:px-8 sm:py-6">
-        {user.isRestricted && activeTab !== 'home' && (
+        {((user.restrictionType && user.restrictionType !== 'NONE') || user.isRestricted || user.kycStatus === 'PENDING_REVIEW' || user.kycStatus === 'REJECTED') && activeTab !== 'home' && (
           <div className="mb-5">
             <RestrictedAccountNotice
               reason={user.restrictionReason}
-              onVerifyIdentity={handleNavigateToIdentityVerification}
+              kycStatus={user.kycStatus}
+              rejectionReason={user.rejectionReason}
+              isRestricted={user.isRestricted}
+              restrictionType={user.restrictionType && user.restrictionType !== 'NONE' ? user.restrictionType : user.isRestricted ? 'KYC' : 'NONE'}
+              onResolveRestriction={handleResolveRestriction}
               onContactSupport={() => setRestrictionSupportOpen(true)}
             />
           </div>

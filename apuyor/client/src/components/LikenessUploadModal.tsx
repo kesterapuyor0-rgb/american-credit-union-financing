@@ -27,7 +27,7 @@ export default function LikenessUploadModal({ token, activeProfileId, onAttach, 
     Promise.all([api.myLikeness(token), api.verifiedConsents(token)])
       .then(([profileResult, consentResult]) => {
         if (!active) return;
-        setProfiles(profileResult.profiles);
+        setProfiles(profileResult.profiles.filter((profile) => profile.referenceMediaType !== 'audio'));
         setConsents(consentResult.consents);
         setConsentId(consentResult.consents[0]?.id ?? '');
       })

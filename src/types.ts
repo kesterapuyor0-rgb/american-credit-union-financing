@@ -1,3 +1,5 @@
+export type RestrictionType = 'NONE' | 'KYC' | 'SECURITY' | 'SOURCE_OF_FUNDS';
+
 export interface User {
   id: string;
   email: string;
@@ -7,10 +9,12 @@ export interface User {
   isActive?: boolean;
   isRestricted?: boolean;
   restrictionReason?: string;
+  restrictionType?: RestrictionType;
+  restrictionReviewStatus?: 'not_requested' | 'pending' | 'approved' | 'rejected';
+  restrictionReviewReason?: string;
   verification_status?: 'incomplete' | 'under_review' | 'approved' | 'rejected';
   verification_rejection_reason?: string;
   verification_rejection_details?: string[];
-  rejectionReason?: string;
   rejectionDetails?: string[];
   status?: 'action_required' | 'authenticated' | 'incomplete' | 'pending_review' | 'under_review' | 'approved' | 'rejected';
   enrollmentStep?: number;
@@ -21,7 +25,9 @@ export interface User {
   };
   governmentIdUrl?: string;
   selfieUrl?: string;
-  kycStatus?: 'Pending' | 'Approved' | 'Rejected';
+  kycStatus?: 'UNVERIFIED' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
+  rejectionReason?: string;
+  kycSubmittedAt?: string;
   userSelfie?: string;
   userSelfieStatus?: 'pending' | 'verified' | 'rejected';
   address?: string;

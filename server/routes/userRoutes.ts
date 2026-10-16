@@ -2,17 +2,47 @@ import { Router, Response } from 'express';
 import { randomInt, randomUUID } from 'crypto';
 import { User, Account, Transaction, BankCard, CardApplication, AuditLog } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
-import { requireApprovedUser, requireAuth, AuthenticatedRequest } from '../auth.js';
+import { requireApprovedUser, requireAuth, requireRestrictionClearance, AuthenticatedRequest } from '../auth.js';
 import { generateCardNumber, maskedCardNumber, numericCardLastFour } from '../cardNumber.js';
 import { formatCryptoAmount } from '../cryptoRates.js';
 
 const router = Router();
 router.use(requireDatabase);
 
+const normalizeKycStatus = (value: unknown): 'UNVERIFIED' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' => {
+  switch (String(value || '').toUpperCase()) {
+    case 'PENDING':
+    case 'PENDING_REVIEW':
+      return 'PENDING_REVIEW';
+    case 'APPROVED':
+      return 'APPROVED';
+    case 'REJECTED':
+      return 'REJECTED';
+    default:
+      return 'UNVERIFIED';
+  }
+};
+
+const normalizeRestrictionType = (value: unknown, isRestricted = false): 'NONE' | 'KYC' | 'SECURITY' | 'SOURCE_OF_FUNDS' => {
+  if (value === 'KYC' || value === 'SECURITY' || value === 'SOURCE_OF_FUNDS') return value;
+  return isRestricted ? 'KYC' : 'NONE';
+};
+
+const getComplianceDocument = (value: unknown): { dataUrl: string; data: string; contentType: string } | null => {
+  if (typeof value !== 'string') return null;
+  const match = value.match(/^data:(application\/pdf|image\/(?:jpeg|png|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$/i);
+  if (!match || !match[2]) return null;
+  const data = Buffer.from(match[2], 'base64');
+  if (!data.length || data.length > 5 * 1024 * 1024 || data.toString('base64') !== match[2]) return null;
+  return { dataUrl: value, data: match[2], contentType: match[1].toLowerCase() };
+};
+
 const getImageData = (value: unknown): { dataUrl: string; data: string; contentType: string } | null => {
   if (typeof value !== 'string') return null;
   const match = value.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$/i);
-  if (!match || !match[2] || Buffer.from(match[2], 'base64').length > 5 * 1024 * 1024) return null;
+  if (!match || !match[2]) return null;
+  const data = Buffer.from(match[2], 'base64');
+  if (!data.length || data.length > 5 * 1024 * 1024 || data.toString('base64') !== match[2]) return null;
   return { dataUrl: value, contentType: match[1].toLowerCase(), data: match[2] };
 };
 
@@ -74,7 +104,9 @@ router.post('/kyc-resubmission', requireAuth, async (req: AuthenticatedRequest, 
           verification_status: 'under_review',
           verification_rejection_reason: '',
           verification_rejection_details: [],
-          kycStatus: 'Pending',
+          kycStatus: 'PENDING_REVIEW',
+          rejectionReason: '',
+          kycSubmittedAt: new Date(),
           userSelfieStatus: 'pending',
           profilePicture: '',
           governmentIdUrl: governmentId.dataUrl,
@@ -93,7 +125,7 @@ router.post('/kyc-resubmission', requireAuth, async (req: AuthenticatedRequest, 
         $unset: { verification_reviewed_at: 1 },
       },
       { new: true, runValidators: true },
-    ).select('id email full_name verification_status kycStatus verification_rejection_reason verification_rejection_details').lean<any>();
+    ).select('id email full_name verification_status kycStatus rejectionReason kycSubmittedAt verification_rejection_reason verification_rejection_details').lean<any>();
     if (!user) {
       res.status(409).json({ error: 'This account is not currently awaiting KYC re-submission. Refresh the page and try again.' });
       return;
@@ -116,6 +148,251 @@ router.post('/kyc-resubmission', requireAuth, async (req: AuthenticatedRequest, 
   } catch (err) {
     console.error('Failed to submit KYC resubmission:', err);
     res.status(500).json({ error: errorMessage(err, 'Unable to submit replacement KYC documents.') });
+  }
+});
+
+router.post('/restriction-identity-documents', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const governmentId = getImageData(req.body?.governmentIdUrl);
+  const addressProof = getImageData(req.body?.addressProofUrl);
+  const governmentIdType = req.body?.governmentIdType;
+  if (!['Passport', "Driver's License", 'State ID'].includes(governmentIdType)) {
+    res.status(400).json({ error: 'Choose Passport, Driver’s License, or State ID as your government-issued ID type.' });
+    return;
+  }
+  if (!governmentId || !addressProof) {
+    res.status(400).json({ error: 'Upload a valid government-issued ID and proof of address (each up to 5 MB).' });
+    return;
+  }
+
+  const fileMetadata = (value: unknown, fallback: string, contentType: string, size: number) => {
+    const metadata = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+    const name = typeof metadata.name === 'string' ? metadata.name.trim().slice(0, 120) : '';
+    return { name: name || fallback, type: contentType, size };
+  };
+  const idMetadata = fileMetadata(
+    req.body?.governmentIdMetadata,
+    'restriction-government-id',
+    governmentId.contentType,
+    Buffer.from(governmentId.data, 'base64').length,
+  );
+  const addressMetadata = fileMetadata(
+    req.body?.addressProofMetadata,
+    'restriction-address-proof',
+    addressProof.contentType,
+    Buffer.from(addressProof.data, 'base64').length,
+  );
+
+  try {
+    const existingUser = await User.findOne({
+      id: req.user!.id,
+      role: { $ne: 'admin' },
+      isAdmin: { $ne: true },
+    }).select('email isRestricted restrictionType verification_status verification_submission kycStatus').lean<any>();
+    if (!existingUser) {
+      res.status(404).json({ error: 'Customer profile not found.' });
+      return;
+    }
+    const currentKycStatus = normalizeKycStatus(existingUser.kycStatus);
+    const restrictionType = normalizeRestrictionType(existingUser.restrictionType, existingUser.isRestricted === true);
+    if (restrictionType !== 'KYC') {
+      res.status(409).json({ error: 'Identity document upload is unavailable for this restriction type.' });
+      return;
+    }
+    if (currentKycStatus === 'PENDING_REVIEW' || existingUser.verification_submission?.restrictionReviewStatus === 'pending') {
+      res.status(409).json({ error: 'Your identity documents are already under review.' });
+      return;
+    }
+    if (!existingUser.isRestricted && currentKycStatus !== 'REJECTED' && currentKycStatus !== 'UNVERIFIED') {
+      res.status(409).json({ error: 'Identity verification is already approved.' });
+      return;
+    }
+
+    const user = await User.findOneAndUpdate(
+      {
+        id: req.user!.id,
+        role: { $ne: 'admin' },
+        isAdmin: { $ne: true },
+        restrictionType: existingUser.restrictionType === undefined ? { $in: [null, 'KYC'] } : existingUser.restrictionType,
+        'verification_submission.restrictionReviewStatus': { $ne: 'pending' },
+        kycStatus: { $nin: ['PENDING_REVIEW', 'Pending'] },
+      },
+      {
+        $set: {
+          kycStatus: 'PENDING_REVIEW',
+          rejectionReason: '',
+          kycSubmittedAt: new Date(),
+          restrictionType: 'KYC',
+          governmentIdUrl: governmentId.dataUrl,
+          addressProofUrl: addressProof.dataUrl,
+          verificationDocument: { data: governmentId.data, contentType: governmentId.contentType },
+          'verification_submission.governmentIdType': governmentIdType,
+          'verification_submission.sampleFileName': idMetadata.name,
+          'verification_submission.sampleFileType': idMetadata.type,
+          'verification_submission.sampleFileSize': idMetadata.size,
+          'verification_submission.addressProofFileName': addressMetadata.name,
+          'verification_submission.addressProofFileType': addressMetadata.type,
+          'verification_submission.addressProofFileSize': addressMetadata.size,
+          'verification_submission.submittedAt': new Date(),
+          'verification_submission.restrictionReviewStatus': 'pending',
+          'verification_submission.restrictionReviewReason': '',
+          verification_rejection_reason: '',
+          verification_rejection_details: [],
+        },
+      },
+      { new: true, runValidators: true },
+    ).select('id isRestricted kycStatus rejectionReason kycSubmittedAt verification_submission').lean<any>();
+    if (!user) {
+      res.status(409).json({ error: 'Your restriction or review status changed. Refresh the page and try again.' });
+      return;
+    }
+
+    try {
+      await AuditLog.create({
+        id: `log_restriction_identity_${randomUUID()}`,
+        admin_id: 'system',
+        admin_email: 'system@americancreditunion.financing',
+        action: 'RESTRICTED_IDENTITY_DOCUMENTS_SUBMITTED',
+        target_user_id: user.id,
+        details: `Identity documents submitted for restriction review by ${existingUser.email}.`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      });
+    } catch (auditError) {
+      console.error('Restriction identity documents were saved, but the audit log could not be written:', auditError);
+    }
+
+    res.json({
+      success: true,
+      user: {
+        restrictionReviewStatus: user.verification_submission?.restrictionReviewStatus || 'pending',
+        restrictionType: 'KYC',
+        kycStatus: normalizeKycStatus(user.kycStatus),
+        rejectionReason: user.rejectionReason || '',
+        kycSubmittedAt: user.kycSubmittedAt,
+        isRestricted: user.isRestricted === true,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to submit restricted-account identity documents:', error);
+    res.status(500).json({ error: errorMessage(error, 'Unable to submit your identity documents.') });
+  }
+});
+
+router.post('/restriction-source-of-funds-document', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const document = getComplianceDocument(req.body?.documentData);
+  const documentName = typeof req.body?.documentName === 'string' ? req.body.documentName.trim().slice(0, 120) : '';
+  if (!document || !documentName) {
+    res.status(400).json({ error: 'Upload a PDF or image showing proof of income or the incoming transfer (up to 5 MB).' });
+    return;
+  }
+  try {
+    const user = await User.findOneAndUpdate(
+      {
+        id: req.user!.id,
+        role: { $ne: 'admin' },
+        isAdmin: { $ne: true },
+        restrictionType: 'SOURCE_OF_FUNDS',
+        kycStatus: { $nin: ['PENDING_REVIEW', 'Pending'] },
+      },
+      {
+        $set: {
+          isRestricted: true,
+          kycStatus: 'PENDING_REVIEW',
+          rejectionReason: '',
+          kycSubmittedAt: new Date(),
+          restrictionDocument: { data: document.data, contentType: document.contentType },
+          'verification_submission.sampleFileName': documentName,
+          'verification_submission.sampleFileType': document.contentType,
+          'verification_submission.sampleFileSize': Buffer.from(document.data, 'base64').length,
+          'verification_submission.submittedAt': new Date(),
+          'verification_submission.restrictionReviewStatus': 'pending',
+          'verification_submission.restrictionReviewReason': '',
+        },
+      },
+      { new: true, runValidators: true },
+    ).select('id isRestricted restrictionType kycStatus rejectionReason kycSubmittedAt verification_submission').lean<any>();
+    if (!user) {
+      res.status(409).json({ error: 'This account is not awaiting source-of-funds documentation or a review is already pending.' });
+      return;
+    }
+    await AuditLog.create({
+      id: `log_source_funds_document_${randomUUID()}`,
+      admin_id: 'system',
+      admin_email: 'system@americancreditunion.financing',
+      action: 'SOURCE_OF_FUNDS_DOCUMENT_SUBMITTED',
+      target_user_id: user.id,
+      details: `Source-of-funds document submitted for compliance review by ${req.user!.email}.`,
+      ip_address: req.ip || '127.0.0.1',
+      created_at: new Date().toISOString(),
+    });
+    res.json({
+      success: true,
+      user: {
+        restrictionType: user.restrictionType,
+        kycStatus: normalizeKycStatus(user.kycStatus),
+        rejectionReason: user.rejectionReason || '',
+        kycSubmittedAt: user.kycSubmittedAt,
+        isRestricted: user.isRestricted === true,
+        restrictionReviewStatus: user.verification_submission?.restrictionReviewStatus || 'pending',
+      },
+    });
+  } catch (error) {
+    console.error('Failed to submit source-of-funds document:', error);
+    res.status(500).json({ error: errorMessage(error, 'Unable to submit your source-of-funds document.') });
+  }
+});
+
+router.post('/restriction-activity-confirmation', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const user = await User.findOneAndUpdate(
+      {
+        id: req.user!.id,
+        role: { $ne: 'admin' },
+        isAdmin: { $ne: true },
+        restrictionType: 'SECURITY',
+        kycStatus: { $nin: ['PENDING_REVIEW', 'Pending'] },
+      },
+      {
+        $set: {
+          isRestricted: true,
+          kycStatus: 'PENDING_REVIEW',
+          rejectionReason: '',
+          kycSubmittedAt: new Date(),
+          'verification_submission.submittedAt': new Date(),
+          'verification_submission.restrictionReviewStatus': 'pending',
+          'verification_submission.restrictionReviewReason': 'Customer confirmed recent activity and requested compliance review.',
+        },
+      },
+      { new: true, runValidators: true },
+    ).select('id isRestricted restrictionType kycStatus rejectionReason kycSubmittedAt verification_submission').lean<any>();
+    if (!user) {
+      res.status(409).json({ error: 'This account is not awaiting security confirmation or a review is already pending.' });
+      return;
+    }
+    await AuditLog.create({
+      id: `log_security_confirmation_${randomUUID()}`,
+      admin_id: 'system',
+      admin_email: 'system@americancreditunion.financing',
+      action: 'SECURITY_ACTIVITY_CONFIRMED',
+      target_user_id: user.id,
+      details: `Customer ${req.user!.email} confirmed recent activity and requested security review.`,
+      ip_address: req.ip || '127.0.0.1',
+      created_at: new Date().toISOString(),
+    });
+    res.json({
+      success: true,
+      user: {
+        restrictionType: user.restrictionType,
+        kycStatus: normalizeKycStatus(user.kycStatus),
+        rejectionReason: user.rejectionReason || '',
+        kycSubmittedAt: user.kycSubmittedAt,
+        isRestricted: user.isRestricted === true,
+        restrictionReviewStatus: user.verification_submission?.restrictionReviewStatus || 'pending',
+      },
+    });
+  } catch (error) {
+    console.error('Failed to record security activity confirmation:', error);
+    res.status(500).json({ error: errorMessage(error, 'Unable to confirm recent activity.') });
   }
 });
 
@@ -287,7 +564,7 @@ router.get('/cards', requireApprovedUser, async (req: AuthenticatedRequest, res:
 });
 
 // GET /api/user/cards/:cardId/details — returns sensitive card details only after admin authorization.
-router.get('/cards/:cardId/details', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/cards/:cardId/details', requireApprovedUser, requireRestrictionClearance('card'), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const cardFilter = {
       id: String(req.params.cardId || ''),
@@ -336,7 +613,7 @@ router.get('/cards/:cardId/details', requireApprovedUser, async (req: Authentica
 });
 
 // PATCH /api/user/cards/:cardId/status
-router.patch('/cards/:cardId/status', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.patch('/cards/:cardId/status', requireApprovedUser, requireRestrictionClearance('card'), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const status = req.body?.status;
   if (status !== 'Active' && status !== 'Locked') {
     res.status(400).json({ error: 'Choose Active or Locked as the card status.' });
@@ -371,7 +648,7 @@ router.get('/card-applications', requireApprovedUser, async (req: AuthenticatedR
 });
 
 // POST /api/user/card-applications
-router.post('/card-applications', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/card-applications', requireApprovedUser, requireRestrictionClearance('card'), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const cardType = String(req.body?.cardType || '');
     const network = String(req.body?.network || '');
@@ -416,7 +693,7 @@ router.post('/card-applications', requireApprovedUser, async (req: Authenticated
 // GET /api/user/profile
 router.get('/profile', requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const user = await User.findOne({ id: req.user!.id }).select('id email full_name role phone address profilePicture kycStatus created_at').lean<any>();
+    const user = await User.findOne({ id: req.user!.id }).select('id email full_name role phone address profilePicture kycStatus rejectionReason kycSubmittedAt verification_rejection_reason created_at isRestricted restrictionType restrictionReason verification_submission.submittedAt verification_submission.restrictionReviewStatus verification_submission.restrictionReviewReason').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -431,7 +708,14 @@ router.get('/profile', requireApprovedUser, async (req: AuthenticatedRequest, re
         phone: user.phone,
         address: user.address || '',
         profilePicture: user.profilePicture || '',
-        kycStatus: user.kycStatus || 'Pending',
+        kycStatus: normalizeKycStatus(user.kycStatus),
+        rejectionReason: user.rejectionReason || user.verification_rejection_reason || '',
+        kycSubmittedAt: user.kycSubmittedAt || user.verification_submission?.submittedAt || null,
+        isRestricted: user.isRestricted === true,
+        restrictionType: normalizeRestrictionType(user.restrictionType, user.isRestricted === true),
+        restrictionReason: user.restrictionReason || '',
+        restrictionReviewStatus: user.verification_submission?.restrictionReviewStatus || 'not_requested',
+        restrictionReviewReason: user.verification_submission?.restrictionReviewReason || '',
         created_at: user.created_at,
       },
     });
@@ -459,7 +743,7 @@ router.put('/profile', requireApprovedUser, async (req: AuthenticatedRequest, re
       { id: req.user!.id },
       { $set: { phone, address } },
       { new: true, runValidators: true }
-    ).select('id email full_name role phone address profilePicture kycStatus created_at').lean<any>();
+    ).select('id email full_name role phone address profilePicture kycStatus rejectionReason kycSubmittedAt created_at isRestricted restrictionType restrictionReason verification_rejection_reason verification_submission.submittedAt verification_submission.restrictionReviewStatus verification_submission.restrictionReviewReason').lean<any>();
     if (!user) {
       res.status(404).json({ error: 'User not found.' });
       return;
@@ -470,7 +754,14 @@ router.put('/profile', requireApprovedUser, async (req: AuthenticatedRequest, re
         ...user,
         address: user.address || '',
         profilePicture: user.profilePicture || '',
-        kycStatus: user.kycStatus || 'Pending',
+        kycStatus: normalizeKycStatus(user.kycStatus),
+        rejectionReason: user.rejectionReason || user.verification_rejection_reason || '',
+        kycSubmittedAt: user.kycSubmittedAt || user.verification_submission?.submittedAt || null,
+        isRestricted: user.isRestricted === true,
+        restrictionType: normalizeRestrictionType(user.restrictionType, user.isRestricted === true),
+        restrictionReason: user.restrictionReason || '',
+        restrictionReviewStatus: user.verification_submission?.restrictionReviewStatus || 'not_requested',
+        restrictionReviewReason: user.verification_submission?.restrictionReviewReason || '',
       },
     });
   } catch (err) {
@@ -484,7 +775,7 @@ router.post('/profile-picture', requireApprovedUser, async (req: AuthenticatedRe
 });
 
 // POST /api/user/deposit or /api/user/accounts/deposit
-router.post(['/deposit', '/accounts/deposit'], requireApprovedUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post(['/deposit', '/accounts/deposit'], requireApprovedUser, requireRestrictionClearance('deposit'), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const { institutionName, accountNumber, routingNumber, amount, targetAccountId } = req.body || {};
