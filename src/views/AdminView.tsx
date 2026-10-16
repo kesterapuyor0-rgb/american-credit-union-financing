@@ -61,6 +61,9 @@ interface VerificationApplicant {
     sampleFileName?: string;
     sampleFileType?: string;
     sampleFileSize?: number;
+    addressProofFileName?: string;
+    addressProofFileType?: string;
+    addressProofFileSize?: number;
     submittedAt?: string;
     governmentIdType?: string;
     restrictionReviewStatus?: 'not_requested' | 'pending' | 'approved' | 'rejected';
@@ -959,8 +962,10 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
   }, [activeToken]);
 
   useEffect(() => {
-    if (activeTab !== 'verifications') return;
-    const refreshTimer = window.setInterval(() => { void fetchVerificationApplicants(); }, 30_000);
+    if (activeTab !== 'users' && activeTab !== 'verifications') return;
+    const refreshTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void fetchVerificationApplicants();
+    }, 30_000);
     return () => window.clearInterval(refreshTimer);
   }, [activeTab, activeToken]);
 
@@ -1295,7 +1300,6 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
   const pendingVerificationApplicants = verificationApplicants.filter((applicant) =>
     applicant.kycStatus?.toUpperCase() === 'PENDING_REVIEW'
     || applicant.verification_submission?.restrictionReviewStatus === 'pending'
-    || applicant.verification_status === 'under_review'
   );
 
   return (
@@ -1558,6 +1562,130 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                 </button>
               )}
             </form>
+
+            <section aria-labelledby="pending-verification-reviews-heading" className="mb-6 rounded-sm border border-amber-200 bg-amber-50 p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h4 id="pending-verification-reviews-heading" className="text-sm font-bold text-slate-900">
+                    Pending Verification Reviews ({pendingVerificationApplicants.length})
+                  </h4>
+                  <p className="mt-1 text-xs text-slate-600">Review submitted identity documents and approve or reject them here.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void fetchVerificationApplicants()}
+                  disabled={loadingVerificationApplicants}
+                  className="min-h-9 rounded border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-amber-100 disabled:opacity-60"
+                >
+                  {loadingVerificationApplicants ? 'Refreshing…' : 'Refresh reviews'}
+                </button>
+              </div>
+              {verificationApplicantsError && (
+                <p role="alert" className="mb-3 rounded border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-800">
+                  Unable to load pending verification submissions: {verificationApplicantsError}
+                </p>
+              )}
+              {pendingVerificationApplicants.length === 0 ? (
+                <p className="rounded border border-dashed border-amber-300 bg-white p-4 text-center text-xs text-slate-600">
+                  {loadingVerificationApplicants ? 'Loading submitted documents…' : 'No pending identity submissions.'}
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {pendingVerificationApplicants.map((applicant) => {
+                    const governmentIdUrl = getVerificationDocumentUrl(
+                      applicant.verificationDocument,
+                      applicant.governmentIdUrl || applicant.documentUrl,
+                      applicant.verification_submission?.sampleFileType,
+                    );
+                    const addressProofUrl = getVerificationDocumentUrl(
+                      undefined,
+                      applicant.addressProofUrl,
+                      applicant.verification_submission?.addressProofFileType,
+                    );
+                    const documents = [
+                      { label: 'Government ID', url: governmentIdUrl },
+                      { label: 'Proof of Address', url: addressProofUrl },
+                    ];
+                    return (
+                      <article key={applicant.id} className="rounded border border-slate-200 bg-white p-3">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <h5 className="text-sm font-semibold text-slate-900">{applicant.full_name}</h5>
+                            <p className="text-xs text-slate-600">{applicant.email} · Account ID: <span className="font-mono">{applicant.id}</span></p>
+                            <p className="mt-1 text-xs text-slate-600">
+                              {applicant.verification_submission?.governmentIdType || 'ID type not recorded'}
+                              {' · Submitted '}
+                              {applicant.kycSubmittedAt || applicant.verification_submission?.submittedAt
+                                ? new Date(applicant.kycSubmittedAt || applicant.verification_submission?.submittedAt || '').toLocaleString()
+                                : 'timestamp unavailable'}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold uppercase text-amber-900">Pending review</span>
+                        </div>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          {documents.map((document) => (
+                            <div key={document.label} className="min-w-0 rounded border border-slate-200 bg-slate-50 p-2">
+                              <p className="mb-2 text-xs font-semibold text-slate-800">{document.label}</p>
+                              {document.url ? (
+                                document.url.startsWith('data:application/pdf;base64,')
+                                  ? <iframe src={document.url} title={`${applicant.full_name} ${document.label}`} className="h-48 w-full rounded border border-slate-200 bg-white" />
+                                  : <button
+                                    type="button"
+                                    onClick={() => setSelectedKycImage({ url: document.url!, title: `${document.label} — ${applicant.full_name}` })}
+                                    className="block w-full rounded border border-slate-200 bg-white p-1"
+                                    aria-label={`View full-size ${document.label} for ${applicant.full_name}`}
+                                  >
+                                    <img src={document.url} alt={`${applicant.full_name} ${document.label}`} className="h-48 w-full object-contain" />
+                                    <span className="text-[10px] font-semibold text-blue-800">Open full-size preview</span>
+                                  </button>
+                              ) : <p className="py-6 text-center text-xs text-rose-700">Document was not returned. Refresh the review or check its upload.</p>}
+                            </div>
+                          ))}
+                        </div>
+                        <label className="mt-3 block text-xs font-semibold text-slate-700">
+                          Rejection reason (required to reject)
+                          <textarea
+                            rows={2}
+                            maxLength={500}
+                            value={verificationStatusEdits[applicant.id]?.reason || ''}
+                            onChange={(event) => setVerificationStatusEdits((current) => ({
+                              ...current,
+                              [applicant.id]: {
+                                status: current[applicant.id]?.status || applicant.verification_status,
+                                reason: event.target.value,
+                              },
+                            }))}
+                            className="mt-1 w-full rounded border border-slate-300 bg-white p-2 text-xs"
+                            placeholder="Explain what needs to be corrected"
+                          />
+                        </label>
+                        {kycReviewError?.userId === applicant.id && (
+                          <p role="alert" className="mt-2 rounded border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">{kycReviewError.message}</p>
+                        )}
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={savingKycReviewId === applicant.id}
+                            onClick={() => void handleUpdateKycStatus(applicant.id, 'Approved')}
+                            className="min-h-10 rounded bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-wait disabled:opacity-50"
+                          >
+                            {savingKycReviewId === applicant.id ? 'Saving…' : 'Approve Submission'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={savingKycReviewId === applicant.id}
+                            onClick={() => void handleUpdateKycStatus(applicant.id, 'Rejected')}
+                            className="min-h-10 rounded border border-rose-300 bg-white px-4 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-50 disabled:cursor-wait disabled:opacity-50"
+                          >
+                            {savingKycReviewId === applicant.id ? 'Saving…' : 'Reject Submission'}
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
 
             <section aria-labelledby="account-restrictions-heading" className="mb-6 rounded-sm border border-gray-200 bg-gray-50 p-4">
               <div className="mb-3">
