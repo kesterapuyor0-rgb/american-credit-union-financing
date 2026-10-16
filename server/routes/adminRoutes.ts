@@ -317,6 +317,76 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
   }
 });
 
+router.patch('/users/:userId/details', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = String(req.params.userId || '').trim();
+  const fullName = typeof req.body?.full_name === 'string' ? req.body.full_name.trim() : '';
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const phone = typeof req.body?.phone === 'string' ? req.body.phone.trim() : '';
+  const address = typeof req.body?.address === 'string' ? req.body.address.trim() : '';
+
+  if (!userId || !fullName || fullName.length > 120) {
+    res.status(400).json({ error: 'Enter a customer name up to 120 characters long.' });
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+    res.status(400).json({ error: 'Enter a valid email address up to 254 characters long.' });
+    return;
+  }
+  if (!phone || phone.length > 32) {
+    res.status(400).json({ error: 'Enter a phone number up to 32 characters long.' });
+    return;
+  }
+  if (address.length > 200) {
+    res.status(400).json({ error: 'Address must be 200 characters or fewer.' });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let updatedUser: any;
+    await session.withTransaction(async () => {
+      const existingUser = await User.findOne({ id: userId, role: { $ne: 'admin' }, isAdmin: { $ne: true } })
+        .select('id email')
+        .session(session)
+        .lean<any>();
+      if (!existingUser) throw new Error('Customer profile not found.');
+
+      const conflictingEmail = await User.exists({ email, id: { $ne: userId } }).session(session);
+      if (conflictingEmail) throw new Error('That email address is already used by another account.');
+
+      updatedUser = await User.findOneAndUpdate(
+        { id: userId, role: { $ne: 'admin' }, isAdmin: { $ne: true } },
+        { $set: { full_name: fullName, email, phone, address } },
+        { new: true, runValidators: true, session },
+      ).select('id email full_name phone address').lean<any>();
+      if (!updatedUser) throw new Error('Customer profile not found.');
+
+      await AuditLog.create([{
+        id: `log_customer_details_${randomUUID()}`,
+        admin_id: req.user!.id,
+        admin_email: req.user!.email,
+        action: 'ADMIN_CUSTOMER_DETAILS_UPDATED',
+        target_user_id: userId,
+        details: `Updated customer details for ${existingUser.email}: name, email, phone, and address.`,
+        ip_address: req.ip || '127.0.0.1',
+        created_at: new Date().toISOString(),
+      }], { session });
+    });
+    res.json({ success: true, user: updatedUser });
+  } catch (err) {
+    const duplicateEmail = (err as any)?.code === 11000;
+    const message = duplicateEmail
+      ? 'That email address is already used by another account.'
+      : errorMessage(err, 'Unable to update customer details.');
+    const status = message === 'Customer profile not found.' ? 404
+      : message === 'That email address is already used by another account.' ? 409
+        : 500;
+    res.status(status).json({ error: message });
+  } finally {
+    await session.endSession();
+  }
+});
+
 // PATCH /api/admin/users/:userId/profile-picture
 router.patch('/users/:userId/profile-picture', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userId = String(req.params.userId || '').trim();

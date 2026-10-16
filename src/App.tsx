@@ -336,30 +336,50 @@ export default function App() {
   }, [user?.id, activeTab]);
 
   useEffect(() => {
-    if (!user || user.role !== 'user' || user.verification_status !== 'under_review') return;
+    if (!user || user.role !== 'user') return;
 
     let stopped = false;
-    const refreshEnrollmentStatus = async () => {
+    const refreshCustomerProfile = async () => {
       try {
         const storedToken = getStoredAuthToken();
         const res = await fetch('/api/auth/me', {
           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
           credentials: 'include',
         });
-        if (!res.ok) throw new Error('Unable to refresh enrollment status.');
+        if (!res.ok) throw new Error('Unable to refresh customer profile.');
         const data = await res.json();
         if (stopped || !data.user) return;
-        setUser(data.user);
-        if (data.user.verification_status === 'approved') {
+        setUser((current) => {
+          if (!current || current.id !== data.user.id) return current;
+          const refreshedFields: Array<keyof User> = [
+            'email',
+            'full_name',
+            'phone',
+            'address',
+            'profilePicture',
+            'kycStatus',
+            'isRestricted',
+            'restrictionReason',
+            'verification_status',
+            'verification_rejection_reason',
+            'status',
+            'enrollmentStep',
+            'lastCompletedStep',
+          ];
+          if (refreshedFields.every((field) => current[field] === data.user[field])) return current;
+          return { ...current, ...data.user };
+        });
+        if (user.verification_status === 'under_review' && data.user.verification_status === 'approved') {
           setActiveTab('home');
           if (window.location.pathname !== '/dashboard') navigateTo('/dashboard');
         }
       } catch (err) {
-        console.error('Enrollment status refresh failed:', err);
+        console.error('Customer profile refresh failed:', err);
       }
     };
 
-    const intervalId = window.setInterval(() => { void refreshEnrollmentStatus(); }, 30000);
+    void refreshCustomerProfile();
+    const intervalId = window.setInterval(() => { void refreshCustomerProfile(); }, 30000);
     return () => {
       stopped = true;
       window.clearInterval(intervalId);

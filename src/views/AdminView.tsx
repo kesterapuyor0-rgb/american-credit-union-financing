@@ -138,6 +138,10 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
   const [restrictionEdits, setRestrictionEdits] = useState<Record<string, { isRestricted: boolean; restrictionReason: string }>>({});
   const [savingRestrictionId, setSavingRestrictionId] = useState<string | null>(null);
   const [restrictionError, setRestrictionError] = useState<string | null>(null);
+  const [customerDetailsEdits, setCustomerDetailsEdits] = useState<Record<string, { full_name: string; email: string; phone: string; address: string }>>({});
+  const [editingCustomerDetailsId, setEditingCustomerDetailsId] = useState<string | null>(null);
+  const [savingCustomerDetailsId, setSavingCustomerDetailsId] = useState<string | null>(null);
+  const [customerDetailsErrors, setCustomerDetailsErrors] = useState<Record<string, string>>({});
   const [savingAccountStatusId, setSavingAccountStatusId] = useState<string | null>(null);
   const [accountStatusError, setAccountStatusError] = useState<string | null>(null);
   const [savingProfilePictureId, setSavingProfilePictureId] = useState<string | null>(null);
@@ -269,10 +273,57 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
           restrictionReason: loadedUser.restrictionReason || '',
         },
       ])));
+      setCustomerDetailsEdits(Object.fromEntries(loadedUsers.map((loadedUser) => [
+        loadedUser.id,
+        {
+          full_name: loadedUser.full_name,
+          email: loadedUser.email,
+          phone: loadedUser.phone || '',
+          address: loadedUser.address || '',
+        },
+      ])));
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveCustomerDetails = async (targetUser: UserWithAccounts) => {
+    const details = customerDetailsEdits[targetUser.id] || {
+      full_name: targetUser.full_name,
+      email: targetUser.email,
+      phone: targetUser.phone || '',
+      address: targetUser.address || '',
+    };
+    setSavingCustomerDetailsId(targetUser.id);
+    setCustomerDetailsErrors((current) => ({ ...current, [targetUser.id]: '' }));
+    setSuccessMsg(null);
+    try {
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(targetUser.id)}/details`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify(details),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to update customer details.');
+      setUsers((currentUsers) => currentUsers.map((currentUser) =>
+        currentUser.id === targetUser.id ? { ...currentUser, ...data.user } : currentUser
+      ));
+      setCustomerDetailsEdits((current) => ({ ...current, [targetUser.id]: data.user }));
+      setEditingCustomerDetailsId(null);
+      setSuccessMsg(`Customer details updated for ${data.user.full_name}.`);
+    } catch (saveError) {
+      setCustomerDetailsErrors((current) => ({
+        ...current,
+        [targetUser.id]: saveError instanceof Error ? saveError.message : 'Unable to update customer details.',
+      }));
+    } finally {
+      setSavingCustomerDetailsId(null);
     }
   };
 
@@ -1501,6 +1552,16 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                           <div className="mt-2 space-y-1 text-[10px]">
                             <button
                               type="button"
+                              onClick={() => {
+                                setCustomerDetailsErrors((current) => ({ ...current, [customer.id]: '' }));
+                                setEditingCustomerDetailsId((currentId) => currentId === customer.id ? null : customer.id);
+                              }}
+                              className="block min-h-9 rounded border border-indigo-200 px-2.5 py-1.5 font-semibold text-indigo-800 hover:bg-indigo-50"
+                            >
+                              {editingCustomerDetailsId === customer.id ? 'Cancel details edit' : 'Edit customer details'}
+                            </button>
+                            <button
+                              type="button"
                               disabled={savingAccountStatusId === customer.id}
                               onClick={() => void setCustomerAccountStatus(customer)}
                               className={`min-h-9 rounded border px-2.5 py-1.5 font-semibold disabled:cursor-wait disabled:opacity-50 ${customer.isActive === false ? 'border-emerald-200 text-emerald-800 hover:bg-emerald-50' : 'border-red-200 text-red-800 hover:bg-red-50'}`}
@@ -1569,6 +1630,126 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                           </div>
                         )}
                       </div>
+                      {editingCustomerDetailsId === customer.id && !isAdminAccount && (
+                        <form
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            void saveCustomerDetails(customer);
+                          }}
+                          className="grid gap-3 rounded-sm border border-indigo-100 bg-indigo-50/50 p-3 sm:col-span-3 sm:grid-cols-2"
+                        >
+                          <div className="sm:col-span-2">
+                            <h5 className="text-xs font-bold text-slate-900">Edit customer details</h5>
+                            <p className="mt-1 text-[11px] text-slate-600">Changes are saved to the customer account and shown in their profile and dashboard.</p>
+                          </div>
+                          <label className="space-y-1 text-xs font-medium text-gray-700">
+                            <span>Full name</span>
+                            <input
+                              required
+                              maxLength={120}
+                              value={(customerDetailsEdits[customer.id] || customer).full_name}
+                              onChange={(event) => setCustomerDetailsEdits((current) => ({
+                                ...current,
+                                [customer.id]: {
+                                  ...(current[customer.id] || {
+                                    full_name: customer.full_name,
+                                    email: customer.email,
+                                    phone: customer.phone || '',
+                                    address: customer.address || '',
+                                  }),
+                                  full_name: event.target.value,
+                                },
+                              }))}
+                              className="min-h-10 w-full rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm"
+                            />
+                          </label>
+                          <label className="space-y-1 text-xs font-medium text-gray-700">
+                            <span>Email address (login)</span>
+                            <input
+                              type="email"
+                              required
+                              maxLength={254}
+                              value={(customerDetailsEdits[customer.id] || customer).email}
+                              onChange={(event) => setCustomerDetailsEdits((current) => ({
+                                ...current,
+                                [customer.id]: {
+                                  ...(current[customer.id] || {
+                                    full_name: customer.full_name,
+                                    email: customer.email,
+                                    phone: customer.phone || '',
+                                    address: customer.address || '',
+                                  }),
+                                  email: event.target.value,
+                                },
+                              }))}
+                              className="min-h-10 w-full rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm"
+                            />
+                          </label>
+                          <label className="space-y-1 text-xs font-medium text-gray-700">
+                            <span>Phone</span>
+                            <input
+                              type="tel"
+                              required
+                              maxLength={32}
+                              value={(customerDetailsEdits[customer.id] || customer).phone || ''}
+                              onChange={(event) => setCustomerDetailsEdits((current) => ({
+                                ...current,
+                                [customer.id]: {
+                                  ...(current[customer.id] || {
+                                    full_name: customer.full_name,
+                                    email: customer.email,
+                                    phone: customer.phone || '',
+                                    address: customer.address || '',
+                                  }),
+                                  phone: event.target.value,
+                                },
+                              }))}
+                              className="min-h-10 w-full rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm"
+                            />
+                          </label>
+                          <label className="space-y-1 text-xs font-medium text-gray-700">
+                            <span>Address</span>
+                            <textarea
+                              maxLength={200}
+                              rows={2}
+                              value={(customerDetailsEdits[customer.id] || customer).address || ''}
+                              onChange={(event) => setCustomerDetailsEdits((current) => ({
+                                ...current,
+                                [customer.id]: {
+                                  ...(current[customer.id] || {
+                                    full_name: customer.full_name,
+                                    email: customer.email,
+                                    phone: customer.phone || '',
+                                    address: customer.address || '',
+                                  }),
+                                  address: event.target.value,
+                                },
+                              }))}
+                              className="w-full rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm"
+                            />
+                          </label>
+                          {customerDetailsErrors[customer.id] && (
+                            <p role="alert" className="sm:col-span-2 text-xs text-red-700">{customerDetailsErrors[customer.id]}</p>
+                          )}
+                          <div className="flex justify-end gap-2 sm:col-span-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditingCustomerDetailsId(null)}
+                              disabled={savingCustomerDetailsId === customer.id}
+                              className="min-h-10 rounded-sm border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={savingCustomerDetailsId === customer.id}
+                              className="min-h-10 rounded-sm bg-indigo-700 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-800 disabled:cursor-wait disabled:opacity-50"
+                            >
+                              {savingCustomerDetailsId === customer.id ? 'Saving…' : 'Save customer details'}
+                            </button>
+                          </div>
+                        </form>
+                      )}
                       <label className="min-w-0 space-y-1 text-xs font-medium text-gray-700">
                         <span>Restriction reason shown to customer</span>
                         <textarea
