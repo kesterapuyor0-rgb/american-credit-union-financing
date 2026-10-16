@@ -671,6 +671,7 @@ export default function App() {
     setActiveTab('home');
     navigateTo('/verify-identity');
   };
+  const activeRestrictionType = user.restrictionType ?? (user.isRestricted ? 'KYC' : 'NONE');
 
   if (currentPath === '/verify-identity') {
     return (
@@ -679,7 +680,7 @@ export default function App() {
         <main className="mx-auto w-full max-w-full min-w-0 flex-1 px-3.5 py-6 pb-32 sm:max-w-7xl sm:px-8">
           <VerifyIdentityView
             user={user}
-            restrictionType={user.restrictionType && user.restrictionType !== 'NONE' ? user.restrictionType : user.isRestricted ? 'KYC' : 'NONE'}
+            restrictionType={user.restrictionType ?? (user.isRestricted ? 'KYC' : 'NONE')}
             onBack={() => navigateTo('/dashboard')}
             onReviewTransactions={() => {
               setActiveTab('history');
@@ -697,9 +698,6 @@ export default function App() {
   }
 
   const renderCustomerView = () => {
-    const activeRestrictionType = user.restrictionType && user.restrictionType !== 'NONE'
-      ? user.restrictionType
-      : user.isRestricted ? 'KYC' : 'NONE';
     const restrictedFinancialAction = (action: string) => (
       <section role="alert" className="mx-auto max-w-2xl rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">
         <h2 className="font-semibold">{action} is unavailable during compliance review</h2>
@@ -804,14 +802,14 @@ export default function App() {
       <OfflineStatusBanner isOnline={isOnline} />
 
       <main id="customer-view" role="tabpanel" tabIndex={-1} aria-label={`${activeTab} view`} className="mx-auto w-full max-w-full min-w-0 flex-1 px-3.5 pt-5 pb-32 sm:max-w-7xl sm:px-8 sm:py-6">
-        {((user.restrictionType && user.restrictionType !== 'NONE') || user.isRestricted || user.kycStatus === 'PENDING_REVIEW' || user.kycStatus === 'REJECTED') && activeTab !== 'home' && (
+        {activeRestrictionType !== 'NONE' && activeTab !== 'home' && (
           <div className="mb-5">
             <RestrictedAccountNotice
               reason={user.restrictionReason}
               kycStatus={user.kycStatus}
               rejectionReason={user.rejectionReason}
               isRestricted={user.isRestricted}
-              restrictionType={user.restrictionType && user.restrictionType !== 'NONE' ? user.restrictionType : user.isRestricted ? 'KYC' : 'NONE'}
+              restrictionType={activeRestrictionType}
               onResolveRestriction={handleResolveRestriction}
               onContactSupport={() => setRestrictionSupportOpen(true)}
             />

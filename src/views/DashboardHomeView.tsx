@@ -473,7 +473,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           kycStatus={user.kycStatus}
           rejectionReason={user.rejectionReason}
           isRestricted={user.isRestricted}
-          restrictionType={user.restrictionType && user.restrictionType !== 'NONE' ? user.restrictionType : user.isRestricted ? 'KYC' : 'NONE'}
+          restrictionType={user.restrictionType ?? (user.isRestricted ? 'KYC' : 'NONE')}
           showVerified={showVerificationSuccess}
           onResolveRestriction={onResolveRestriction}
           onContactSupport={onContactSupport}

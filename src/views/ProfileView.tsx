@@ -106,7 +106,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             address: data.profile.address || '',
             profilePicture: data.profile.profilePicture || '',
             kycStatus: data.profile.kycStatus || 'UNVERIFIED',
-            restrictionType: data.profile.restrictionType && data.profile.restrictionType !== 'NONE' ? data.profile.restrictionType : data.profile.isRestricted ? 'KYC' : 'NONE',
+            restrictionType: data.profile.restrictionType ?? (data.profile.isRestricted ? 'KYC' : 'NONE'),
             rejectionReason: data.profile.rejectionReason || '',
             kycSubmittedAt: data.profile.kycSubmittedAt,
             isRestricted: data.profile.isRestricted === true,
@@ -350,7 +350,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </button>
         </div>
       </form>
-      {(user.restrictionType && user.restrictionType !== 'NONE' ? user.restrictionType : user.isRestricted ? 'KYC' : 'NONE') === 'KYC' && (
+      {(user.restrictionType ?? (user.isRestricted ? 'KYC' : 'NONE')) === 'KYC' && (
         <section ref={identityVerificationRef} aria-labelledby="identity-verification-heading" className="min-w-0 scroll-mt-24 space-y-4 rounded-2xl border border-amber-200 bg-white p-4 shadow-sm sm:p-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Profile &amp; Settings</p>

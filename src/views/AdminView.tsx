@@ -278,7 +278,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
       setRestrictionEdits(Object.fromEntries(loadedUsers.map((loadedUser) => [
         loadedUser.id,
         {
-          restrictionType: loadedUser.restrictionType && loadedUser.restrictionType !== 'NONE' ? loadedUser.restrictionType : loadedUser.isRestricted ? 'KYC' : 'NONE',
+          restrictionType: loadedUser.restrictionType ?? (loadedUser.isRestricted ? 'KYC' : 'NONE'),
           restrictionReason: loadedUser.restrictionReason || '',
         },
       ])));
@@ -338,7 +338,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
 
   const saveUserRestriction = async (targetUser: UserWithAccounts) => {
     const edit = restrictionEdits[targetUser.id] || {
-      restrictionType: targetUser.restrictionType && targetUser.restrictionType !== 'NONE' ? targetUser.restrictionType : targetUser.isRestricted ? 'KYC' : 'NONE',
+      restrictionType: targetUser.restrictionType ?? (targetUser.isRestricted ? 'KYC' : 'NONE'),
       restrictionReason: targetUser.restrictionReason || '',
     };
 
@@ -1558,7 +1558,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
               <div className="space-y-3">
                 {users.map((customer) => {
                   const edit = restrictionEdits[customer.id] || {
-                    restrictionType: customer.restrictionType && customer.restrictionType !== 'NONE' ? customer.restrictionType : customer.isRestricted ? 'KYC' : 'NONE',
+                    restrictionType: customer.restrictionType ?? (customer.isRestricted ? 'KYC' : 'NONE'),
                     restrictionReason: customer.restrictionReason || '',
                   };
                   const isAdminAccount = customer.role.toLowerCase() === 'admin';

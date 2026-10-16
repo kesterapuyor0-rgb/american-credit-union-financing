@@ -18,7 +18,7 @@ export const RestrictedAccountNotice: React.FC<RestrictedAccountNoticeProps> = (
   kycStatus,
   rejectionReason,
   isRestricted = false,
-  restrictionType = 'NONE',
+  restrictionType,
   showVerified = false,
   onResolveRestriction,
   onContactSupport,
@@ -27,21 +27,21 @@ export const RestrictedAccountNotice: React.FC<RestrictedAccountNoticeProps> = (
   const pending = status === 'PENDING_REVIEW' || status === 'PENDING';
   const rejected = status === 'REJECTED';
   const approved = status === 'APPROVED' && !isRestricted && showVerified;
-  const activeRestriction = restrictionType !== 'NONE' ? restrictionType : isRestricted ? 'KYC' : 'NONE';
-  if (!pending && !rejected && !approved && activeRestriction === 'NONE') return null;
+  const activeRestriction = restrictionType ?? (isRestricted ? 'KYC' : 'NONE');
+  if (activeRestriction === 'NONE') return null;
   const restrictionContent = {
     KYC: {
-      title: 'ACCOUNT RESTRICTED - Identity Verification Needed',
+      title: 'Action Required: Please Update Your Account Information',
       message: 'Upload a valid government-issued ID and proof of address to restore full account access.',
       action: 'Upload ID Documents',
     },
     SECURITY: {
-      title: 'SECURITY HOLD - Suspicious Activity Detected',
+      title: 'Security Notice: Temporary Account Hold',
       message: 'Review your recent transactions and confirm the activity before outgoing transfers and card actions are restored.',
       action: 'Verify Activity',
     },
     SOURCE_OF_FUNDS: {
-      title: 'COMPLIANCE REVIEW - Documentation Required',
+      title: 'Compliance Notice: Documentation Required for Incoming Transfers',
       message: 'Provide proof of income or an invoice to verify the origin of the incoming transfer.',
       action: 'Provide Documentation',
     },

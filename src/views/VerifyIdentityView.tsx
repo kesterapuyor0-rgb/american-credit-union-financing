@@ -171,7 +171,7 @@ export const VerifyIdentityView: React.FC<VerifyIdentityViewProps> = ({ user, re
         <h1 id="verify-identity-heading" className="mt-1 text-2xl font-bold text-slate-900">Identity Verification</h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">Upload a valid government-issued ID and proof of your current address. Your documents are securely submitted to our compliance team for review.</p>
 
-        {kycStatus === 'PENDING_REVIEW' || user.restrictionReviewStatus === 'pending' ? (
+        {kycStatus === 'PENDING_REVIEW' || kycStatus === 'PENDING' ? (
           <div role="status" className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
             <p className="font-semibold">Verification Under Review</p>
             <p className="mt-1">Your identity documents have been submitted and are currently being reviewed by our compliance team. Reviews typically take 1–2 business days.</p>
