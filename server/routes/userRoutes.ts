@@ -152,11 +152,11 @@ router.post('/kyc-resubmission', requireAuth, async (req: AuthenticatedRequest, 
 });
 
 export const submitRestrictionIdentityDocuments = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const governmentId = getImageData(req.body?.governmentIdUrl);
-  const addressProof = getImageData(req.body?.addressProofUrl);
+  const governmentId = getComplianceDocument(req.body?.governmentIdUrl);
+  const addressProof = getComplianceDocument(req.body?.addressProofUrl);
   const governmentIdType = req.body?.governmentIdType;
-  if (!['International Passport', 'Passport', "Driver's License", 'National ID Card', 'State ID'].includes(governmentIdType)) {
-    res.status(400).json({ error: 'Choose International Passport, Driver’s License, or National ID Card as your government-issued ID type.' });
+  if (!["Driver's License", 'National ID Card', 'Passport', 'International Passport', 'State ID'].includes(governmentIdType)) {
+    res.status(400).json({ error: 'Choose Driver’s License or National ID Card as your government-issued ID type.' });
     return;
   }
   if (!governmentId || !addressProof) {

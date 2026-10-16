@@ -66,7 +66,7 @@ const userSchema = new Schema({
     addressProofFileName: { type: String, default: '', maxlength: 120 },
     addressProofFileType: { type: String, default: '', maxlength: 50 },
     addressProofFileSize: { type: Number, default: 0, max: 5242880 },
-    governmentIdType: { type: String, enum: ['', 'Passport', "Driver's License", 'State ID'], default: '' },
+    governmentIdType: { type: String, enum: ['', 'Passport', 'International Passport', "Driver's License", 'National ID Card', 'State ID'], default: '' },
     submittedAt: { type: Date },
     restrictionReviewStatus: { type: String, enum: ['not_requested', 'pending', 'approved', 'rejected'], default: 'not_requested' },
     restrictionReviewReason: { type: String, default: '', trim: true, maxlength: 500 },

@@ -83,15 +83,15 @@ const getVerificationDocumentUrl = (
   fallbackContentType?: string,
 ): string | null => {
   const data = document?.data?.trim();
-  if (data && /^data:image\/(jpeg|png|webp|gif);base64,/i.test(data)) return data;
+  if (data && /^data:(?:application\/pdf|image\/(jpeg|png|webp|gif));base64,/i.test(data)) return data;
 
   const contentType = (document?.contentType || fallbackContentType || '').trim().toLowerCase();
-  if (data && /^image\/(jpeg|png|webp|gif)$/.test(contentType)) {
+  if (data && (/^image\/(jpeg|png|webp|gif)$/.test(contentType) || contentType === 'application/pdf')) {
     return `data:${contentType};base64,${data}`;
   }
 
   const path = documentUrl?.trim();
-  if (path && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/]+=*$/i.test(path)) return path;
+  if (path && /^data:(?:application\/pdf|image\/(jpeg|png|webp|gif));base64,[A-Za-z0-9+/]+=*$/i.test(path)) return path;
   if (path && (/^https?:\/\/[^\s]+$/i.test(path) || (path.startsWith('/') && !path.startsWith('//')))) {
     return path;
   }
