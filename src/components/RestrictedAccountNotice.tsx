@@ -59,20 +59,20 @@ export const RestrictedAccountNotice: React.FC<RestrictedAccountNoticeProps> = (
   const title = pending
     ? 'Verification Under Review'
     : rejected
-      ? `Verification Declined: ${rejectionReason || reason || 'Action Required'}`
+      ? 'Verification Declined — Action Required'
       : approved
         ? 'Identity Successfully Verified'
         : restrictionContent.title;
   const description = pending
     ? 'Your documents are under review. Reviews typically take 1–2 business days.'
     : rejected
-      ? 'Please re-upload the required documents to restore full access.'
+      ? 'We were unable to approve your identity verification request with the submitted ID document.'
       : approved
         ? 'Your account restrictions have been cleared and full account access is restored.'
         : restrictionContent.message;
 
   return (
-    <section role={approved ? 'status' : 'alert'} className={`w-full min-w-0 rounded-xl border px-3 py-2.5 shadow-sm sm:px-4 sm:py-3 ${tone}`}>
+    <section role={approved ? 'status' : 'alert'} className={`w-full min-w-0 rounded-xl border px-3 py-3 shadow-sm sm:px-4 sm:py-4 ${tone}`}>
       <div className="flex min-w-0 items-start gap-2.5">
         {pending
           ? <Clock3 aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-blue-700" />
@@ -85,6 +85,21 @@ export const RestrictedAccountNotice: React.FC<RestrictedAccountNoticeProps> = (
             {pending && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-800">Pending Review</span>}
           </div>
           <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-4 [overflow-wrap:anywhere] sm:text-sm">{description}</p>
+          {rejected && (
+            <>
+              <p className="mt-2 break-words text-xs leading-5 [overflow-wrap:anywhere] sm:text-sm">
+                <span className="font-semibold">Reason:</span> {rejectionReason || reason || 'Please contact support for details.'}
+              </p>
+              <div className="mt-2">
+                <h3 className="text-xs font-semibold leading-5 sm:text-sm">Guidelines for re-upload</h3>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-xs leading-5 [overflow-wrap:anywhere] sm:text-sm">
+                  <li>Ensure all four corners of the ID card are visible.</li>
+                  <li>Make sure all text, photos, and expiration dates are clearly legible without flash glare.</li>
+                  <li>Ensure the document is unexpired and matches your registered account details.</li>
+                </ul>
+              </div>
+            </>
+          )}
           <div className="mt-2 flex w-full flex-col gap-1.5 min-[360px]:flex-row min-[360px]:flex-wrap">
             {!approved && (pending ? (
               <button type="button" disabled className="inline-flex min-h-9 w-full cursor-not-allowed items-center justify-center rounded-lg bg-slate-200 px-3 py-1.5 text-center text-xs font-semibold text-slate-600 min-[360px]:w-auto">
