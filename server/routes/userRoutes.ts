@@ -151,12 +151,12 @@ router.post('/kyc-resubmission', requireAuth, async (req: AuthenticatedRequest, 
   }
 });
 
-router.post('/restriction-identity-documents', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const submitRestrictionIdentityDocuments = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const governmentId = getImageData(req.body?.governmentIdUrl);
   const addressProof = getImageData(req.body?.addressProofUrl);
   const governmentIdType = req.body?.governmentIdType;
-  if (!['Passport', "Driver's License", 'State ID'].includes(governmentIdType)) {
-    res.status(400).json({ error: 'Choose Passport, Driver’s License, or State ID as your government-issued ID type.' });
+  if (!['International Passport', 'Passport', "Driver's License", 'National ID Card', 'State ID'].includes(governmentIdType)) {
+    res.status(400).json({ error: 'Choose International Passport, Driver’s License, or National ID Card as your government-issued ID type.' });
     return;
   }
   if (!governmentId || !addressProof) {
@@ -187,14 +187,14 @@ router.post('/restriction-identity-documents', requireAuth, async (req: Authenti
       id: req.user!.id,
       role: { $ne: 'admin' },
       isAdmin: { $ne: true },
-    }).select('email isRestricted restrictionType verification_status verification_submission kycStatus').lean<any>();
+    }).select('email isRestricted restrictionType restrictionReason verification_status verification_submission kycStatus').lean<any>();
     if (!existingUser) {
       res.status(404).json({ error: 'Customer profile not found.' });
       return;
     }
     const currentKycStatus = normalizeKycStatus(existingUser.kycStatus);
     const restrictionType = normalizeRestrictionType(existingUser.restrictionType, existingUser.isRestricted === true);
-    if (restrictionType !== 'KYC') {
+    if (restrictionType !== 'KYC' && !(restrictionType === 'NONE' && ['UNVERIFIED', 'REJECTED'].includes(currentKycStatus))) {
       res.status(409).json({ error: 'Identity document upload is unavailable for this restriction type.' });
       return;
     }
@@ -202,7 +202,7 @@ router.post('/restriction-identity-documents', requireAuth, async (req: Authenti
       res.status(409).json({ error: 'Your identity documents are already under review.' });
       return;
     }
-    if (!existingUser.isRestricted && currentKycStatus !== 'REJECTED' && currentKycStatus !== 'UNVERIFIED') {
+    if (currentKycStatus === 'APPROVED') {
       res.status(409).json({ error: 'Identity verification is already approved.' });
       return;
     }
@@ -212,7 +212,7 @@ router.post('/restriction-identity-documents', requireAuth, async (req: Authenti
         id: req.user!.id,
         role: { $ne: 'admin' },
         isAdmin: { $ne: true },
-        restrictionType: existingUser.restrictionType === undefined ? { $in: [null, 'KYC'] } : existingUser.restrictionType,
+        restrictionType: { $in: [existingUser.restrictionType ?? null, 'NONE', 'KYC'] },
         'verification_submission.restrictionReviewStatus': { $ne: 'pending' },
         kycStatus: { $nin: ['PENDING_REVIEW', 'Pending'] },
       },
@@ -221,7 +221,9 @@ router.post('/restriction-identity-documents', requireAuth, async (req: Authenti
           kycStatus: 'PENDING_REVIEW',
           rejectionReason: '',
           kycSubmittedAt: new Date(),
+          isRestricted: true,
           restrictionType: 'KYC',
+          restrictionReason: existingUser.restrictionReason || 'Identity documents are under review.',
           governmentIdUrl: governmentId.dataUrl,
           addressProofUrl: addressProof.dataUrl,
           verificationDocument: { data: governmentId.data, contentType: governmentId.contentType },
@@ -276,7 +278,9 @@ router.post('/restriction-identity-documents', requireAuth, async (req: Authenti
     console.error('Failed to submit restricted-account identity documents:', error);
     res.status(500).json({ error: errorMessage(error, 'Unable to submit your identity documents.') });
   }
-});
+};
+
+router.post('/restriction-identity-documents', requireAuth, submitRestrictionIdentityDocuments);
 
 router.post('/restriction-source-of-funds-document', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const document = getComplianceDocument(req.body?.documentData);

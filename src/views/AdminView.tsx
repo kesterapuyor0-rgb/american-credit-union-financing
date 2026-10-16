@@ -714,6 +714,11 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
       setKycReviewError({ userId, message: 'Unable to find this customer. Refresh the review list and try again.' });
       return;
     }
+    const rejectionReason = verificationStatusEdits[userId]?.reason?.trim() || '';
+    if (newStatus === 'Rejected' && !rejectionReason) {
+      setKycReviewError({ userId, message: 'Enter a rejection reason before declining these documents.' });
+      return;
+    }
 
     setSavingKycReviewId(userId);
     setKycReviewError(null);
@@ -734,7 +739,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
         credentials: 'include',
         body: JSON.stringify({
           ...(restrictedReview ? { userId } : { kycStatus: newStatus }),
-          rejectionReason: newStatus === 'Rejected' ? verificationStatusEdits[userId]?.reason || '' : '',
+          rejectionReason: newStatus === 'Rejected' ? rejectionReason : '',
         }),
       });
       const data = await res.json();
@@ -2040,10 +2045,10 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2">
                             {([
-                              { label: 'Government ID', url: documentUrl, filenameLabel: 'government-id', imageClass: 'h-36 w-full object-contain' },
-                              { label: 'Proof of Address', url: applicant.addressProofUrl || null, filenameLabel: 'address-proof', imageClass: 'h-36 w-full object-contain' },
-                              { label: 'User Selfie', url: selfieUrl, filenameLabel: 'user-selfie', imageClass: 'h-36 w-36 rounded-full object-cover' },
-                              { label: 'Source of Funds', url: applicant.restrictionDocumentUrl || null, filenameLabel: 'source-of-funds', imageClass: 'h-36 w-full object-contain' },
+                              { label: 'Government ID', url: documentUrl, filenameLabel: 'government-id', imageClass: 'max-h-[32rem] min-h-64 w-full object-contain' },
+                              { label: 'Proof of Address', url: applicant.addressProofUrl || null, filenameLabel: 'address-proof', imageClass: 'max-h-[32rem] min-h-64 w-full object-contain' },
+                              { label: 'User Selfie', url: selfieUrl, filenameLabel: 'user-selfie', imageClass: 'h-72 w-72 max-w-full rounded-full object-cover' },
+                              { label: 'Source of Funds', url: applicant.restrictionDocumentUrl || null, filenameLabel: 'source-of-funds', imageClass: 'max-h-[32rem] min-h-64 w-full object-contain' },
                             ]).map((document) => (
                               <article key={document.label} className="space-y-2 rounded-md border border-slate-200 bg-white p-3">
                                 <h6 className="text-xs font-semibold text-slate-800">{document.label}</h6>
@@ -2112,8 +2117,8 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                               {savingKycReviewId === applicant.id
                                 ? 'Saving…'
                                 : applicant.verification_submission?.restrictionReviewStatus === 'pending'
-                                  ? '[ Approve Identity & Restore Access ]'
-                                  : '[ Approve KYC ]'}
+                                  ? 'Approve Documents & Restore Access'
+                                  : 'Approve Documents'}
                             </button>
                             <button
                               type="button"
@@ -2121,7 +2126,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                               onClick={() => { void handleUpdateKycStatus(applicant.id, 'Rejected'); }}
                               className="min-h-10 rounded-md border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              {savingKycReviewId === applicant.id ? 'Saving…' : '[ Reject KYC ]'}
+                              {savingKycReviewId === applicant.id ? 'Saving…' : 'Reject Documents'}
                             </button>
                           </div>
                         </section>

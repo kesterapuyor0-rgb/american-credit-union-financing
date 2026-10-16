@@ -16,6 +16,8 @@ interface SelectedImage {
   name: string;
 }
 
+type DocumentType = '' | 'International Passport' | "Driver's License" | 'National ID Card' | 'Proof of Address (Utility Bill / Bank Statement)';
+
 const readImage = (file: File): Promise<SelectedImage> => new Promise((resolve, reject) => {
   if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) || file.size <= 0 || file.size > 5 * 1024 * 1024) {
     reject(new Error('Select a JPEG, PNG, WebP, or GIF image up to 5 MB.'));
@@ -51,7 +53,8 @@ const readComplianceDocument = (file: File): Promise<SelectedImage> => new Promi
 });
 
 export const VerifyIdentityView: React.FC<VerifyIdentityViewProps> = ({ user, restrictionType, onBack, onReviewTransactions, onSubmitted }) => {
-  const [governmentIdType, setGovernmentIdType] = useState<'' | 'Passport' | "Driver's License" | 'State ID'>('');
+  const [documentType, setDocumentType] = useState<DocumentType>('');
+  const [governmentIdType, setGovernmentIdType] = useState<'' | 'International Passport' | "Driver's License" | 'National ID Card'>('');
   const [governmentId, setGovernmentId] = useState<SelectedImage | null>(null);
   const [addressProof, setAddressProof] = useState<SelectedImage | null>(null);
   const [sourceDocument, setSourceDocument] = useState<SelectedImage | null>(null);
@@ -60,17 +63,24 @@ export const VerifyIdentityView: React.FC<VerifyIdentityViewProps> = ({ user, re
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const kycStatus = String(user.kycStatus || '').toUpperCase();
 
-  const selectImage = (
-    event: ChangeEvent<HTMLInputElement>,
-    setter: React.Dispatch<React.SetStateAction<SelectedImage | null>>,
-  ) => {
+  const selectImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     void readImage(file).then((image) => {
-      setter(image);
+      if (documentType === 'Proof of Address (Utility Bill / Bank Statement)') {
+        setAddressProof(image);
+      } else if (documentType) {
+        setGovernmentId(image);
+        setGovernmentIdType(documentType);
+      }
       setMessage(null);
     }).catch((error: unknown) => {
-      setter(null);
+      if (documentType === 'Proof of Address (Utility Bill / Bank Statement)') {
+        setAddressProof(null);
+      } else {
+        setGovernmentId(null);
+        setGovernmentIdType('');
+      }
       setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Unable to read the selected image.' });
     });
   };
@@ -78,7 +88,7 @@ export const VerifyIdentityView: React.FC<VerifyIdentityViewProps> = ({ user, re
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (restrictionType === 'KYC' && (!governmentIdType || !governmentId || !addressProof)) {
-      setMessage({ type: 'error', text: 'Choose an ID type and upload both required documents.' });
+      setMessage({ type: 'error', text: 'Choose a government ID type and upload both the ID and proof of address.' });
       return;
     }
     if (restrictionType === 'SOURCE_OF_FUNDS' && !sourceDocument) {
@@ -96,7 +106,7 @@ export const VerifyIdentityView: React.FC<VerifyIdentityViewProps> = ({ user, re
         ? '/api/user/restriction-activity-confirmation'
         : restrictionType === 'SOURCE_OF_FUNDS'
           ? '/api/user/restriction-source-of-funds-document'
-          : '/api/user/restriction-identity-documents';
+          : '/api/kyc/submit';
       const body = restrictionType === 'SECURITY'
         ? {}
         : restrictionType === 'SOURCE_OF_FUNDS'
@@ -115,7 +125,7 @@ export const VerifyIdentityView: React.FC<VerifyIdentityViewProps> = ({ user, re
         body: JSON.stringify(body),
       });
       const result = await safeParseResponse<{
-        user?: Pick<User, 'kycStatus' | 'rejectionReason' | 'kycSubmittedAt' | 'isRestricted' | 'restrictionReviewStatus'>;
+        user?: Pick<User, 'kycStatus' | 'rejectionReason' | 'kycSubmittedAt' | 'isRestricted' | 'restrictionType' | 'restrictionReviewStatus'>;
       }>(response);
       if (!result.ok) throw new Error(result.error || 'Unable to submit your identity documents.');
       onSubmitted({
@@ -123,6 +133,7 @@ export const VerifyIdentityView: React.FC<VerifyIdentityViewProps> = ({ user, re
         rejectionReason: '',
         kycSubmittedAt: result.data.user?.kycSubmittedAt,
         isRestricted: result.data.user?.isRestricted ?? user.isRestricted,
+        restrictionType: result.data.user?.restrictionType || user.restrictionType,
         restrictionReviewStatus: result.data.user?.restrictionReviewStatus || 'pending',
         restrictionReviewReason: '',
       });
@@ -133,25 +144,30 @@ export const VerifyIdentityView: React.FC<VerifyIdentityViewProps> = ({ user, re
     }
   };
 
-  const imageInput = (
-    label: string,
-    image: SelectedImage | null,
-    setter: React.Dispatch<React.SetStateAction<SelectedImage | null>>,
-  ) => (
-    <label className="block min-w-0 space-y-2 rounded-xl border border-slate-200 bg-white p-4 text-sm">
-      <span className="font-semibold text-slate-800">{label} <span className="text-rose-700">*</span></span>
-      <span className="block text-xs leading-5 text-slate-500">JPEG, PNG, WebP, or GIF · up to 5 MB</span>
-      <input
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        required={!image}
-        disabled={busy}
-        onChange={(event) => selectImage(event, setter)}
-        className="block w-full min-w-0 text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-800"
-      />
-      {image && <span className="flex min-w-0 items-center gap-2 text-xs font-medium text-emerald-800"><FileImage aria-hidden="true" className="h-4 w-4 shrink-0" /><span className="truncate">{image.name}</span></span>}
-    </label>
+  const documentFileInput = (capture: boolean, image: SelectedImage | null) => (
+    <input
+      type="file"
+      accept="image/*"
+      {...(capture ? { capture: 'environment' as const } : {})}
+      required={!image}
+      disabled={busy || !documentType}
+      onChange={selectImage}
+      className="block w-full min-w-0 text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-800"
+    />
   );
+
+  const documentPreview = (label: string, image: SelectedImage | null) => (
+    <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <p className="text-xs font-semibold text-slate-700">{label}</p>
+      {image ? (
+        <>
+          <img src={image.dataUrl} alt={`Preview of ${image.name}`} className="mt-2 max-h-56 w-full rounded-md bg-white object-contain" />
+          <p className="mt-2 flex min-w-0 items-center gap-2 text-xs font-medium text-emerald-800"><FileImage aria-hidden="true" className="h-4 w-4 shrink-0" /><span className="truncate">{image.name}</span></p>
+        </>
+      ) : <p className="mt-2 text-xs text-slate-500">No image selected.</p>}
+    </div>
+  );
+  const selectedDocumentImage = documentType === 'Proof of Address (Utility Bill / Bank Statement)' ? addressProof : governmentId;
 
   const submitButton = (label: string) => (
     <button type="submit" disabled={busy} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-teal-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
@@ -244,23 +260,44 @@ export const VerifyIdentityView: React.FC<VerifyIdentityViewProps> = ({ user, re
             )}
             <form onSubmit={(event) => { void submit(event); }} className="mt-5 space-y-4">
               <label className="block space-y-2 text-sm">
-                <span className="font-semibold text-slate-800">Government-issued ID type <span className="text-rose-700">*</span></span>
+                <span className="font-semibold text-slate-800">Document Type <span className="text-rose-700">*</span></span>
                 <select
                   required
-                  value={governmentIdType}
-                  onChange={(event) => setGovernmentIdType(event.target.value as typeof governmentIdType)}
+                  value={documentType}
+                  onChange={(event) => setDocumentType(event.target.value as DocumentType)}
                   disabled={busy}
                   className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                 >
-                  <option value="">Select an ID type</option>
-                  <option value="Passport">Passport</option>
+                  <option value="">Select a document type</option>
+                  <option value="International Passport">International Passport</option>
                   <option value="Driver's License">Driver’s License</option>
-                  <option value="State ID">State ID</option>
+                  <option value="National ID Card">National ID Card</option>
+                  <option value="Proof of Address (Utility Bill / Bank Statement)">Proof of Address (Utility Bill / Bank Statement)</option>
                 </select>
               </label>
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">
+                    {documentType === 'Proof of Address (Utility Bill / Bank Statement)'
+                      ? 'Upload proof of address'
+                      : 'Upload your government-issued ID'}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">Choose a file or use your mobile camera. JPEG, PNG, WebP, or GIF · up to 5 MB.</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="space-y-1 text-xs font-semibold text-slate-700">
+                    <span>Take a photo</span>
+                    {documentFileInput(true, selectedDocumentImage)}
+                  </label>
+                  <label className="space-y-1 text-xs font-semibold text-slate-700">
+                    <span>Choose a file</span>
+                    {documentFileInput(false, selectedDocumentImage)}
+                  </label>
+                </div>
+              </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                {imageInput('Government-issued ID', governmentId, setGovernmentId)}
-                {imageInput('Proof of address', addressProof, setAddressProof)}
+                {documentPreview('Government ID preview', governmentId)}
+                {documentPreview('Proof of Address (Utility Bill / Bank Statement) preview', addressProof)}
               </div>
               {message && <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2.5 text-sm text-rose-800">{message.text}</p>}
               {submitButton(kycStatus === 'REJECTED' ? 'Re-upload Requirements' : 'Submit identity documents')}

@@ -810,6 +810,7 @@ export default function App() {
               rejectionReason={user.rejectionReason}
               isRestricted={user.isRestricted}
               restrictionType={activeRestrictionType}
+              accountLastFour={(accounts.find((account) => account.account_type === 'Checking') || accounts[0])?.account_number.slice(-4)}
               onResolveRestriction={handleResolveRestriction}
               onContactSupport={() => setRestrictionSupportOpen(true)}
             />

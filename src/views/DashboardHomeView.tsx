@@ -420,6 +420,19 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-full space-y-7 pb-32 sm:max-w-5xl">
+      {!showCardsOnly && (
+        <RestrictedAccountNotice
+          reason={user.restrictionReason}
+          kycStatus={user.kycStatus}
+          rejectionReason={user.rejectionReason}
+          isRestricted={user.isRestricted}
+          restrictionType={user.restrictionType ?? (user.isRestricted ? 'KYC' : 'NONE')}
+          showVerified={showVerificationSuccess}
+          accountLastFour={primaryCheckingAccount?.account_number.slice(-4)}
+          onResolveRestriction={onResolveRestriction}
+          onContactSupport={onContactSupport}
+        />
+      )}
       {!showCardsOnly && <>
       <section aria-label="Member overview" className="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
@@ -466,19 +479,6 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
           Investment products are Not FDIC Insured <span aria-hidden="true">•</span> No Bank Guarantee <span aria-hidden="true">•</span> May Lose Value
         </p>
       </section>
-
-      {!showCardsOnly && (
-        <RestrictedAccountNotice
-          reason={user.restrictionReason}
-          kycStatus={user.kycStatus}
-          rejectionReason={user.rejectionReason}
-          isRestricted={user.isRestricted}
-          restrictionType={user.restrictionType ?? (user.isRestricted ? 'KYC' : 'NONE')}
-          showVerified={showVerificationSuccess}
-          onResolveRestriction={onResolveRestriction}
-          onContactSupport={onContactSupport}
-        />
-      )}
 
       <PushNotificationBanner userId={user.id} />
       <section aria-label="Quick actions" className="grid grid-cols-5 gap-2">
