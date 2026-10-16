@@ -389,11 +389,19 @@ export default function App() {
       }
     };
 
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refreshCustomerProfile();
+    };
+
     void refreshCustomerProfile();
     const intervalId = window.setInterval(() => { void refreshCustomerProfile(); }, 30000);
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => {
       stopped = true;
       window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
   }, [user?.id, user?.role, user?.verification_status]);
 

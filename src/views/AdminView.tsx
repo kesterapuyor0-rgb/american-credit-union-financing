@@ -726,19 +726,20 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
     setSuccessMsg(null);
     try {
       const restrictedReview = applicant.verification_submission?.restrictionReviewStatus === 'pending';
+      const identityReview = restrictedReview || applicant.kycStatus?.toUpperCase() === 'PENDING_REVIEW';
       const res = await fetch(
-        restrictedReview
+        identityReview
           ? `/api/admin/kyc/${newStatus === 'Approved' ? 'approve' : 'reject'}`
           : `/api/admin/verifications/${encodeURIComponent(userId)}/kyc-status`,
         {
-        method: restrictedReview ? 'POST' : 'PATCH',
+        method: identityReview ? 'POST' : 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           ...(activeToken ? { Authorization: 'Bearer ' + activeToken } : {}),
         },
         credentials: 'include',
         body: JSON.stringify({
-          ...(restrictedReview ? { userId } : { kycStatus: newStatus }),
+          ...(identityReview ? { userId } : { kycStatus: newStatus }),
           rejectionReason: newStatus === 'Rejected' ? rejectionReason : '',
         }),
       });
@@ -1291,6 +1292,12 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
     }).format(val);
   };
 
+  const pendingVerificationApplicants = verificationApplicants.filter((applicant) =>
+    applicant.kycStatus?.toUpperCase() === 'PENDING_REVIEW'
+    || applicant.verification_submission?.restrictionReviewStatus === 'pending'
+    || applicant.verification_status === 'under_review'
+  );
+
   return (
     <div className="w-full min-w-0 max-w-full space-y-6 overflow-x-hidden break-words">
       {/* Member Services Operations Banner */}
@@ -1442,7 +1449,7 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                     : 'text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                Enrollment review ({verificationApplicants.filter((applicant) => applicant.verification_status === 'under_review' || applicant.verification_submission?.restrictionReviewStatus === 'pending').length} pending)
+                Pending Verification Reviews ({pendingVerificationApplicants.length})
               </button>
             <button
               onClick={() => {
@@ -1924,9 +1931,9 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
           <section className="p-4 sm:p-5">
             <div className="mb-5 flex flex-col gap-2 border-b border-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="text-base font-bold text-[#173B70]">Customer enrollment status</h3>
+                <h3 className="text-base font-bold text-[#173B70]">Pending Verification Reviews</h3>
                 <p className="mt-1 max-w-2xl text-xs leading-relaxed text-gray-600">
-                  Review customer enrollment or restricted-account identity documents. Approving a restricted-account identity review restores access by clearing that restriction.
+                  Review submitted identity documents, inspect full-resolution previews, and approve or reject each pending submission.
                 </p>
               </div>
               <button type="button" onClick={() => void fetchVerificationApplicants()} disabled={loadingVerificationApplicants} className="inline-flex items-center justify-center gap-2 rounded-sm border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-wait disabled:opacity-60">
@@ -1945,13 +1952,13 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
               <div role="status" className="rounded-sm border border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-600">
                 Loading KYC enrollments…
               </div>
-            ) : verificationApplicants.length === 0 && !verificationApplicantsError ? (
+            ) : pendingVerificationApplicants.length === 0 && !verificationApplicantsError ? (
               <div className="rounded-sm border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
-                No pending KYC enrollments found.
+                No pending verification reviews found.
               </div>
-            ) : verificationApplicants.length > 0 ? (
+            ) : pendingVerificationApplicants.length > 0 ? (
               <div className="space-y-4">
-                {verificationApplicants.map((applicant) => {
+                {pendingVerificationApplicants.map((applicant) => {
                   const documentUrl = getVerificationDocumentUrl(
                     applicant.verificationDocument,
                     applicant.governmentIdUrl || applicant.documentUrl,
@@ -2014,10 +2021,18 @@ const [activeTab, setActiveTab] = useState<'users' | 'investments' | 'pending' |
                           <div>
                             <dt className="text-slate-500">Submitted</dt>
                             <dd className="mt-1 text-slate-900">
-                              {applicant.verification_submission?.submittedAt
-                                ? new Date(applicant.verification_submission.submittedAt).toLocaleString()
+                              {applicant.kycSubmittedAt || applicant.verification_submission?.submittedAt
+                                ? new Date(applicant.kycSubmittedAt || applicant.verification_submission?.submittedAt || '').toLocaleString()
                                 : new Date(applicant.created_at).toLocaleString()}
                             </dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">User Account ID</dt>
+                            <dd className="mt-1 break-all font-mono text-slate-900">{applicant.id}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">Government ID type</dt>
+                            <dd className="mt-1 text-slate-900">{applicant.verification_submission?.governmentIdType || 'Not recorded'}</dd>
                           </div>
                           <div className="sm:col-span-2">
                             <dt className="text-slate-500">Supporting document</dt>

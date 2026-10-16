@@ -35,7 +35,7 @@ export const RestrictedAccountNotice: React.FC<RestrictedAccountNoticeProps> = (
     KYC: {
       title: 'Action Required: Please Update Your Account Information',
       message: `Temporary restrictions are active on outgoing transactions for account ending in ••••${accountLastFour || '—'} due to ${reason || 'an expired ID on file'}.`,
-      action: rejected ? 'Re-upload Documents' : 'Upload ID Documents',
+      action: rejected ? 'Re-upload Required Documents' : 'Upload ID Documents',
     },
     SECURITY: {
       title: 'Security Notice: Temporary Account Hold',
@@ -45,7 +45,7 @@ export const RestrictedAccountNotice: React.FC<RestrictedAccountNoticeProps> = (
     SOURCE_OF_FUNDS: {
       title: 'Compliance Notice: Documentation Required for Incoming Transfers',
       message: 'Provide proof of income or an invoice to verify the origin of the incoming transfer.',
-      action: rejected ? 'Re-upload Documents' : 'Provide Documentation',
+      action: rejected ? 'Re-upload Required Documents' : 'Provide Documentation',
     },
     NONE: { title: '', message: '', action: '' },
   }[activeRestriction];
@@ -59,14 +59,14 @@ export const RestrictedAccountNotice: React.FC<RestrictedAccountNoticeProps> = (
   const title = pending
     ? 'Verification Under Review'
     : rejected
-      ? 'Verification Declined - Action Required'
+      ? `Verification Declined: ${rejectionReason || reason || 'Action Required'}`
       : approved
         ? 'Identity Successfully Verified'
         : restrictionContent.title;
   const description = pending
     ? 'Your documents are under review. Reviews typically take 1–2 business days.'
     : rejected
-      ? `We were unable to approve your documents.${rejectionReason ? ` ${rejectionReason}` : reason ? ` ${reason}` : ''}`
+      ? 'Please re-upload the required documents to restore full access.'
       : approved
         ? 'Your account restrictions have been cleared and full account access is restored.'
         : restrictionContent.message;
