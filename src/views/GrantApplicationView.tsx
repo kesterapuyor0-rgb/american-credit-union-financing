@@ -3,6 +3,7 @@ import { CheckCircle2, CircleAlert, Clock3, HandCoins, RefreshCw, Upload } from 
 import { GrantApplication, User } from '../types';
 import { GrantStatusBadge, normalizeGrantStatus } from '../components/GrantStatusBadge';
 import { getAuthHeaders } from '../utils/api';
+import { SUPPORT_EMAIL } from '../utils/supportEmail';
 
 const GRANT_CATEGORIES = [
   'Small Business Expansion',
@@ -323,7 +324,7 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
                 <p className="mt-2 break-words text-sm leading-6 text-blue-50">
                   {isAwarded
                     ? 'Your grant application has been approved by our Member Services Grant Committee.'
-                    : 'Your application is being handled by our Member Services Grant Committee. For inquiries, contact americancreditunion.financing@gmail.com'}
+                    : <>Your application is being handled by our Member Services Grant Committee. For inquiries, contact <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</>}
                 </p>
               </div>
             </div>
@@ -374,7 +375,7 @@ export const GrantApplicationView: React.FC<GrantApplicationViewProps> = ({ user
 
             {!isAwarded && <p className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
               For inquiries, contact{' '}
-              <a className="font-semibold underline" href="mailto:americancreditunion.financing@gmail.com">americancreditunion.financing@gmail.com</a>.
+              <a className="font-semibold underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
             </p>}
           </div>
         </article>

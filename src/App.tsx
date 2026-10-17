@@ -19,6 +19,7 @@ import { InvestmentView } from './views/InvestmentView';
 import { KycResubmissionView } from './views/KycResubmissionView';
 import { ProfileModal } from './components/ProfileModal';
 import { RestrictedAccountNotice } from './components/RestrictedAccountNotice';
+import { SUPPORT_EMAIL } from './utils/supportEmail';
 import { RefreshCw } from 'lucide-react';
 import { CardsManagementView, DashboardHomeView } from './views/DashboardHomeView';
 import { BottomNavigation } from './components/BottomNavigation';
@@ -841,10 +842,10 @@ export default function App() {
             <h2 id="restriction-support-title" className="text-lg font-semibold text-slate-900">Contact support</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">For help with this account restriction, email our support team.</p>
             <a
-              href="mailto:americancreditunion.financing@gmail.com?subject=Account%20restriction%20support"
+              href={`mailto:${SUPPORT_EMAIL}?subject=Account%20restriction%20support`}
               className="mt-4 inline-block break-all font-semibold text-teal-800 underline underline-offset-2"
             >
-              americancreditunion.financing@gmail.com
+              {SUPPORT_EMAIL}
             </a>
             <div className="mt-6 flex justify-end">
               <button

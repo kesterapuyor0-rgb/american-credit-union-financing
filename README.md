@@ -31,7 +31,7 @@ The previous local `bank.sqlite` file is no longer read or modified, and its rec
 
 ## Password recovery email
 
-Set `RESEND_API_KEY` and `NEXT_PUBLIC_APP_URL` in local and deployment environments. The API key must only be configured as a server-side secret and must never be committed. Password recovery and sign-in verification emails are sent through Resend from `American Credit Union <onboarding@resend.dev>`. Reset links expire after 20 minutes, and sign-in verification codes expire after 10 minutes. For production delivery, ensure the sender address is authorized for the Resend account.
+Set `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `SUPPORT_EMAIL`, `VITE_SUPPORT_EMAIL`, and `NEXT_PUBLIC_APP_URL` in local and deployment environments. The API key must only be configured as a server-side secret and must never be committed. Password recovery and sign-in verification emails are sent through Resend from the configured `RESEND_FROM_EMAIL` (default: `American Credit Union <notifications@americancreditunionfinancing.app>`). Transactional emails set `SUPPORT_EMAIL` as their reply-to address and include a support footer; the frontend uses `VITE_SUPPORT_EMAIL` for support links. Keep both support variables aligned. Reset links expire after 20 minutes, and sign-in verification codes expire after 10 minutes. The sign-in `POST /api/auth/send-otp` route accepts a signed `tempToken`; the server generates and stores the OTP before sending it, rather than accepting caller-supplied codes. For production delivery, ensure the sender address is authorized for the Resend account.
 
 ## Passkey sign-in
 

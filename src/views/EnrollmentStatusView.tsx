@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertCircle, Clock3, LogOut } from 'lucide-react';
 import { User } from '../types';
+import { SUPPORT_EMAIL } from '../utils/supportEmail';
 
 interface EnrollmentStatusViewProps {
   user: User;
@@ -46,10 +47,10 @@ export const EnrollmentStatusView: React.FC<EnrollmentStatusViewProps> = ({ user
         {isRejected && <div className="mt-5 rounded-sm border border-blue-200 bg-blue-50 p-4 text-left text-sm leading-6 text-blue-950">
           To complete your registration or get help, contact customer support at{' '}
           <a
-            href="mailto:americancreditunion.financing@gmail.com"
+            href={`mailto:${SUPPORT_EMAIL}`}
             className="break-all font-semibold underline underline-offset-2"
           >
-            americancreditunion.financing@gmail.com
+            {SUPPORT_EMAIL}
           </a>
           .
         </div>}

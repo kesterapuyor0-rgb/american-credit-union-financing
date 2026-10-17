@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BankAccount, User } from '../types';
 import { getStoredAuthToken } from '../utils/api';
+import { SUPPORT_EMAIL } from '../utils/supportEmail';
 import {
   ArrowLeftRight,
   ShieldCheck,
@@ -842,7 +843,7 @@ export const TransferView: React.FC<TransferViewProps> = ({
             </h2>
             <p className="mt-1 text-[11px] text-gray-500 sm:text-xs">
               {transferType === 'zelle'
-                ? `Transfer Submitted — Your Zelle® transfer of ${formatUSD(Number(amount))} to ${receiptRecipientName} is pending security verification by Member Services. For inquiries, contact americancreditunion.financing@gmail.com.`
+                ? <>Transfer Submitted — Your Zelle® transfer of {formatUSD(Number(amount))} to {receiptRecipientName} is pending security verification by Member Services. For inquiries, contact <a className="font-semibold underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</>
                 : transferType === 'internal'
                   ? `Transfer Completed — ${formatUSD(Number(amount))} was moved to ${receiptRecipientName}.`
                   : 'Your transfer request is pending. The amount is reserved now and will post after approval.'}

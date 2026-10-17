@@ -6,6 +6,7 @@ import { formatTransactionDescription } from '../utils/transactionFormatting';
 import { PushNotificationBanner } from '../components/PushNotificationBanner';
 import { RestrictedAccountNotice } from '../components/RestrictedAccountNotice';
 import { formatDisplayName } from '../utils/formatDisplayName';
+import { SUPPORT_EMAIL } from '../utils/supportEmail';
 import {
   ArrowDownLeft,
   ArrowLeftRight,
@@ -846,7 +847,7 @@ export const DashboardHomeView: React.FC<DashboardHomeViewProps> = ({
                       : 'This card does not have a self-service spending-limit setting. Contact Member Services for assistance.'}
                   </p>
                   <a
-                    href={`mailto:americancreditunion.financing@gmail.com?subject=${encodeURIComponent('Card limit request')}&body=${encodeURIComponent(`Hello Member Services,\n\nI would like assistance with the limit for the card ending in ${selectedCarouselItem.kind === 'issued' ? selectedCarouselItem.card.last4 : selectedCarouselItem.account.account_number.slice(-4)}.\n\nName: ${user.full_name}\n`)}`}
+                    href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Card limit request')}&body=${encodeURIComponent(`Hello Member Services,\n\nI would like assistance with the limit for the card ending in ${selectedCarouselItem.kind === 'issued' ? selectedCarouselItem.card.last4 : selectedCarouselItem.account.account_number.slice(-4)}.\n\nName: ${user.full_name}\n`)}`}
                     className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800"
                   >
                     Contact Member Services

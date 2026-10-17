@@ -4,7 +4,7 @@ import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from 
 import { User, Account, VerificationCode, AuditLog } from '../models.js';
 import { errorMessage, requireDatabase } from '../db.js';
 import { createNotification } from '../notifications.js';
-import { sendLoginVerificationEmail, sendPasswordResetEmail } from '../../lib/email.js';
+import { sendOtpEmail, sendPasswordResetEmail } from '../../lib/email.js';
 import {
   signAuthToken,
   signTemp2FAToken,
@@ -119,7 +119,7 @@ async function issueLoginOtp(user: { id: string; email: string; phone: string })
   });
 
   try {
-    await sendLoginVerificationEmail({ email: user.email, code: otpCode });
+    await sendOtpEmail({ toEmail: user.email, otpCode });
   } catch (emailError) {
     await VerificationCode.updateOne({ id: otpId, verified: false }, { $set: { verified: true } });
     throw emailError;
