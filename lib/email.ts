@@ -43,6 +43,44 @@ export async function sendEmail({
   }
 }
 
+export async function sendBroadcastEmail({
+  to,
+  subject,
+  message,
+  recipientName,
+}: {
+  to: string;
+  subject: string;
+  message: string;
+  recipientName?: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error('Resend is not configured. Set RESEND_API_KEY in the server environment.');
+  }
+
+  const greeting = recipientName?.trim()
+    ? `<p>Hello ${escapeHtml(recipientName.trim())},</p>`
+    : '';
+  const body = escapeHtml(message).replace(/\r\n|\r|\n/g, '<br>');
+  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1f2937"><h1 style="font-size:22px;color:#173b70">${escapeHtml(subject)}</h1>${greeting}<p>${body}</p><hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0"><p style="font-size:12px;color:#6b7280">Need help? <a href="mailto:american-credit-union.financing@gmail.com" style="color:#173b70">Contact Support</a></p></div>`;
+  const resend = new Resend(apiKey);
+  const result = await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL?.trim()
+      || 'American Credit Union <notifications@americancreditunionfinancing.app>',
+    to: [to],
+    subject,
+    html,
+  });
+
+  if (result.error) {
+    throw new Error(`Resend email delivery failed: ${result.error.message}`);
+  }
+  if (!result.data) {
+    throw new Error('Resend did not return an email delivery result.');
+  }
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => {
     const entities: Record<string, string> = {

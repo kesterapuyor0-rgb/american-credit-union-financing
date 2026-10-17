@@ -10,11 +10,64 @@ import { createNotification } from '../notifications.js';
 import { formatCryptoAmount, getCryptoUsdRates } from '../cryptoRates.js';
 import { sendPushNotification } from '../webPush.js';
 import { getInvestmentAsset } from '../../shared/investmentCatalog.js';
+import { sendBroadcastEmail } from '../../lib/email.js';
 
 const router = Router();
 
 router.use(requireDatabase);
 router.use(requireAdmin);
+
+router.post('/notifications/email-all', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const subject = req.body?.subject;
+  const message = req.body?.message;
+  if (typeof subject !== 'string' || !subject.trim() || subject.length > 200
+    || typeof message !== 'string' || !message.trim() || message.length > 10000) {
+    res.status(400).json({ error: 'A subject (max 200 characters) and message (max 10,000 characters) are required.' });
+    return;
+  }
+
+  try {
+    const recipients = await User.find({
+      role: { $ne: 'admin' },
+      isAdmin: { $ne: true },
+      email: { $type: 'string', $ne: '' },
+    }).select('id email full_name').lean<any[]>();
+    let sentCount = 0;
+    let failedCount = 0;
+    const batchSize = 10;
+
+    for (let index = 0; index < recipients.length; index += batchSize) {
+      const batch = recipients.slice(index, index + batchSize);
+      await Promise.all(batch.map(async (recipient) => {
+        try {
+          await sendBroadcastEmail({
+            to: recipient.email,
+            subject: subject.trim(),
+            message: message.trim(),
+            recipientName: recipient.full_name,
+          });
+          sentCount += 1;
+        } catch (error) {
+          failedCount += 1;
+          console.error('Broadcast email delivery failed:', {
+            userId: recipient.id,
+            error: errorMessage(error, 'Email delivery failed.'),
+          });
+        }
+      }));
+    }
+
+    res.json({
+      success: true,
+      totalRecipients: recipients.length,
+      sentCount,
+      failedCount,
+    });
+  } catch (error) {
+    console.error('Unable to dispatch admin broadcast email:', error);
+    res.status(500).json({ error: errorMessage(error, 'Unable to send broadcast email.') });
+  }
+});
 
 const normalizeKycStatus = (value: unknown): 'UNVERIFIED' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' => {
   switch (String(value || '').toUpperCase()) {
